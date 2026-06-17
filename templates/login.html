@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Sign in · Schedule Sender</title>
+<link rel="preconnect" href="https://api.fontshare.com">
+<link href="https://api.fontshare.com/v2/css?f[]=satoshi@400,500,700,900&display=swap" rel="stylesheet">
+<style>
+  :root{--accent:#0000EE;--accent-hover:#0000c4;--surface:#fff;--bg:#F4F6FB;--ink:#0b1220;--muted:#667085;--border:rgba(0,0,0,.13);--error:#D92D20;--r-md:11px;--r-lg:20px;--shadow:0 18px 50px rgba(16,24,40,.14);}
+  html[data-theme="dark"]{--surface:#161b26;--bg:#0c0f16;--ink:#e8edf5;--muted:#9aa6b5;--border:rgba(255,255,255,.12);}
+  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+  body{font-family:'Satoshi','Segoe UI',sans-serif;color:var(--ink);min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px;letter-spacing:-.2px;
+    background:radial-gradient(1100px 500px at 80% -10%,rgba(0,0,238,.12),transparent 60%),radial-gradient(800px 460px at 0% 110%,rgba(0,0,238,.08),transparent 55%),var(--bg);}
+  .card{width:430px;max-width:100%;background:var(--surface);border-radius:var(--r-lg);box-shadow:var(--shadow);border:1px solid var(--border);padding:38px 34px;}
+  .brand{display:flex;align-items:center;gap:12px;margin-bottom:26px;}
+  .brand .logo{width:46px;height:46px;display:grid;place-items:center;background:var(--accent);border-radius:13px;}
+  .brand h1{font-size:18px;font-weight:700;}
+  .brand p{font-size:13px;color:var(--muted);}
+  h2{font-size:24px;font-weight:700;letter-spacing:-.6px;margin-bottom:6px;}
+  .sub{font-size:14px;color:var(--muted);margin-bottom:24px;}
+  label{display:block;font-size:13px;font-weight:500;color:var(--muted);margin-bottom:7px;}
+  .field{width:100%;background:var(--bg);border:1px solid var(--border);border-radius:var(--r-md);padding:13px 14px;color:var(--ink);font-family:inherit;font-size:16px;outline:none;margin-bottom:16px;transition:all .15s;}
+  .field:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(0,0,238,.14);}
+  .remember{display:flex;align-items:center;gap:9px;margin-bottom:18px;font-size:13.5px;color:var(--muted);cursor:pointer;}
+  .remember input{width:17px;height:17px;accent-color:var(--accent);}
+  .btn{width:100%;background:var(--accent);color:#fff;border:none;border-radius:var(--r-md);padding:14px;font-family:inherit;font-size:15px;font-weight:600;cursor:pointer;transition:background .15s;}
+  .btn:hover{background:var(--accent-hover);}
+  .err{color:var(--error);font-size:13px;font-weight:500;margin-bottom:14px;min-height:18px;}
+  .switch{margin-top:18px;font-size:13.5px;color:var(--muted);text-align:center;}
+  .switch a{color:var(--accent);font-weight:600;cursor:pointer;}
+  .foot{margin-top:18px;font-size:12px;color:var(--muted);text-align:center;}
+</style>
+</head>
+<body>
+  <div class="card">
+    <div class="brand">
+      <div class="logo">
+        <svg width="26" height="26" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M3.4 11.3 20.2 3.6c.8-.4 1.6.4 1.3 1.2l-6.1 16.5c-.3.8-1.4.8-1.7 0l-2.6-6.4a1 1 0 0 0-.5-.5L3.4 12.9c-.8-.3-.9-1.3.0-1.6Z" fill="#fff"/>
+        </svg>
+      </div>
+      <div><h1>Schedule Sender</h1><p>SSIES Automation</p></div>
+    </div>
+
+    <h2 id="title"></h2>
+    <p class="sub" id="subtitle"></p>
+    <div class="err" id="err"></div>
+
+    <label>Username</label>
+    <input class="field" id="username" placeholder="Your username" autofocus/>
+
+    <label>Password</label>
+    <input class="field" id="pw" type="password" placeholder="Your password" onkeydown="if(event.key==='Enter')submitForm()"/>
+
+    <div id="confirmWrap" style="display:none">
+      <label>Confirm password</label>
+      <input class="field" id="pw2" type="password" placeholder="Re-enter password"/>
+    </div>
+
+    <label class="remember" id="rememberWrap"><input type="checkbox" id="remember"/> Keep me signed in for 14 days</label>
+
+    <button class="btn" id="go" onclick="submitForm()"></button>
+
+    <div class="switch" id="switch"></div>
+    <div class="foot">🔒 Encrypted at rest · Runs on your machine or your own server</div>
+  </div>
+
+<script>
+  (function(){const m=localStorage.getItem("theme-mode")||"system";
+    const d=m==="dark"||(m==="system"&&matchMedia("(prefers-color-scheme: dark)").matches);
+    document.documentElement.setAttribute("data-theme",d?"dark":"light");})();
+
+  let mode = {{ 'true' if setup else 'false' }} ? "signup" : "login";
+  const errEl=document.getElementById("err");
+  function setErr(m){errEl.textContent=m||"";}
+  function render(){
+    const signup = mode==="signup";
+    document.getElementById("title").textContent = signup ? "Create your account" : "Welcome back";
+    document.getElementById("subtitle").textContent = signup
+      ? "Set up your account to secure and sync your dashboard." : "Sign in to your account.";
+    document.getElementById("go").textContent = signup ? "Create account" : "Sign in";
+    document.getElementById("confirmWrap").style.display = signup ? "block" : "none";
+    document.getElementById("rememberWrap").style.display = signup ? "none" : "flex";
+    document.getElementById("switch").innerHTML = signup
+      ? `Already have an account? <a onclick="toggle()">Sign in</a>`
+      : `Need an account? <a onclick="toggle()">Create one</a>`;
+    setErr("");
+  }
+  function toggle(){ mode = mode==="signup" ? "login" : "signup"; render(); }
+  async function submitForm(){
+    const username=document.getElementById("username").value.trim();
+    const pw=document.getElementById("pw").value;
+    setErr("");
+    if(mode==="signup"){
+      const pw2=document.getElementById("pw2").value;
+      if(username.length<3) return setErr("Username must be at least 3 characters.");
+      if(pw.length<6) return setErr("Password must be at least 6 characters.");
+      if(pw!==pw2) return setErr("Passwords do not match.");
+      const d=await (await fetch("/api/auth/signup",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({username,password:pw})})).json();
+      if(d.error) return setErr(d.error);
+      location.href="/";
+    } else {
+      const remember=document.getElementById("remember").checked;
+      const d=await (await fetch("/api/auth/login",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({username,password:pw,remember})})).json();
+      if(d.error) return setErr(d.error);
+      location.href="/";
+    }
+  }
+  render();
+</script>
+</body>
+</html>

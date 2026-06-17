@@ -1,0 +1,35 @@
+{
+  "groups": [
+    {
+      "message": "",
+      "name": "O'LEVEL CS & ENGLISH COACHING",
+      "schedule": []
+    },
+    {
+      "message": "",
+      "name": "SSIES MATH O/N 2026",
+      "schedule": []
+    },
+    {
+      "message": "",
+      "name": "AKU BOARD TUITION",
+      "schedule": []
+    },
+    {
+      "message": "",
+      "name": "O'LEVEL PST O/N 2026",
+      "schedule": []
+    },
+    {
+      "message": "",
+      "name": "O'LEVEL ACCOUNTS O/N 2026",
+      "schedule": []
+    }
+  ],
+  "settings": {
+    "headless": true,
+    "delaySeconds": 5
+  },
+  "templates": [],
+  "contacts": []
+}
