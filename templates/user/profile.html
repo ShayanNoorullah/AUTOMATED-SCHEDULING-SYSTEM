@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Profile · SSIES</title>
+<link href="https://api.fontshare.com/v2/css?f[]=satoshi@400,500,700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/static/css/portal.css"/>
+</head>
+<body>
+<div class="layout" style="max-width:720px;margin:0 auto;padding:32px">
+  <div style="flex:1">
+    <div class="top"><h2>My Profile</h2><a href="{{ back_url or '/' }}" class="btn btn-soft">← Dashboard</a></div>
+    <div class="card" style="margin-bottom:20px">
+      <div class="form-row"><label>Email</label><input value="{{ profile.email }}" disabled/></div>
+      <div class="form-row"><label>Display name</label><input id="displayName" value="{{ profile.display_name or '' }}"/></div>
+      <div class="form-row"><label>Role</label><input value="{{ profile.role }}" disabled/></div>
+      <div class="form-row"><label>Member since</label><input value="{{ profile.created_at.strftime('%Y-%m-%d') if profile.created_at else '—' }}" disabled/></div>
+      <button class="btn btn-primary" onclick="saveProfile()">Save profile</button>
+    </div>
+    <div class="card">
+      <h3 style="margin-bottom:16px">Change password</h3>
+      <div class="form-row"><label>Current password</label><input id="curPw" type="password"/></div>
+      <div class="form-row"><label>New password (8+ chars)</label><input id="newPw" type="password"/></div>
+      <button class="btn btn-soft" onclick="changePw()">Update password</button>
+    </div>
+  </div>
+</div>
+<script src="/static/js/api.js"></script>
+<script>
+async function saveProfile(){
+  try{ await api("/api/profile",{method:"PUT",body:JSON.stringify({displayName:document.getElementById("displayName").value})}); toast("Profile saved"); }
+  catch(e){ toast(e.message,true); }
+}
+async function changePw(){
+  try{
+    await api("/api/auth/change-password",{method:"POST",body:JSON.stringify({current:document.getElementById("curPw").value,new:document.getElementById("newPw").value})});
+    toast("Password updated"); document.getElementById("curPw").value=""; document.getElementById("newPw").value="";
+  }catch(e){ toast(e.message,true); }
+}
+</script>
+</body>
+</html>

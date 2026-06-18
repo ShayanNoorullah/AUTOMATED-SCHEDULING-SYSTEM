@@ -1,277 +1,255 @@
 # SSIES WhatsApp Schedule Sender
 
-A Windows-focused Flask web app that automates sending weekly class schedules to WhatsApp groups and individual contacts. Built for SSIES coaching groups (O-Level CS, Math, Accounts, PST, AKU Board Tuition, and more).
+A secured multi-portal web application for automating weekly class schedule messages to WhatsApp groups and contacts. Built for SSIES coaching groups with **role-based access** (user, admin, superadmin), **Supabase Auth**, and **Supabase PostgreSQL**.
 
-The primary app is the **Flask web UI** (`app.py`). A legacy **Tkinter desktop app** (`whatsapp_scheduler.py`) also exists for JSON-file-based use without a database.
+Run the app on your **Windows PC** (free) with **Supabase free tier** for database and authentication. WhatsApp sending uses Selenium + Chrome on the same machine.
 
-## Features
+## Portals
 
-- Web dashboard for managing groups, weekly schedules, message templates, and contacts
-- One-click **Release** to send schedules to all configured WhatsApp targets
-- Real-time send progress via server-sent events (SSE)
-- Multi-user accounts with login rate-limiting and audit log
-- Fernet encryption for messages and phone numbers at rest
-- Optional **cloud PostgreSQL** for multi-device configuration sync
-- Config export/import API
-- Local SQLite fallback for single-machine use (no cloud DB required)
+| Role | URL | Capabilities |
+|------|-----|--------------|
+| **User** | `/` | Groups, schedules, templates, contacts, release, profile |
+| **Admin** | `/admin` | Create/manage users (role=user only), disable accounts, password reset |
+| **Superadmin** | `/superadmin` | Full system control — admins, settings, global audit, user data inspector |
+
+Public self-registration is **disabled**. Admins create accounts via the admin portal.
 
 ## Tech Stack
 
 | Layer | Technology |
 |-------|------------|
 | Backend | Python 3, Flask, Flask-SQLAlchemy |
-| Database | SQLite (default) or PostgreSQL (optional) |
-| Auth | Werkzeug password hashing, Flask sessions |
-| Encryption | `cryptography` (Fernet) |
-| WhatsApp automation | Selenium + `undetected-chromedriver` |
+| Database | Supabase PostgreSQL (required for production) |
+| Auth | Supabase Auth (JWT in httpOnly cookies) |
+| Security | Flask-WTF CSRF, Flask-Limiter, Flask-Talisman (HTTPS) |
+| Encryption | Fernet (messages/contacts at rest) |
+| WhatsApp | Selenium + undetected-chromedriver |
 | Frontend | Server-rendered HTML + vanilla JavaScript |
 
 ## Prerequisites
 
-- **Windows 10/11**
-- **Python 3.10+** with pip
-- **Google Chrome** installed
-- A **WhatsApp account** (QR scan required on first send)
+- **Windows 10/11** with Python 3.10+
+- **Google Chrome** (update `version_main` in `whatsapp_sender.py` if Chrome updates)
+- **Supabase account** (free tier at [supabase.com](https://supabase.com))
+- **WhatsApp account** for QR login on first release
 
-> **Chrome version note:** The sender pins Chrome driver version in `whatsapp_sender.py` (`version_main=148`). If Chrome auto-updates and sending fails, update that value to match your installed Chrome major version.
+---
 
-## Quick Start (Local SQLite — Single Machine)
+## Setup Guide
 
-No cloud database needed. Data is stored in `instance/app.db`.
+### Step 1: Install dependencies
 
-1. **Clone the repository**
-   ```bat
-   git clone https://github.com/YOUR_USER/YOUR_REPO.git
-   cd "SSIES Schedule Automation"
-   ```
+```bat
+install.bat
+```
 
-2. **Install dependencies**
-   ```bat
-   install.bat
-   ```
-   Or manually:
-   ```bat
-   pip install -r requirements.txt
-   ```
+### Step 2: Create Supabase project
 
-3. **Start the app**
-   ```bat
-   run.bat
-   ```
+1. Sign up at [supabase.com](https://supabase.com) → **New project**
+2. Save your **database password**
+3. Go to **Project Settings → API** and copy:
+   - Project URL → `SUPABASE_URL`
+   - `anon` `public` key → `SUPABASE_ANON_KEY`
+   - `service_role` key → `SUPABASE_SERVICE_ROLE_KEY` (server only, never commit)
+   - JWT Secret → `SUPABASE_JWT_SECRET`
 
-4. **Open the web UI** at [http://localhost:5000](http://localhost:5000)
+### Step 3: Configure Supabase Auth
 
-5. **Create your account** — the first visit shows a signup form (no users exist yet).
+1. **Authentication → Providers** → enable **Email**
+2. **Authentication → Settings** → **disable** “Enable email signups” (admin-only provisioning)
+3. Set minimum password length to **8**
+4. **Authentication → URL Configuration** → add redirect URLs:
+   - `http://localhost:5000/login`
+   - Your Cloudflare Tunnel URL if used (see below)
 
-6. **Optional legacy import** — if you have an old `groups_config.json`, place it in the project root *before* first signup. Groups and settings will be imported automatically. Use `groups_config.example.json` as a template (copy and rename to `groups_config.json`).
+### Step 4: Run database migration
 
-## Environment Variables
+1. Open **Supabase Dashboard → SQL Editor → New query**
+2. Paste and run the full contents of [`supabase/migrations/001_initial_schema.sql`](supabase/migrations/001_initial_schema.sql)
+3. Verify tables: `profiles`, `groups`, `templates`, `contacts`, `audit_log`, `release_log`, `system_settings`
 
-Copy `env.example.bat` to `env.bat` and fill in values. `run.bat` loads `env.bat` automatically if it exists. `env.bat` is git-ignored and must never be committed.
+### Step 5: Configure local run file
 
-| Variable | Required | Purpose |
-|----------|----------|---------|
-| `DATABASE_URL` | No | Cloud PostgreSQL connection string. Leave unset to use local SQLite. |
-| `APP_ENCRYPTION_KEY` | Yes (multi-device) | Fernet key for encrypting messages/contacts. **Must be identical on every machine** sharing the same database. |
-| `APP_SECRET_KEY` | Recommended (multi-device) | Flask session secret. Keep consistent across devices. |
-| `FORCE_HTTPS` | No | Set to `1` to enable secure session cookies when serving over HTTPS. |
+```bat
+copy run.local.example.bat run.local.bat
+```
 
-If `APP_ENCRYPTION_KEY` and `APP_SECRET_KEY` are unset on a single machine, they are auto-generated and saved under `instance/`. For PostgreSQL multi-device sync, set them explicitly in `env.bat` on every PC.
+Edit **`run.local.bat`** (git-ignored) with your Supabase keys, database URL, superadmin email, and run settings (`PORT`, `USE_WAITRESS`, etc.).
 
-**Generate keys:**
+Legacy: `env.bat` still works as a fallback but `run.local.bat` is preferred.
+
+| Variable | Where to get it |
+|----------|-----------------|
+| `SUPABASE_URL` | Project Settings → API |
+| `SUPABASE_ANON_KEY` | Project Settings → API |
+| `SUPABASE_SERVICE_ROLE_KEY` | Project Settings → API (service_role) |
+| `SUPABASE_JWT_SECRET` | Project Settings → API → JWT Secret |
+| `DATABASE_URL` | Project Settings → Database → Connection string (URI, **pooler**, port **6543**) |
+| `SUPERADMIN_EMAIL` | **Your email** — only this account becomes superadmin |
+| `APP_ENCRYPTION_KEY` | Generate below |
+| `APP_SECRET_KEY` | Any long random string |
+
+Generate encryption key:
 
 ```bat
 python -c "from cryptography.fernet import Fernet;print(Fernet.generate_key().decode())"
-python -c "import secrets;print(secrets.token_hex(32))"
 ```
+
+`DATABASE_URL` example:
+
+```
+postgresql://postgres.xxxx:YOUR_PASSWORD@aws-0-region.pooler.supabase.com:6543/postgres?sslmode=require
+```
+
+### Step 6: Create your superadmin account
+
+1. In Supabase **Authentication → Users**, click **Add user** → create a user with your `SUPERADMIN_EMAIL` and a password
+2. Run the app: `run.bat`
+3. Open [http://localhost:5000/login](http://localhost:5000/login) and sign in
+4. On first login, your profile is created with **superadmin** role automatically
+
+### Step 7: Create admins and users
+
+- **Superadmin** → `/superadmin/admins` → create administrators
+- **Admin** → `/admin/users` → create regular users
+- Users sign in at `/login` with the email/password you set
 
 ---
 
-## PostgreSQL Setup (Cloud)
+## Zero-cost deployment
 
-Use cloud PostgreSQL when you want the same groups, schedules, and settings on multiple PCs. WhatsApp login remains per-machine (stored in `whatsapp_session/`, not in the database).
+| Component | Cost | How |
+|-----------|------|-----|
+| Database + Auth | Free | Supabase free tier (500 MB, 50k MAU) |
+| App server | Free | Run on your Windows PC via `run.bat` |
+| WhatsApp automation | Free | Selenium on same PC (Chrome required) |
+| Remote access (optional) | Free | [Cloudflare Tunnel](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/) |
 
-The app creates all tables automatically on first startup — no manual SQL or migrations required.
+### Production mode (waitress)
 
-### Option A: Neon
-
-[Neon](https://neon.tech) offers a free tier with serverless PostgreSQL.
-
-1. Sign up at [neon.tech](https://neon.tech) and create a new project.
-2. In the Neon dashboard, open your project and go to **Connection Details**.
-3. Copy the connection string. Choose:
-   - **Pooled connection** (recommended) — better for short-lived connections
-   - **Direct connection** — also works
-4. The string should look like:
-   ```
-   postgresql://USER:PASSWORD@ep-xxxx.region.aws.neon.tech/DBNAME?sslmode=require
-   ```
-5. If `sslmode=require` is missing, append `?sslmode=require` (or `&sslmode=require` if other query params exist).
-6. Neon may provide `postgres://` — the app normalizes this to `postgresql://` automatically.
-
-### Option B: Supabase
-
-[Supabase](https://supabase.com) provides PostgreSQL with a web dashboard.
-
-1. Create a new project at [supabase.com](https://supabase.com).
-2. Wait for the database to finish provisioning.
-3. Go to **Project Settings** → **Database**.
-4. Under **Connection string**, select **URI** mode.
-5. Copy the URI and replace `[YOUR-PASSWORD]` with your database password (set during project creation).
-6. Connection options:
-   - **Direct** (port `5432`) — standard connection
-   - **Pooler** (port `6543`, mode `Transaction`) — connection pooling for many clients
-7. Example:
-   ```
-   postgresql://postgres.xxxx:YOUR_PASSWORD@aws-0-region.pooler.supabase.com:6543/postgres
-   ```
-8. Add `?sslmode=require` if not already present.
-
-### Option C: Railway
-
-[Railway](https://railway.app) offers one-click PostgreSQL provisioning.
-
-1. Create a new project at [railway.app](https://railway.app).
-2. Click **+ New** → **Database** → **PostgreSQL**.
-3. Once provisioned, open the PostgreSQL service → **Variables** tab.
-4. Copy the `DATABASE_URL` value. Railway often uses the `postgres://` scheme — the app handles this automatically.
-5. Ensure SSL is enabled. Append `?sslmode=require` if the URL does not include SSL parameters.
-
-### Connect the App (All Providers)
-
-1. Copy the environment template:
-   ```bat
-   copy env.example.bat env.bat
-   ```
-
-2. Edit `env.bat` and set your connection string:
-   ```bat
-   set DATABASE_URL=postgresql://USER:PASSWORD@HOST:5432/DBNAME?sslmode=require
-   ```
-
-3. Generate and set encryption keys (run the commands above), then add to `env.bat`:
-   ```bat
-   set APP_ENCRYPTION_KEY=your_fernet_key_here
-   set APP_SECRET_KEY=your_random_session_secret_here
-   ```
-
-4. **Use the exact same** `APP_ENCRYPTION_KEY` and `APP_SECRET_KEY` on every PC that shares this database.
-
-5. Start the app:
-   ```bat
-   run.bat
-   ```
-
-6. Verify the connection — the startup log prints the database host (credentials are masked):
-   ```
-   Database: HOST:5432/DBNAME
-   ```
-
-7. Tables are created automatically on first run:
-   - `user` — accounts and settings
-   - `group` — WhatsApp groups and schedules
-   - `template` — reusable message templates
-   - `contact` — individual WhatsApp contacts
-   - `audit_log` — login and action history
-
-### Multi-Device Sync Checklist
-
-- [ ] Same `DATABASE_URL` in `env.bat` on all machines
-- [ ] Same `APP_ENCRYPTION_KEY` on all machines
-- [ ] Same `APP_SECRET_KEY` on all machines
-- [ ] Each PC has its own `whatsapp_session/` folder (WhatsApp Web login is local)
-- [ ] Do **not** copy `instance/` between machines when using PostgreSQL — keys come from `env.bat`
-
-### PostgreSQL Troubleshooting
-
-| Problem | Solution |
-|---------|----------|
-| Connection refused / SSL error | Add `?sslmode=require` to `DATABASE_URL` |
-| Garbled messages or `InvalidToken` errors | `APP_ENCRYPTION_KEY` differs between machines — set the same key everywhere |
-| `relation "user" does not exist` | Start the app once — `db.create_all()` creates tables on startup |
-| Authentication failed | Double-check username, password, and host in the connection string |
-| Password contains `@`, `#`, `%`, etc. | URL-encode special characters in the password portion of the URL |
-| Works on one PC but not another | Confirm `env.bat` exists and is loaded (check startup log for correct database host) |
-
----
-
-## WhatsApp First Run
-
-1. Add at least one group (name must match the WhatsApp group name exactly) or contact.
-2. In **Settings**, disable **Headless mode** for the first send so you can scan the QR code.
-3. Click **Release** — Chrome opens WhatsApp Web.
-4. Scan the QR code with your phone if prompted.
-5. After login, the session is saved in `whatsapp_session/` and persists across restarts on that machine.
-6. Re-enable headless mode once login is established (optional).
-
-Debug screenshots on send failures are saved to `debug/` (git-ignored).
-
-## Project Structure
-
-```
-SSIES Schedule Automation/
-├── app.py                  # Main Flask web application
-├── whatsapp_sender.py      # Selenium WhatsApp automation
-├── whatsapp_scheduler.py   # Legacy Tkinter desktop app
-├── requirements.txt
-├── install.bat             # Install Python dependencies
-├── run.bat                 # Start the Flask app
-├── env.example.bat         # Environment variable template
-├── groups_config.example.json  # Legacy import template
-├── templates/
-│   ├── index.html          # Main dashboard
-│   └── login.html          # Login / signup page
-├── LICENSE
-└── README.md
-```
-
-**Git-ignored (local only — never commit):**
-
-| Path | Purpose |
-|------|---------|
-| `env.bat` | Your secrets and database URL |
-| `instance/` | SQLite DB, auto-generated encryption/session keys |
-| `whatsapp_session/` | Chrome profile with WhatsApp Web login |
-| `debug/` | Selenium failure screenshots |
-| `groups_config.json` | Legacy config (may contain password hashes) |
-
-## Security Notes
-
-- Never commit `env.bat`, `instance/`, `groups_config.json`, or `whatsapp_session/`
-- Rotate `APP_ENCRYPTION_KEY` and `APP_SECRET_KEY` if they are accidentally exposed
-- The app binds to `localhost:5000` by default — do not expose it to the public internet without HTTPS and proper hardening
-- Set `FORCE_HTTPS=1` only when serving behind a reverse proxy with TLS
-
-## Publishing to GitHub
-
-### Pre-push checklist
-
-Confirm these files are **not** tracked:
+In `env.bat`:
 
 ```bat
-git status
+set USE_WAITRESS=1
 ```
 
-You should **not** see: `env.bat`, `instance/`, `whatsapp_session/`, `groups_config.json`, or `debug/`.
+### HTTPS via Cloudflare Tunnel
 
-### Initial publish
+1. Install `cloudflared`
+2. Run: `cloudflared tunnel --url http://localhost:5000`
+3. Set `FORCE_HTTPS=1` in `env.bat`
+4. Add the tunnel URL to Supabase redirect URLs
 
-1. Create a new empty repository on GitHub (no README, no .gitignore — this repo already has them).
+---
 
-2. Initialize and push:
+## Role permissions
+
+### User
+- Manage own groups, templates, contacts, schedules
+- Release messages to WhatsApp
+- Profile and password change
+- Config backup/restore
+
+### Admin
+- Everything a user can do
+- Create, edit, disable, delete **users** (role=user only)
+- Send password reset emails
+- View own admin activity log
+- **Cannot** manage other admins or system settings
+
+### Superadmin (one account only)
+- Everything an admin can do
+- Manage admins (create, demote, delete)
+- Promote users to admin
+- System settings (maintenance mode, site name, defaults)
+- Global audit log + CSV export
+- Inspect and edit any user's schedule data (`/?asUser=<uuid>`)
+
+---
+
+## Security
+
+- JWT tokens stored in **httpOnly cookies** (not localStorage)
+- `SUPABASE_SERVICE_ROLE_KEY` only on server (`env.bat`, git-ignored)
+- Rate limiting on login (`10/minute`)
+- CSRF protection on form routes; API blueprints exempt (cookie auth)
+- Row Level Security policies in Supabase migration
+- Fernet encryption for message/phone fields in database
+- Maintenance mode blocks release for non-admin users
+
+---
+
+## Project structure
+
+```
+app/
+  __init__.py          Flask factory
+  config.py            Environment config
+  models.py            SQLAlchemy models (UUID profiles)
+  auth/decorators.py   JWT auth + role guards
+  routes/              auth, user, admin, superadmin blueprints
+  services/            audit, users, whatsapp
+supabase/migrations/   SQL schema + RLS
+templates/
+  auth/                Login, forgot password
+  user/                Schedule dashboard + profile
+  admin/               Admin portal
+  superadmin/          Superadmin portal
+static/js/             api.js, admin.js, superadmin.js
+whatsapp_sender.py     Selenium WhatsApp automation
+app.py                 Entry point
+```
+
+## WhatsApp automation (WAHA)
+
+For faster, headless automated sending without launching Chrome on each message:
+
+1. Install [Docker](https://www.docker.com/) and run WAHA:
    ```bat
-   cd "D:\SSIES Schedule Automation"
-   git init
-   git add .
-   git status
-   git commit -m "Initial commit: SSIES WhatsApp Schedule Sender"
-   git branch -M main
-   git remote add origin https://github.com/YOUR_USER/YOUR_REPO.git
-   git push -u origin main
+   cd docker
+   set WAHA_API_KEY=your-secret-key
+   docker compose -f waha-compose.yml up -d
    ```
+2. In **Superadmin → Settings → WhatsApp / WAHA**, set:
+   - Provider: **WAHA**
+   - Base URL: `http://localhost:3000`
+   - API key: **exactly** the same as `WAHA_API_KEY` when you started Docker (required — not optional)
+   - Session name: `default` (WAHA Core free image only supports this name)
+3. Click **Test connection** — must show **Connected** before linking.
+4. In the user dashboard, open **Automated Send**, click **Start / Show QR**, and scan with WhatsApp.
+4. Selenium remains available as fallback when provider is set to **Selenium (Chrome on Windows)**.
 
-3. Replace `YOUR_USER/YOUR_REPO` with your actual GitHub username and repository name.
+**Open in WhatsApp** (sidebar) is separate — it uses `wa.me` / invite links only; no session linking required.
+
+## API health check
+
+```
+GET /health
+```
+
+Returns database connectivity and release lock status.
+
+## Legacy apps
+
+- `whatsapp_scheduler.py` — old Tkinter desktop app (deprecated, kept for reference)
+- `templates/index.html` — superseded by `templates/user/index.html`
+
+## Troubleshooting
+
+| Issue | Fix |
+|-------|-----|
+| Login fails immediately | Check `SUPABASE_JWT_SECRET` matches dashboard |
+| `relation "profiles" does not exist` | Run SQL migration in Supabase |
+| Cannot create users | Verify `SUPABASE_SERVICE_ROLE_KEY` in `env.bat` |
+| Not becoming superadmin | `SUPERADMIN_EMAIL` must match login email exactly |
+| Garbled messages | Same `APP_ENCRYPTION_KEY` on all machines |
+| Chrome/send fails | Update `version_main` in `whatsapp_sender.py` |
+| WAHA link fails / closes | API key must match Docker `WAHA_API_KEY`; session name must be `default` for WAHA Core |
+| WAHA unauthorized | Set API key in Superadmin settings (empty key is rejected) |
+| Phone: "Couldn't link device" | Tap **Reset & new QR** in Automated Send; scan within ~20s; turn off VPN; update WhatsApp app |
+| WAHA session FAILED | Run `docker compose -f docker/waha-compose.yml restart` or use Reset & new QR |
+| SSL connection error | Add `?sslmode=require` to `DATABASE_URL` |
 
 ## License
 
-This project is licensed under the [MIT License](LICENSE).
+MIT — see [LICENSE](LICENSE).

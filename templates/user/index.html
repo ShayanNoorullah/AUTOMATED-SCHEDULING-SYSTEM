@@ -1,0 +1,851 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>WhatsApp Schedule Sender</title>
+<link rel="preconnect" href="https://api.fontshare.com">
+<link href="https://api.fontshare.com/v2/css?f[]=satoshi@400,500,700,900&display=swap" rel="stylesheet">
+<link href="{{ url_for('static', filename='css/dashboard.css') }}" rel="stylesheet"/>
+<link href="{{ url_for('static', filename='css/components.css') }}" rel="stylesheet"/>
+</head>
+<body class="anim-on">
+<div class="app" id="app">
+  <div class="rail-scrim" onclick="toggleRailMobile()"></div>
+  <!-- ── Left rail ── -->
+  <aside class="rail">
+    <div class="brand">
+      <button type="button" class="logo" id="brandLogo" onclick="toggleRailFromLogo()" title="Collapse sidebar">
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M3.4 11.3 20.2 3.6c.8-.4 1.6.4 1.3 1.2l-6.1 16.5c-.3.8-1.4.8-1.7 0l-2.6-6.4a1 1 0 0 0-.5-.5L3.4 12.9c-.8-.3-.9-1.3 0-1.6Z" fill="#fff"/>
+        </svg>
+        <span class="chev" id="logoChev"></span>
+      </button>
+      <div class="bt"><h1>Schedule Sender</h1><p>SSIES Automation</p></div>
+    </div>
+    <nav class="nav">
+      <button class="nav-item active" data-view="groups" onclick="showView('groups')" title="Groups"><span class="ico svg-ico"><svg viewBox="0 0 24 24"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1"/></svg></span><span class="lbl">Groups</span></button>
+      <button class="nav-item" data-view="table" onclick="showView('table')" title="Schedule Table"><span class="ico svg-ico"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M3 15h18M9 3v18"/></svg></span><span class="lbl">Schedule Table</span></button>
+      <button class="nav-item" data-view="wa-direct" onclick="showView('wa-direct')" title="Open in WhatsApp"><span class="ico svg-ico"><svg viewBox="0 0 24 24"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><path d="M15 3h6v6"/><path d="M10 14 21 3"/></svg></span><span class="lbl">Open in WhatsApp</span></button>
+      <button class="nav-item" data-view="wa-auto" onclick="showView('wa-auto')" title="Automated Send"><span class="ico svg-ico"><svg viewBox="0 0 24 24"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg></span><span class="lbl">Automated Send</span></button>
+      <button class="nav-item" data-view="templates" onclick="showView('templates')" title="Templates"><span class="ico svg-ico"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M16 13H8M16 17H8M10 9H8"/></svg></span><span class="lbl">Templates</span></button>
+      <button class="nav-item" data-view="contacts" onclick="showView('contacts')" title="Contacts"><span class="ico svg-ico"><svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></span><span class="lbl">Contacts</span></button>
+      <button class="nav-item" data-view="settings" onclick="showView('settings')" title="Settings"><span class="ico svg-ico"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg></span><span class="lbl">Settings</span></button>
+      <a class="nav-item" href="/profile" style="text-decoration:none" title="Profile"><span class="ico svg-ico"><svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></span><span class="lbl">Profile</span></a>
+    </nav>
+    <div class="foot">
+      <div class="user"><div class="dot" id="userDot">{{ username[0]|upper }}</div><div class="lbl uname">{{ username }}</div></div>
+      {% if role == 'admin' %}<a class="nav-item" href="/admin" style="text-decoration:none;display:flex"><span class="ico">🛡️</span><span class="lbl">Admin Portal</span></a>{% endif %}
+      {% if role == 'superadmin' %}<a class="nav-item" href="/superadmin" style="text-decoration:none;display:flex"><span class="ico">⭐</span><span class="lbl">Superadmin</span></a>{% endif %}
+      <button class="nav-item" onclick="location.href='/logout'" title="Log out"><span class="ico">⎋</span><span class="lbl">Log out</span></button>
+    </div>
+  </aside>
+
+  <!-- ── Main ── -->
+  <div class="main">
+    <div class="topbar">
+      <button type="button" class="topbar-logo" id="topbarLogo" onclick="toggleRailFromLogo()" title="Open menu">
+        <svg viewBox="0 0 24 24" fill="none"><path d="M3.4 11.3 20.2 3.6c.8-.4 1.6.4 1.3 1.2l-6.1 16.5c-.3.8-1.4.8-1.7 0l-2.6-6.4a1 1 0 0 0-.5-.5L3.4 12.9c-.8-.3-.9-1.3 0-1.6Z" fill="#fff"/></svg>
+      </button>
+      <button class="menu-btn" onclick="toggleRailMobile()" title="Menu"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 12h16M4 18h16"/></svg></button>
+      <div class="tt"><h2 id="pageTitle">Groups</h2><p id="pageDesc">Manage your WhatsApp groups and weekly schedules</p></div>
+      <div class="topbar-actions">
+        <button class="theme-toggle" id="quickTheme" onclick="quickToggleTheme()" title="Toggle light / dark">🌙</button>
+      </div>
+    </div>
+
+    <div class="content">
+      <!-- ════ GROUPS ════ -->
+      <section class="view active" id="view-groups">
+        <div class="split">
+          <div class="list-panel">
+            <div class="lp-head">
+              <div class="row1"><b>Groups</b><button class="btn btn-primary btn-sm" onclick="newGroup()">+ New</button></div>
+              <input class="search" id="groupSearch" placeholder="🔍  Search groups…" oninput="renderGroupList()"/>
+            </div>
+            <div class="scroll-list" id="groupList"></div>
+          </div>
+          <div class="edit-panel">
+            <div class="empty" id="gEmpty"><div class="ic">📋</div><p>Select a group or create a new one</p></div>
+            <div class="edit-body hidden" id="gBody">
+              <div class="edit-left">
+                <div>
+                  <div class="flabel">WhatsApp Group Name (exact match)</div>
+                  <input class="finput" id="gName" placeholder="e.g. SSIES Batch 2025" oninput="gOnSchedule()"/>
+                </div>
+                <div>
+                  <div class="flabel">Group invite link <span style="font-weight:400;color:var(--text-soft)">optional</span></div>
+                  <input class="finput" id="gInviteLink" placeholder="https://chat.whatsapp.com/..."/>
+                  <div class="hint">For direct open: paste your WhatsApp group invite link. Message is copied when you open.</div>
+                </div>
+                <div>
+                  <div class="flabel">Weekly Schedule — From / To per day</div>
+                  <div class="card">
+                    <div class="card-h">Select days &amp; pick start / end times (scroll the list or type)</div>
+                    {% for day in days %}
+                    <div class="drow">
+                      <input type="checkbox" id="chk-{{ day }}" onchange="gToggleDay('{{ day }}')"/>
+                      <span class="dn">{{ day }}</span>
+                      <div class="trange">
+                        <input class="tin" id="from-{{ day }}" list="timeOptions" placeholder="From" disabled oninput="gOnSchedule()"/>
+                        <span class="dash">→</span>
+                        <input class="tin" id="to-{{ day }}" list="timeOptions" placeholder="To" disabled oninput="gOnSchedule()"/>
+                      </div>
+                    </div>
+                    {% endfor %}
+                  </div>
+                </div>
+              </div>
+              <div class="edit-right">
+                <div class="card msg-card">
+                  <div class="msg-h">
+                    <span>Message</span>
+                    <div class="ha">
+                      <select class="lk" id="gTplPick" style="border:none;background:none;" onchange="gInsertTemplate(this.value)"><option value="">↶ Insert template…</option></select>
+                      <button class="lk" onclick="copyBox('gMsg')">⧉ Copy</button>
+                      <button class="lk" onclick="gRegen()">↺ Regenerate</button>
+                    </div>
+                  </div>
+                  <textarea class="msg-edit" id="gMsg" oninput="gMsgEdited=true" placeholder="Select days to auto-generate the message…"></textarea>
+                  <div class="msg-hint">Wrap *text* for bold. Use {date} / {weekday} tokens — replaced when sent.</div>
+                </div>
+              </div>
+            </div>
+            <div class="actionbar hidden" id="gActions">
+              <button class="btn btn-soft" onclick="saveGroup()">Save</button>
+              <button class="btn btn-primary" onclick="releaseCurrentGroup()">Automated Send</button>
+              <button class="btn btn-primary" id="relAllBtn" style="margin-left:auto" onclick="releaseAllGroups()">
+                <span id="relAllTxt">Automated All</span><div class="spinner hidden" id="relAllSpin"></div>
+              </button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ════ TABLE ════ -->
+      <section class="view" id="view-table">
+        <div class="toolbar">
+          <button class="btn btn-primary btn-sm" onclick="addColumn()">+ Add Group Column</button>
+          <button class="btn btn-soft btn-sm" onclick="selectAllCols(true)">☑ Select all</button>
+          <button class="btn btn-soft btn-sm" onclick="selectAllCols(false)">☐ Clear</button>
+          <button class="btn btn-soft btn-sm" onclick="saveTable()">Save Table</button>
+          <button class="btn btn-primary btn-sm" id="relTblBtn" style="margin-left:auto" onclick="releaseTable()">
+            <span id="relTblTxt">Automated Selected</span><div class="spinner hidden" id="relTblSpin"></div>
+          </button>
+        </div>
+        <div class="view-pad" id="tableWrap"></div>
+      </section>
+
+      <!-- ════ TEMPLATES ════ -->
+      <section class="view" id="view-templates">
+        <div class="toolbar"><button class="btn btn-primary btn-sm" onclick="newTemplate()">+ New Template</button></div>
+        <div class="view-pad"><div class="grid" id="tplGrid"></div></div>
+      </section>
+
+      <!-- ════ CONTACTS ════ -->
+      <section class="view" id="view-contacts">
+        <div class="split">
+          <div class="list-panel">
+            <div class="lp-head">
+              <div class="row1"><b>Contacts</b><button class="btn btn-primary btn-sm" onclick="newContact()">+ New</button></div>
+              <input class="search" id="contactSearch" placeholder="🔍  Search contacts…" oninput="renderContactList()"/>
+            </div>
+            <div class="scroll-list" id="contactList"></div>
+          </div>
+          <div class="edit-panel">
+            <div class="empty" id="cEmpty"><div class="ic">👤</div><p>Select a contact or add a new one</p></div>
+            <div class="edit-body hidden" id="cBody">
+              <div class="edit-left">
+                <div>
+                  <div class="flabel">Contact Name</div>
+                  <input class="finput" id="cName" placeholder="e.g. Ali Khan"/>
+                </div>
+                <div>
+                  <div class="flabel">Phone Number (with country code, digits only)</div>
+                  <input class="finput" id="cPhone" placeholder="e.g. 923001234567"/>
+                  <div class="msg-hint" style="padding:8px 2px 0">No “+”, spaces or dashes. Example for Pakistan: 92 then the number without the leading 0.</div>
+                </div>
+              </div>
+              <div class="edit-right">
+                <div class="card msg-card">
+                  <div class="msg-h">
+                    <span>Message</span>
+                    <div class="ha">
+                      <select class="lk" id="cGroupPick" style="border:none;background:none;" onchange="cLoadGroup(this.value)"><option value="">⤵ Load group message…</option></select>
+                      <select class="lk" id="cTplPick" style="border:none;background:none;" onchange="cInsertTemplate(this.value)"><option value="">↶ Template…</option></select>
+                      <button class="lk" onclick="copyBox('cMsg')">⧉ Copy</button>
+                    </div>
+                  </div>
+                  <textarea class="msg-edit" id="cMsg" placeholder="Type a message, or load a group's message / template above…"></textarea>
+                  <div class="msg-hint">Wrap *text* for bold. Use {date} / {weekday} tokens — replaced when sent.</div>
+                </div>
+              </div>
+            </div>
+            <div class="actionbar hidden" id="cActions">
+              <button class="btn btn-soft" onclick="saveContact()">Save</button>
+              <button class="btn btn-primary" onclick="releaseCurrentContact()">Automated Send</button>
+              <button class="btn btn-primary" id="relCAllBtn" style="margin-left:auto" onclick="releaseAllContacts()">
+                <span id="relCAllTxt">Automated All</span><div class="spinner hidden" id="relCAllSpin"></div>
+              </button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ════ OPEN IN WHATSAPP (direct) ════ -->
+      <section class="view" id="view-wa-direct">
+        <div class="wa-panel">
+          <div class="wa-hero">
+            <h3>Open in WhatsApp</h3>
+            <p>Opens WhatsApp in your browser with deep links. Messages are copied to clipboard — you paste and send manually. No automation session required.</p>
+          </div>
+          <input class="wa-search" id="waDirectSearch" placeholder="Search groups or contacts…" oninput="renderDirectPanel()"/>
+          <div class="wa-grid">
+            <div class="wa-card">
+              <h3>Groups</h3>
+              <p>Add invite links in the group editor for one-click group open.</p>
+              <div class="wa-list" id="waDirectGroupList"><p class="hint">Loading…</p></div>
+            </div>
+            <div class="wa-card">
+              <h3>Contacts</h3>
+              <p>Opens wa.me with pre-filled message text.</p>
+              <div class="wa-list" id="waDirectContactList"><p class="hint">Loading…</p></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ════ AUTOMATED SEND ════ -->
+      <section class="view" id="view-wa-auto">
+        <div class="wa-panel">
+          <div class="wa-hero">
+            <h3>Automated Send</h3>
+            <p>Link your WhatsApp session first (WAHA QR or Chrome/Selenium), then send schedules automatically.</p>
+            <div class="wa-status" style="margin-top:12px"><span class="wa-dot" id="autoSessionDot"></span><span id="autoSessionText">Checking…</span> · <span id="autoProviderLabel">—</span></div>
+          </div>
+          <div class="wa-steps">
+            <div class="wa-step-card">
+              <h4>1. Connect session</h4>
+              <p class="hint" style="margin-bottom:12px">Scan within ~20 seconds (QR refreshes automatically). If phone says &quot;Couldn&apos;t link device&quot;, tap <strong>Reset &amp; new QR</strong> and try again.</p>
+              <div style="display:flex;gap:8px;flex-wrap:wrap">
+                <button class="btn btn-primary btn-sm" id="btnStartSession" onclick="startWaSession()">Start / Show QR</button>
+                <button class="btn btn-soft btn-sm" id="btnResetSession" onclick="resetWaSession()">Reset &amp; new QR</button>
+                <button class="btn btn-soft btn-sm" onclick="loadAutoSession()">Refresh status</button>
+                <button class="btn btn-soft btn-sm" onclick="stopWaSession()">Stop session</button>
+              </div>
+              <div class="wa-qr-wrap hidden" id="waQrWrap"><img id="waQrImg" alt="WhatsApp QR code"/></div>
+            </div>
+            <div class="wa-step-card">
+              <h4>2. Select targets</h4>
+              <div id="autoTargetList"><p class="hint">Loading…</p></div>
+            </div>
+            <div class="wa-step-card">
+              <h4>3. Send</h4>
+              <p class="hint" style="margin-bottom:12px">Requires connected session. Progress appears in the status log.</p>
+              <button class="btn btn-primary" id="autoBtn" onclick="runAutomatedFromPanel()">
+                <span id="autoTxt">Send selected</span><div class="spinner hidden" id="autoSpin"></div>
+              </button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ════ SETTINGS ════ -->
+      <section class="view" id="view-settings">
+        <div class="view-pad">
+          <div class="settings-wrap">
+            <div class="settings-tabs">
+              <button class="stab on" data-tab="appearance" onclick="showSettingsTab('appearance')">Appearance</button>
+              <button class="stab" data-tab="layout" onclick="showSettingsTab('layout')">Layout</button>
+              <button class="stab" data-tab="whatsapp" onclick="showSettingsTab('whatsapp')">WhatsApp</button>
+              <button class="stab" data-tab="automation" onclick="showSettingsTab('automation')">Automation</button>
+              <button class="stab" data-tab="security" onclick="showSettingsTab('security')">Security</button>
+              <button class="stab" data-tab="data" onclick="showSettingsTab('data')">Data</button>
+            </div>
+
+            <div class="stab-panel on" id="stab-appearance">
+              <div class="sec">
+                <div class="sec-h">Appearance</div>
+                <div class="sec-b">
+                  <div class="srow">
+                    <div><div class="st">Theme mode</div><div class="sd">Light, dark, or follow your operating system.</div></div>
+                    <div class="seg" id="modeSeg">
+                      <button data-mode="light" onclick="setMode('light')">Light</button>
+                      <button data-mode="dark" onclick="setMode('dark')">Dark</button>
+                      <button data-mode="system" onclick="setMode('system')">System</button>
+                    </div>
+                  </div>
+                  <div class="srow">
+                    <div><div class="st">Accent color</div><div class="sd">Used for buttons, highlights and active states.</div></div>
+                    <div class="swatches" id="swatches"></div>
+                  </div>
+                  <div class="srow">
+                    <div><div class="st">Custom accent</div><div class="sd">Pick any color you like.</div></div>
+                    <input type="color" id="accentPicker" value="#0000EE" onchange="setAccent(this.value)" style="width:46px;height:38px;border:none;background:none;cursor:pointer;"/>
+                  </div>
+                  <div class="srow">
+                    <div><div class="st">Font size</div><div class="sd">Base text size across the dashboard.</div></div>
+                    <div class="seg" id="fontSeg">
+                      <button data-val="small" onclick="setPref('font-size','small')">Small</button>
+                      <button data-val="medium" onclick="setPref('font-size','medium')">Medium</button>
+                      <button data-val="large" onclick="setPref('font-size','large')">Large</button>
+                    </div>
+                  </div>
+                  <div class="srow">
+                    <div><div class="st">Corner radius</div><div class="sd">Sharp, rounded, or pill-shaped corners.</div></div>
+                    <div class="seg" id="radiusSeg">
+                      <button data-val="sharp" onclick="setPref('corner-radius','sharp')">Sharp</button>
+                      <button data-val="rounded" onclick="setPref('corner-radius','rounded')">Rounded</button>
+                      <button data-val="pill" onclick="setPref('corner-radius','pill')">Pill</button>
+                    </div>
+                  </div>
+                  <div class="srow">
+                    <div><div class="st">Nav icon style</div><div class="sd">Outline or filled sidebar icons.</div></div>
+                    <div class="seg" id="navSeg">
+                      <button data-val="outline" onclick="setPref('nav-icon-style','outline')">Outline</button>
+                      <button data-val="filled" onclick="setPref('nav-icon-style','filled')">Filled</button>
+                    </div>
+                  </div>
+                  <div class="srow">
+                    <div><div class="st">Animated transitions</div><div class="sd">Smooth fade/slide when switching pages.</div></div>
+                    <label class="toggle"><input type="checkbox" id="animToggle" onchange="setAnim(this.checked)"/><span class="tk"></span></label>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="stab-panel" id="stab-layout">
+              <div class="sec">
+                <div class="sec-h">Layout</div>
+                <div class="sec-b">
+                  <div class="srow">
+                    <div><div class="st">UI density</div><div class="sd">Comfortable, compact, or spacious spacing.</div></div>
+                    <div class="seg" id="densitySeg">
+                      <button data-val="comfortable" onclick="setPref('ui-density','comfortable')">Comfortable</button>
+                      <button data-val="compact" onclick="setPref('ui-density','compact')">Compact</button>
+                      <button data-val="spacious" onclick="setPref('ui-density','spacious')">Spacious</button>
+                    </div>
+                  </div>
+                  <div class="srow">
+                    <div><div class="st">Sidebar width</div><div class="sd">Narrow, default, or wide navigation rail.</div></div>
+                    <div class="seg" id="railSeg">
+                      <button data-val="narrow" onclick="setPref('sidebar-width','narrow')">Narrow</button>
+                      <button data-val="default" onclick="setPref('sidebar-width','default')">Default</button>
+                      <button data-val="wide" onclick="setPref('sidebar-width','wide')">Wide</button>
+                    </div>
+                  </div>
+                  <div class="srow">
+                    <div><div class="st">Default landing page</div><div class="sd">Page shown when you open the dashboard.</div></div>
+                    <div class="seg" id="pageSeg">
+                      <button data-val="groups" onclick="setPref('default-page','groups')">Groups</button>
+                      <button data-val="table" onclick="setPref('default-page','table')">Table</button>
+                      <button data-val="wa-direct" onclick="setPref('default-page','wa-direct')">Open WA</button>
+                      <button data-val="wa-auto" onclick="setPref('default-page','wa-auto')">Automated</button>
+                      <button data-val="contacts" onclick="setPref('default-page','contacts')">Contacts</button>
+                    </div>
+                  </div>
+                  <div class="srow">
+                    <div><div class="st">Table zebra stripes</div><div class="sd">Alternate row shading in schedule table.</div></div>
+                    <div class="seg" id="zebraSeg">
+                      <button data-val="off" onclick="setPref('table-zebra','off')">Off</button>
+                      <button data-val="on" onclick="setPref('table-zebra','on')">On</button>
+                    </div>
+                  </div>
+                  <div class="srow">
+                    <div><div class="st">Compact mode (legacy)</div><div class="sd">Same as compact density — kept for compatibility.</div></div>
+                    <label class="toggle"><input type="checkbox" id="compactToggle" onchange="setCompact(this.checked)"/><span class="tk"></span></label>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="stab-panel" id="stab-whatsapp">
+              <div class="sec">
+                <div class="sec-h">WhatsApp</div>
+                <div class="sec-b">
+                  <div class="srow">
+                    <div><div class="st">Default send method</div><div class="sd">Direct opens wa.me / invite links; Automated uses Selenium.</div></div>
+                    <div class="seg" id="sendSeg">
+                      <button data-val="ask" onclick="setPref('default-send-mode','ask')">Ask</button>
+                      <button data-val="direct" onclick="setPref('default-send-mode','direct')">Direct</button>
+                      <button data-val="automated" onclick="setPref('default-send-mode','automated')">Automated</button>
+                    </div>
+                  </div>
+                  <div class="srow">
+                    <div><div class="st">Status log</div><div class="sd">When to show the automation status panel.</div></div>
+                    <div class="seg" id="logSeg">
+                      <button data-val="auto" onclick="setPref('status-log','auto')">On send</button>
+                      <button data-val="always" onclick="setPref('status-log','always')">Always</button>
+                      <button data-val="never" onclick="setPref('status-log','never')">Never</button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="stab-panel" id="stab-automation">
+              <div class="sec">
+                <div class="sec-h">Automation</div>
+                <div class="sec-b">
+                  <div class="srow">
+                    <div><div class="st">Headless mode</div><div class="sd">Run Chrome hidden. Enable only after logging in once via visible browser.</div></div>
+                    <label class="toggle"><input type="checkbox" id="setHeadless" onchange="saveAutomation()"/><span class="tk"></span></label>
+                  </div>
+                  <div class="srow">
+                    <div><div class="st">Delay between sends</div><div class="sd">Seconds between recipients during bulk automated release.</div></div>
+                    <input class="num" type="number" id="setDelay" min="0" max="300" onchange="saveAutomation()"/>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="stab-panel" id="stab-security">
+              <div class="sec">
+                <div class="sec-h">Security</div>
+                <div class="sec-b">
+                  <div class="srow" style="flex-direction:column;align-items:stretch;gap:12px;">
+                    <div><div class="st">Change password</div><div class="sd">Update the password used to access this dashboard.</div></div>
+                    <input class="finput" id="curPw" type="password" placeholder="Current password"/>
+                    <input class="finput" id="newPw" type="password" placeholder="New password (min 8 chars)"/>
+                    <button class="btn btn-soft" style="align-self:flex-start" onclick="changePassword()">Update password</button>
+                  </div>
+                </div>
+              </div>
+              <div class="sec" style="margin-top:16px">
+                <div class="sec-h">Activity log <button class="btn btn-soft btn-sm" style="margin-left:auto" onclick="loadAudit()">Refresh</button></div>
+                <div class="sec-b"><div id="auditList" style="padding:8px 0;font-size:13px;color:var(--text-muted)">Loading…</div></div>
+              </div>
+            </div>
+
+            <div class="stab-panel" id="stab-data">
+              <div class="sec">
+                <div class="sec-h">Data</div>
+                <div class="sec-b">
+                  <div class="srow">
+                    <div><div class="st">Backup configuration</div><div class="sd">Download all groups, contacts, templates and settings as JSON.</div></div>
+                    <button class="btn btn-soft" onclick="exportConfig()">Download backup</button>
+                  </div>
+                  <div class="srow">
+                    <div><div class="st">Restore configuration</div><div class="sd">Replace everything from a backup file (credentials are kept).</div></div>
+                    <button class="btn btn-soft" onclick="document.getElementById('importFile').click()">Restore from file</button>
+                    <input type="file" id="importFile" accept="application/json" style="display:none" onchange="importConfig(this)"/>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <!-- Status log -->
+    <div class="status" id="statusPanel" style="display:none">
+      <div class="lh"><span>Status Log</span><span><span class="toggle-log" onclick="document.getElementById('statusPanel').classList.toggle('collapsed')">collapse</span> · <span class="clr" onclick="document.getElementById('logLines').innerHTML=''">clear</span></span></div>
+      <div id="logLines"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Template editor modal -->
+<div class="modal-scrim" id="tplModal">
+  <div class="modal">
+    <div class="modal-h"><span id="tplModalTitle">New Template</span><button class="modal-x" onclick="closeTpl()">✕</button></div>
+    <div class="modal-b">
+      <div class="flabel">Template name</div>
+      <input class="finput" id="tplName" placeholder="e.g. Weekly schedule"/>
+      <div class="flabel" style="margin-top:16px;">Message content
+        <span style="font-weight:400;color:var(--text-soft)">Tokens replaced when sent</span>
+      </div>
+      <div class="tpl-tools">
+        <button class="chip-btn" onclick="tplInsert('*bold*')">*bold*</button>
+        <button class="chip-btn" onclick="tplInsert('{date}')">{date}</button>
+        <button class="chip-btn" onclick="tplInsert('{weekday}')">{weekday}</button>
+        <button class="chip-btn" onclick="tplInsertSchedule()">＋ schedule format</button>
+      </div>
+      <textarea class="msg-edit" id="tplContent" style="margin:0;min-height:240px;" placeholder="Type your template…"></textarea>
+    </div>
+    <div class="modal-f">
+      <button class="btn btn-soft" onclick="closeTpl()">Cancel</button>
+      <button class="btn btn-primary" onclick="saveTpl()">💾 Save Template</button>
+    </div>
+  </div>
+</div>
+
+<datalist id="timeOptions"></datalist>
+<div class="toast" id="toast"></div>
+
+<script src="{{ url_for('static', filename='js/theme.js') }}"></script>
+<script src="{{ url_for('static', filename='js/whatsapp.js') }}"></script>
+<script src="{{ url_for('static', filename='js/waha.js') }}"></script>
+<script>
+const DAYS = {{ days | tojson }};
+const _asUser = new URLSearchParams(location.search).get("asUser");
+if (_asUser) {
+  const _fetch = window.fetch.bind(window);
+  window.fetch = (url, opts) => {
+    if (typeof url === "string" && url.startsWith("/api/")) {
+      url += (url.includes("?") ? "&" : "?") + "asUser=" + encodeURIComponent(_asUser);
+    }
+    return _fetch(url, opts);
+  };
+}
+let groups = [], templates = [], contacts = [], settings = {headless:false,delaySeconds:5};
+let gSel = null, gMsgEdited = false;
+let cSel = null;
+let tplSel = null;
+let tableSelected = {}, colWidths = {};
+let tableDirty = true;
+let auditLoaded = false;
+
+/* ════ Navigation ════ */
+const VIEW_META = {
+  groups:{t:"Groups",d:"Manage your WhatsApp groups and weekly schedules"},
+  table:{t:"Schedule Table",d:"Edit all group timings in a grid and release selected groups"},
+  "wa-direct":{t:"Open in WhatsApp",d:"Manual deep links — copy message and open WhatsApp in browser"},
+  "wa-auto":{t:"Automated Send",d:"Link session and send schedules automatically"},
+  templates:{t:"Templates",d:"Reusable message templates with tokens and customization"},
+  contacts:{t:"Contacts",d:"Save people and send messages via automation or direct links"},
+  settings:{t:"Settings",d:"Appearance, layout, WhatsApp, automation, security and data"},
+};
+function showView(v){
+  document.querySelectorAll(".view").forEach(s=>s.classList.toggle("active", s.id===`view-${v}`));
+  document.querySelectorAll(".nav-item[data-view]").forEach(b=>b.classList.toggle("active", b.dataset.view===v));
+  const meta = VIEW_META[v] || VIEW_META.groups;
+  document.getElementById("pageTitle").textContent = meta.t;
+  document.getElementById("pageDesc").textContent  = meta.d;
+  if (v==="table" && tableDirty) { renderTable(); tableDirty = false; }
+  if (v==="templates") renderTemplates();
+  if (v==="wa-direct") renderDirectPanel();
+  if (v==="wa-auto") renderAutoSendPanel();
+  if (window.innerWidth<=820) document.getElementById("app").classList.remove("rail-open");
+}
+
+/* ── Audit log ── */
+async function loadAudit(){
+  const box=document.getElementById("auditList"); if(!box)return;
+  try{
+    const rows=await (await fetch("/api/audit")).json();
+    if(!rows.length){box.innerHTML="No activity yet.";return;}
+    const label={login:"Signed in",login_failed:"Failed login",logout:"Signed out",signup:"Account created",
+      release:"Released messages",direct_whatsapp:"Opened WhatsApp",password_change:"Password changed",config_restore:"Config restored"};
+    box.innerHTML=rows.map(r=>`<div class="audit-row"><span class="act">${esc(label[r.action]||r.action)}</span>
+      <span class="meta">${esc(r.detail||"")} · ${esc(r.ip||"")}</span>
+      <span class="when">${new Date(r.at).toLocaleString()}</span></div>`).join("");
+  }catch{ box.innerHTML="Could not load activity."; }
+}
+
+/* ════ Time helpers ════ */
+function buildTimeOptions(){
+  let h=""; for(let i=0;i<24;i++) for(const m of [0,15,30,45]){
+    const ap=i<12?"am":"pm"; let hr=i%12||12; h+=`<option value="${hr}:${String(m).padStart(2,'0')}${ap}"></option>`;
+  } document.getElementById("timeOptions").innerHTML=h;
+}
+function fmtTime(e){const f=(e.from||"").trim(),t=(e.to||"").trim();return f&&t?`${f} - ${t}`:f||(e.time||"").trim();}
+function normalize(g){g.schedule=(g.schedule||[]).map(e=>{
+  if(e.from!==undefined||e.to!==undefined)return{day:e.day,from:e.from||"",to:e.to||""};
+  const t=(e.time||"").trim(),p=t.split(/\s*[-–]\s*|\s+to\s+/i);
+  return p.length===2?{day:e.day,from:p[0].trim(),to:p[1].trim()}:{day:e.day,from:t,to:""};});}
+function genMessage(s){const v=s.filter(e=>(e.from||"").trim());if(!v.length)return"";
+  return ["*Note*","Schedule for this week:","",...v.map(e=>`* ${e.day}: ${fmtTime(e)}`),"*Kindly Acknowledge*"].join("\n");}
+function messageFor(g){return (g.message&&g.message.trim())?g.message:genMessage(g.schedule);}
+function replaceTokens(t){
+  const d=new Date();
+  const date=d.toLocaleDateString(undefined,{day:"numeric",month:"long",year:"numeric"});
+  const wd=d.toLocaleDateString(undefined,{weekday:"long"});
+  return (t||"").replace(/\{date\}/gi,date).replace(/\{weekday\}/gi,wd);
+}
+
+/* ════ Boot ════ */
+async function boot(){
+  buildTimeOptions(); applyTheme(); updateLogoChevron();
+  if(localStorage.getItem("rail-collapsed")==="1"){
+    document.getElementById("app").classList.add("rail-collapsed");
+    updateLogoChevron();
+  }
+  await Promise.all([loadGroups(), loadTemplates(), loadContacts(), loadSettings()]);
+  fetchSessionStatusCached(true);
+  startSSE();
+  const landingRaw = localStorage.getItem("default-page") || "groups";
+  const landing = landingRaw === "whatsapp" ? "wa-direct" : landingRaw;
+  if (VIEW_META[landing]) showView(landing);
+  if (getStatusLogPref() === "always") showLog();
+}
+async function loadGroups(){ groups=await (await fetch("/api/groups")).json();
+  groups.forEach(g=>{ if(g.message===undefined)g.message=""; normalize(g); });
+  tableDirty=true; invalidateWaCache(); renderGroupList(); refreshPickers(); }
+async function loadTemplates(){ templates=await (await fetch("/api/templates")).json(); renderTemplates(); refreshPickers(); }
+async function loadContacts(){ contacts=await (await fetch("/api/contacts")).json(); invalidateWaCache(); renderContactList(); }
+async function loadSettings(){ settings=await (await fetch("/api/settings")).json();
+  syncSettingsUI();
+  if(settings.maintenanceMode){
+    const b=document.createElement("div");
+    b.style.cssText="background:#fef3c7;color:#92400e;padding:10px 28px;font-size:13px;font-weight:600;border-bottom:1px solid #fcd34d";
+    b.textContent="⚠ System is in maintenance mode — releases may be disabled.";
+    document.querySelector(".main")?.prepend(b);
+  }
+  const h=document.getElementById("setHeadless"); if(h)h.checked=!!settings.headless;
+  const d=document.getElementById("setDelay"); if(d)d.value=settings.delaySeconds??5; }
+
+function relTime(iso){if(!iso)return"";const d=new Date(iso),s=(Date.now()-d)/1000;
+  if(s<60)return"just now";if(s<3600)return Math.floor(s/60)+"m ago";if(s<86400)return Math.floor(s/3600)+"h ago";return d.toLocaleDateString();}
+
+/* ════ GROUPS ════ */
+function renderGroupList(){
+  const q=(document.getElementById("groupSearch").value||"").toLowerCase();
+  const el=document.getElementById("groupList"); el.innerHTML="";
+  groups.forEach((g,i)=>{
+    if(q&&!g.name.toLowerCase().includes(q))return;
+    const days=g.schedule.map(e=>e.day.slice(0,3)).join(", ");
+    const last=g.lastReleased?` · <span class="sent">✓ ${relTime(g.lastReleased)}</span>`:"";
+    const d=document.createElement("div"); d.className="li"+(gSel===i?" active":""); d.onclick=()=>selectGroup(i);
+    d.innerHTML=`<div class="av">👥</div><div class="meta"><div class="nm">${esc(g.name)}</div>
+      <div class="sb">${g.schedule.length} day(s) · ${days}${last}</div></div>
+      <div class="acts"><button class="ibtn send" title="Release">✈</button><button class="ibtn dup" title="Duplicate">⧉</button><button class="ibtn del" title="Delete">🗑</button></div>`;
+    const[s,du,de]=d.querySelectorAll("button");
+    s.onclick=e=>{e.stopPropagation();directOneGroup(i);};
+    du.onclick=e=>{e.stopPropagation();duplicateGroup(i);};
+    de.onclick=e=>{e.stopPropagation();deleteGroup(i);};
+    el.appendChild(d);
+  });
+}
+function selectGroup(i){
+  gSel=i; const g=groups[i]; document.getElementById("gName").value=g.name;
+  const inv=document.getElementById("gInviteLink"); if(inv) inv.value=g.inviteLink||"";
+  DAYS.forEach(day=>{const c=document.getElementById(`chk-${day}`),f=document.getElementById(`from-${day}`),t=document.getElementById(`to-${day}`);
+    const e=g.schedule.find(x=>x.day===day); c.checked=!!e; f.disabled=t.disabled=!e; f.value=e?e.from||"":""; t.value=e?e.to||"":"";});
+  gMsgEdited=!!(g.message&&g.message.trim()); document.getElementById("gMsg").value=messageFor(g);
+  gShowEditor(); renderGroupList();
+}
+function newGroup(){ gSel=null; document.getElementById("gName").value="";
+  const inv=document.getElementById("gInviteLink"); if(inv) inv.value="";
+  DAYS.forEach(day=>{document.getElementById(`chk-${day}`).checked=false;
+    const f=document.getElementById(`from-${day}`),t=document.getElementById(`to-${day}`);f.disabled=t.disabled=true;f.value=t.value="";});
+  gMsgEdited=false; document.getElementById("gMsg").value=""; gShowEditor(); renderGroupList(); document.getElementById("gName").focus();}
+function gShowEditor(){document.getElementById("gEmpty").classList.add("hidden");document.getElementById("gBody").classList.remove("hidden");document.getElementById("gActions").classList.remove("hidden");}
+function gReadSchedule(){const s=[];for(const day of DAYS)if(document.getElementById(`chk-${day}`).checked)
+  s.push({day,from:document.getElementById(`from-${day}`).value.trim(),to:document.getElementById(`to-${day}`).value.trim()});return s;}
+function gToggleDay(day){const c=document.getElementById(`chk-${day}`).checked,f=document.getElementById(`from-${day}`),t=document.getElementById(`to-${day}`);
+  f.disabled=t.disabled=!c; if(c)f.focus();else{f.value=t.value="";} gOnSchedule();}
+function gOnSchedule(){ if(!gMsgEdited) document.getElementById("gMsg").value=genMessage(gReadSchedule()); }
+function gRegen(){ gMsgEdited=false; document.getElementById("gMsg").value=genMessage(gReadSchedule()); toast("Regenerated from schedule"); }
+function gInsertTemplate(i){ if(i==="")return; document.getElementById("gMsg").value=replaceTokens(templates[i].content); gMsgEdited=true; document.getElementById("gTplPick").value=""; toast("Template inserted"); }
+function gBuild(){const name=document.getElementById("gName").value.trim();if(!name){toast("Enter the group name","err");return null;}
+  const schedule=[];for(const day of DAYS)if(document.getElementById(`chk-${day}`).checked){
+    const from=document.getElementById(`from-${day}`).value.trim();if(!from){toast(`Enter a "From" time for ${day}`,"err");return null;}
+    schedule.push({day,from,to:document.getElementById(`to-${day}`).value.trim()});}
+  if(!schedule.length){toast("Select at least one day","err");return null;}
+  const box=document.getElementById("gMsg").value,auto=genMessage(schedule);
+  const prev=gSel!==null?groups[gSel]:{};
+  const invEl=document.getElementById("gInviteLink");
+  return{name,schedule,message:box.trim()===auto.trim()?"":box,lastReleased:prev.lastReleased||"",inviteLink:invEl?invEl.value.trim():""};}
+async function saveGroup(){const b=gBuild();if(!b)return false;
+  const res=gSel!==null?await fetch(`/api/groups/${gSel}`,put(b)):await fetch("/api/groups",post(b));
+  const d=await res.json();if(d.error){toast(d.error,"err");return false;}
+  await loadGroups(); if(gSel===null)gSel=groups.length-1; renderGroupList(); toast("Group saved ✓"); return true;}
+async function duplicateGroup(i){const g=groups[i];let name=g.name+" (copy)",n=2;while(groups.some(x=>x.name===name))name=`${g.name} (copy ${n++})`;
+  const d=await (await fetch("/api/groups",post({name,schedule:g.schedule,message:g.message,inviteLink:g.inviteLink||""}))).json();
+  if(d.error){toast(d.error,"err");return;} await loadGroups(); toast(`Duplicated as "${name}"`);}
+async function deleteGroup(i){if(!confirm(`Delete "${groups[i].name}"?`))return;await fetch(`/api/groups/${i}`,{method:"DELETE"});
+  if(gSel===i){gSel=null;document.getElementById("gEmpty").classList.remove("hidden");document.getElementById("gBody").classList.add("hidden");document.getElementById("gActions").classList.add("hidden");}
+  else if(gSel>i)gSel--; await loadGroups(); toast("Group deleted");}
+async function releaseCurrentGroup(){if(!(await saveGroup()))return;const g=groups[gSel];
+  releaseWithMode([{name:g.name,message:replaceTokens(messageFor(g))}],"relAllSpin","relAllBtn","relAllTxt","Automated All","automated");}
+function releaseOneGroup(i){const g=groups[i];releaseWithMode([{name:g.name,message:replaceTokens(messageFor(g))}],"relAllSpin","relAllBtn","relAllTxt","Automated All","automated");}
+function releaseAllGroups(){const t=groups.map(g=>({name:g.name,message:replaceTokens(messageFor(g))})).filter(x=>x.message.trim());
+  releaseWithMode(t,"relAllSpin","relAllBtn","relAllTxt","Automated All","automated");}
+async function directCurrentGroup(){if(!(await saveGroup()))return;openDirectGroupByName(groups[gSel].name);}
+function directOneGroup(i){openDirectGroupByName(groups[i].name);}
+function directAllGroups(){groups.forEach((g,i)=>setTimeout(()=>directOneGroup(i),i*500));}
+
+/* ════ TABLE ════ */
+function renderTable(){
+  const w=document.getElementById("tableWrap");
+  if(!groups.length){w.innerHTML=`<div class="empty"><div class="ic">📊</div><p>No groups yet. Add a column or create groups first.</p></div>`;return;}
+  let h='<table class="sched"><thead><tr><th class="day-col">Day</th>';
+  groups.forEach((g,ci)=>{ if(tableSelected[ci]===undefined)tableSelected[ci]=true;
+    const wd=colWidths[ci]?`width:${colWidths[ci]}px`:"width:200px";
+    h+=`<th style="${wd}"><div class="ch"><div class="top">
+      <input type="checkbox" ${tableSelected[ci]?"checked":""} onchange="tableSelected[${ci}]=this.checked"/>
+      <input class="gn" value="${escA(g.name)}" onchange="groups[${ci}].name=this.value.trim()"/>
+      <button class="rc" onclick="removeColumn(${ci})">🗑</button></div></div>
+      <div class="resizer" onmousedown="startResize(event,${ci})"></div></th>`;});
+  h+='</tr></thead><tbody>';
+  DAYS.forEach(day=>{h+=`<tr><td class="day-col">${day}</td>`;
+    groups.forEach((g,ci)=>{const e=g.schedule.find(x=>x.day===day)||{};const f=e.from||"",t=e.to||"";
+      h+=`<td class="${(f||t)?'filled':''}"><div class="crange">
+        <input class="cell" list="timeOptions" value="${escA(f)}" placeholder="From" oninput="updateCell(${ci},'${day}','from',this)"/>
+        <span class="dash">→</span>
+        <input class="cell" list="timeOptions" value="${escA(t)}" placeholder="To" oninput="updateCell(${ci},'${day}','to',this)"/></div></td>`;});
+    h+='</tr>';});
+  w.innerHTML=h+'</tbody></table>';
+}
+function updateCell(ci,day,field,inp){const g=groups[ci];let e=g.schedule.find(x=>x.day===day);
+  if(!e){e={day,from:"",to:""};g.schedule.push(e);} e[field]=inp.value.trim();
+  if(!e.from&&!e.to)g.schedule=g.schedule.filter(x=>x.day!==day);
+  g.schedule.sort((a,b)=>DAYS.indexOf(a.day)-DAYS.indexOf(b.day));
+  inp.closest("td").classList.toggle("filled",!!(e.from||e.to)); tableDirty=true;}
+function selectAllCols(v){groups.forEach((g,ci)=>tableSelected[ci]=v);renderTable();}
+function addColumn(){const n=prompt("WhatsApp group name (exact):");if(!n||!n.trim())return;
+  groups.push({name:n.trim(),schedule:[],message:""});tableSelected[groups.length-1]=true;tableDirty=true;renderTable();}
+function removeColumn(ci){if(!confirm(`Remove "${groups[ci].name}"? (Save Table to persist)`))return;groups.splice(ci,1);tableSelected={};colWidths={};tableDirty=true;renderTable();}
+function startResize(e,ci){e.preventDefault();e.stopPropagation();const th=e.target.closest("th"),hd=e.target;hd.classList.add("drag");
+  const sx=e.clientX,sw=th.offsetWidth;
+  function mv(ev){const wv=Math.max(120,sw+ev.clientX-sx);colWidths[ci]=wv;th.style.width=wv+"px";}
+  function up(){hd.classList.remove("drag");document.removeEventListener("mousemove",mv);document.removeEventListener("mouseup",up);}
+  document.addEventListener("mousemove",mv);document.addEventListener("mouseup",up);}
+async function saveTable(){for(const g of groups)if(!g.name||!g.name.trim()){toast("Every column needs a name","err");return false;}
+  const d=await (await fetch("/api/groups",put({groups}))).json();if(d.error){toast(d.error,"err");return false;}
+  await loadGroups();toast("Table saved ✓");return true;}
+async function releaseTable(){if(!(await saveTable()))return;
+  const t=groups.filter((g,ci)=>tableSelected[ci]).map(g=>({name:g.name,message:replaceTokens(genMessage(g.schedule))})).filter(x=>x.message.trim());
+  if(!t.length){toast("Select at least one column with timings","err");return;}
+  doRelease(t,"relTblSpin","relTblBtn","relTblTxt","Automated Selected");}
+async function directTable(){if(!(await saveTable()))return;
+  const names=groups.filter((g,ci)=>tableSelected[ci]).map(g=>g.name);
+  for(let i=0;i<names.length;i++) setTimeout(()=>openDirectGroupByName(names[i]),i*500);}
+
+/* ════ TEMPLATES ════ */
+function renderTemplates(){
+  const g=document.getElementById("tplGrid");if(!g)return;
+  if(!templates.length){g.innerHTML=`<div class="empty" style="grid-column:1/-1"><div class="ic">📝</div><p>No templates yet. Create one to reuse across groups and contacts.</p></div>`;return;}
+  g.innerHTML=templates.map((t,i)=>`<div class="tpl"><h3>${esc(t.name)}${t.isDefault?'<span class="chip-default">Default</span>':''}</h3>
+    <pre>${esc(t.content)||"<i>empty</i>"}</pre>
+    <div class="row"><button class="btn btn-soft btn-sm" onclick="editTemplate(${i})">✎ Edit</button>
+      <button class="btn btn-soft btn-sm" onclick="copyText(templates[${i}].content)">⧉ Copy</button>
+      <button class="btn btn-soft btn-sm" style="margin-left:auto;color:var(--error)" onclick="deleteTemplate(${i})">${t.isDefault?'Reset':'Delete'}</button></div></div>`).join("");
+}
+function newTemplate(){ tplSel=null; openTpl("New Template","",""); }
+function editTemplate(i){ tplSel=i; openTpl("Edit Template",templates[i].name,templates[i].content); }
+function openTpl(title,name,content){
+  document.getElementById("tplModalTitle").textContent=title;
+  document.getElementById("tplName").value=name||"";
+  document.getElementById("tplContent").value=content||"";
+  document.getElementById("tplModal").classList.add("show");
+  document.getElementById("tplName").focus();
+}
+function closeTpl(){ document.getElementById("tplModal").classList.remove("show"); }
+function tplInsert(txt){
+  const ta=document.getElementById("tplContent");const s=ta.selectionStart,e=ta.selectionEnd;
+  ta.value=ta.value.slice(0,s)+txt+ta.value.slice(e); ta.focus(); ta.selectionStart=ta.selectionEnd=s+txt.length;
+}
+function tplInsertSchedule(){
+  tplInsert("*Note*\nSchedule for this week:\n\n* Saturday: 12:00pm - 1:30pm\n* Sunday: 12:00pm - 1:30pm\n\n*Kindly Acknowledge*");
+}
+async function saveTpl(){
+  const name=document.getElementById("tplName").value.trim();
+  if(!name){toast("Enter a template name","err");return;}
+  const body={name,content:document.getElementById("tplContent").value};
+  const d=await (tplSel!==null?fetch(`/api/templates/${tplSel}`,put(body)):fetch("/api/templates",post(body))).then(r=>r.json());
+  if(d.error){toast(d.error,"err");return;}
+  closeTpl(); await loadTemplates(); toast("Template saved ✓");
+}
+async function deleteTemplate(i){const t=templates[i];
+  if(t.isDefault){if(!confirm('Reset default template to original content?'))return;}
+  else if(!confirm(`Delete template "${t.name}"?`))return;
+  await fetch(`/api/templates/${i}`,{method:"DELETE"});loadTemplates();toast(t.isDefault?"Default reset":"Template deleted");}
+
+/* ════ CONTACTS ════ */
+function renderContactList(){
+  const q=(document.getElementById("contactSearch").value||"").toLowerCase();
+  const el=document.getElementById("contactList");el.innerHTML="";
+  contacts.forEach((c,i)=>{ if(q&&!c.name.toLowerCase().includes(q)&&!(c.phone||"").includes(q))return;
+    const last=c.lastReleased?` · <span class="sent">✓ ${relTime(c.lastReleased)}</span>`:"";
+    const d=document.createElement("div");d.className="li"+(cSel===i?" active":"");d.onclick=()=>selectContact(i);
+    d.innerHTML=`<div class="av">${esc((c.name||"?").slice(0,1).toUpperCase())}</div>
+      <div class="meta"><div class="nm">${esc(c.name)}</div><div class="sb">+${esc(c.phone)}${last}</div></div>
+      <div class="acts"><button class="ibtn send" title="Send">✈</button><button class="ibtn del" title="Delete">🗑</button></div>`;
+    const[s,de]=d.querySelectorAll("button");
+    s.onclick=e=>{e.stopPropagation();directOneContact(i);};
+    de.onclick=e=>{e.stopPropagation();deleteContact(i);};
+    el.appendChild(d);});
+}
+function selectContact(i){cSel=i;const c=contacts[i];
+  document.getElementById("cName").value=c.name;document.getElementById("cPhone").value=c.phone;document.getElementById("cMsg").value=c.message||"";
+  cShowEditor();renderContactList();}
+function newContact(){cSel=null;document.getElementById("cName").value="";document.getElementById("cPhone").value="";document.getElementById("cMsg").value="";cShowEditor();renderContactList();document.getElementById("cName").focus();}
+function cShowEditor(){document.getElementById("cEmpty").classList.add("hidden");document.getElementById("cBody").classList.remove("hidden");document.getElementById("cActions").classList.remove("hidden");}
+function cLoadGroup(i){if(i==="")return;document.getElementById("cMsg").value=replaceTokens(messageFor(groups[i]));document.getElementById("cGroupPick").value="";toast(`Loaded "${groups[i].name}" message`);}
+function cInsertTemplate(i){if(i==="")return;document.getElementById("cMsg").value=replaceTokens(templates[i].content);document.getElementById("cTplPick").value="";toast("Template inserted");}
+function cBuild(){const name=document.getElementById("cName").value.trim();const phone=document.getElementById("cPhone").value.replace(/\D/g,"");
+  if(!name){toast("Enter contact name","err");return null;}if(!phone){toast("Enter phone (digits, with country code)","err");return null;}
+  const prev=cSel!==null?contacts[cSel]:{};
+  return{name,phone,message:document.getElementById("cMsg").value,lastReleased:prev.lastReleased||""};}
+async function saveContact(){const b=cBuild();if(!b)return false;
+  const res=cSel!==null?await fetch(`/api/contacts/${cSel}`,put(b)):await fetch("/api/contacts",post(b));
+  const d=await res.json();if(d.error){toast(d.error,"err");return false;}
+  await loadContacts();if(cSel===null)cSel=contacts.length-1;renderContactList();toast("Contact saved ✓");return true;}
+async function deleteContact(i){if(!confirm(`Delete "${contacts[i].name}"?`))return;await fetch(`/api/contacts/${i}`,{method:"DELETE"});
+  if(cSel===i){cSel=null;document.getElementById("cEmpty").classList.remove("hidden");document.getElementById("cBody").classList.add("hidden");document.getElementById("cActions").classList.add("hidden");}
+  else if(cSel>i)cSel--;await loadContacts();toast("Contact deleted");}
+function contactTarget(c){return{name:c.name,phone:c.phone,message:replaceTokens(c.message||"")};}
+async function releaseCurrentContact(){if(!(await saveContact()))return;const c=contacts[cSel];
+  const t=contactTarget(c); if(!t.message.trim()){toast("Message is empty","err");return;}
+  releaseWithMode([t],"relCAllSpin","relCAllBtn","relCAllTxt","Automated All","automated");}
+function releaseOneContact(i){const t=contactTarget(contacts[i]);if(!t.message.trim()){toast("Message is empty — add one first","err");return;}
+  releaseWithMode([t],"relCAllSpin","relCAllBtn","relCAllTxt","Automated All","automated");}
+function releaseAllContacts(){const t=contacts.map(contactTarget).filter(x=>x.message.trim());
+  releaseWithMode(t,"relCAllSpin","relCAllBtn","relCAllTxt","Automated All","automated");}
+async function directCurrentContact(){if(!(await saveContact()))return;openDirectContactByName(contacts[cSel].name);}
+function directOneContact(i){openDirectContactByName(contacts[i].name);}
+function directAllContacts(){contacts.forEach((c,i)=>setTimeout(()=>directOneContact(i),i*500));}
+
+/* ════ Pickers (templates/groups dropdowns) ════ */
+function refreshPickers(){
+  const tplOpts=`<option value="">↶ Insert template…</option>`+templates.map((t,i)=>`<option value="${i}">${esc(t.name)}</option>`).join("");
+  const gTpl=document.getElementById("gTplPick"); if(gTpl)gTpl.innerHTML=tplOpts;
+  const cTpl=document.getElementById("cTplPick"); if(cTpl)cTpl.innerHTML=`<option value="">↶ Template…</option>`+templates.map((t,i)=>`<option value="${i}">${esc(t.name)}</option>`).join("");
+  const cG=document.getElementById("cGroupPick"); if(cG)cG.innerHTML=`<option value="">⤵ Load group message…</option>`+groups.map((g,i)=>`<option value="${i}">${esc(g.name)}</option>`).join("");
+}
+
+/* ════ Settings: automation / security / data ════ */
+async function saveAutomation(){
+  const body={headless:document.getElementById("setHeadless").checked,delaySeconds:parseInt(document.getElementById("setDelay").value)||0};
+  settings=await (await fetch("/api/settings",put(body))).json();toast("Settings saved ✓");}
+async function changePassword(){
+  const current=document.getElementById("curPw").value,nw=document.getElementById("newPw").value;
+  if(nw.length<8){toast("Password must be at least 8 characters","err");return;}
+  const d=await (await fetch("/api/auth/change-password",post({current,new:nw}))).json();
+  if(d.error){toast(d.error,"err");return;}
+  document.getElementById("curPw").value="";document.getElementById("newPw").value="";toast("Password updated ✓");}
+async function exportConfig(){const cfg=await (await fetch("/api/config")).json();
+  const blob=new Blob([JSON.stringify(cfg,null,2)],{type:"application/json"});const a=document.createElement("a");
+  a.href=URL.createObjectURL(blob);a.download=`schedule_backup_${new Date().toISOString().slice(0,10)}.json`;a.click();URL.revokeObjectURL(a.href);toast("Backup downloaded ✓");}
+async function importConfig(input){const f=input.files[0];input.value="";if(!f)return;
+  if(!confirm("Restoring REPLACES current groups, contacts, templates and settings (login kept). Continue?"))return;
+  try{const cfg=JSON.parse(await f.text());const d=await (await fetch("/api/config",put(cfg))).json();
+    if(d.error){toast(d.error,"err");return;}gSel=cSel=null;tableSelected={};colWidths={};
+    await Promise.all([loadGroups(),loadTemplates(),loadContacts(),loadSettings()]);toast("Config restored ✓");}
+  catch(e){toast("Invalid JSON file","err");}}
+
+/* ════ Release / SSE ════ */
+async function doRelease(targets,spin,btn,txt,label){
+  if(!targets.length){toast("Nothing to send","err");return;}
+  if(!confirm(`Automated send to ${targets.length} recipient(s)?\n\n`+targets.map(t=>`• ${t.name}`).join("\n")))return;
+  maybeShowStatusOnSend();setBusy(spin,btn,txt,true,"Sending…");showLog();document.getElementById("logLines").innerHTML="";
+  const d=await (await fetch("/api/release",post({targets}))).json();
+  if(d.error){toast(d.error,"err");setBusy(spin,btn,txt,false,label);}}
+function setBusy(spin,btn,txt,busy,label){document.getElementById(btn).disabled=busy;
+  document.getElementById(txt).textContent=busy?"Sending…":label;document.getElementById(spin).classList.toggle("hidden",!busy);}
+function resetBusy(){["relAll","relTbl","relCAll","auto"].forEach(p=>{const b=document.getElementById(p+"Btn");if(b){b.disabled=false;const s=document.getElementById(p+"Spin");if(s)s.classList.add("hidden");}});
+  const m={relAllTxt:"Automated All",relTblTxt:"Automated Selected",relCAllTxt:"Automated All",autoTxt:"Send selected"};
+  for(const k in m){const e=document.getElementById(k);if(e)e.textContent=m[k];}}
+function showLog(){document.getElementById("statusPanel").style.display="block";}
+function startSSE(){const es=new EventSource("/api/status");es.onmessage=e=>{if(e.data==="ping")return;
+  const[type,...r]=e.data.split(":");appendLog(type,r.join(":"));
+  if(type==="done"){resetBusy();loadGroups();loadContacts();} if(type==="error")resetBusy();};}
+function appendLog(type,msg){showLog();const l=document.getElementById("logLines");const d=document.createElement("div");
+  d.className="ll "+type;d.textContent=msg;l.appendChild(d);document.getElementById("statusPanel").scrollTop=1e9;}
+
+/* ════ Helpers ════ */
+function post(b){return{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(b)};}
+function put(b){return{method:"PUT",headers:{"Content-Type":"application/json"},body:JSON.stringify(b)};}
+function esc(s){return(s||"").replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));}
+function escA(s){return(s||"").replace(/"/g,"&quot;").replace(/</g,"&lt;");}
+async function copyBox(id){try{await navigator.clipboard.writeText(document.getElementById(id).value);toast("Copied ✓");}catch{toast("Copy failed","err");}}
+async function copyText(t){try{await navigator.clipboard.writeText(t);toast("Copied ✓");}catch{toast("Copy failed","err");}}
+let tt;function toast(m,type="ok"){const e=document.getElementById("toast");e.textContent=m;e.className=`toast ${type} show`;clearTimeout(tt);tt=setTimeout(()=>e.classList.remove("show"),3000);}
+
+boot();
+</script>
+</body>
+</html>

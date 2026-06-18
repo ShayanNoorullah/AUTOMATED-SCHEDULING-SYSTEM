@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Sign in · SSIES Schedule Sender</title>
+<link rel="preconnect" href="https://api.fontshare.com">
+<link href="https://api.fontshare.com/v2/css?f[]=satoshi@400,500,700,900&display=swap" rel="stylesheet">
+<style>
+  :root{--accent:#0000EE;--accent-hover:#0000c4;--surface:#fff;--bg:#F4F6FB;--ink:#0b1220;--muted:#667085;--border:rgba(0,0,0,.13);--error:#D92D20;--r-md:11px;--r-lg:20px;--shadow:0 18px 50px rgba(16,24,40,.14);}
+  html[data-theme="dark"]{--surface:#161b26;--bg:#0c0f16;--ink:#e8edf5;--muted:#9aa6b5;--border:rgba(255,255,255,.12);}
+  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+  body{font-family:'Satoshi','Segoe UI',sans-serif;color:var(--ink);min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px;
+    background:radial-gradient(1100px 500px at 80% -10%,rgba(0,0,238,.12),transparent 60%),var(--bg);}
+  .card{width:430px;max-width:100%;background:var(--surface);border-radius:var(--r-lg);box-shadow:var(--shadow);border:1px solid var(--border);padding:38px 34px;}
+  .brand{display:flex;align-items:center;gap:12px;margin-bottom:26px;}
+  .brand .logo{width:46px;height:46px;display:grid;place-items:center;background:var(--accent);border-radius:13px;}
+  .brand h1{font-size:18px;font-weight:700;}
+  .brand p{font-size:13px;color:var(--muted);}
+  h2{font-size:24px;font-weight:700;margin-bottom:6px;}
+  .sub{font-size:14px;color:var(--muted);margin-bottom:24px;}
+  label{display:block;font-size:13px;font-weight:500;color:var(--muted);margin-bottom:7px;}
+  .field{width:100%;background:var(--bg);border:1px solid var(--border);border-radius:var(--r-md);padding:13px 14px;color:var(--ink);font-family:inherit;font-size:16px;outline:none;margin-bottom:16px;}
+  .field:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(0,0,238,.14);}
+  .btn{width:100%;background:var(--accent);color:#fff;border:none;border-radius:var(--r-md);padding:14px;font-family:inherit;font-size:15px;font-weight:600;cursor:pointer;}
+  .btn:hover{background:var(--accent-hover);}
+  .btn:disabled{opacity:.6;cursor:not-allowed;}
+  .err{color:var(--error);font-size:13px;margin-bottom:14px;min-height:18px;}
+  .foot{margin-top:18px;font-size:12px;color:var(--muted);text-align:center;}
+  .foot a{color:var(--accent);font-weight:600;text-decoration:none;}
+</style>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+  <div class="card">
+    <div class="brand">
+      <div class="logo"><svg width="26" height="26" viewBox="0 0 24 24" fill="none"><path d="M3.4 11.3 20.2 3.6c.8-.4 1.6.4 1.3 1.2l-6.1 16.5c-.3.8-1.4.8-1.7 0l-2.6-6.4a1 1 0 0 0-.5-.5L3.4 12.9c-.8-.3-.9-1.3.0-1.6Z" fill="#fff"/></svg></div>
+      <div><h1>Schedule Sender</h1><p>SSIES Automation</p></div>
+    </div>
+    <h2>Welcome back</h2>
+    <p class="sub">Sign in with your email. Accounts are created by an administrator.</p>
+    <div class="err" id="err"></div>
+    <label>Email</label>
+    <input class="field" id="email" type="email" placeholder="you@example.com" autofocus/>
+    <label>Password</label>
+    <input class="field" id="pw" type="password" placeholder="Your password" onkeydown="if(event.key==='Enter')submitForm()"/>
+    <button class="btn" id="go" onclick="submitForm()">Sign in</button>
+    <div class="foot"><a href="/auth/forgot-password">Forgot password?</a> · Secured with Supabase Auth</div>
+  </div>
+<script>
+const SUPABASE_URL = {{ supabase_url|tojson }};
+const SUPABASE_ANON_KEY = {{ supabase_anon_key|tojson }};
+const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+const errEl = document.getElementById("err");
+function setErr(m){ errEl.textContent = m || ""; }
+
+async function submitForm(){
+  const email = document.getElementById("email").value.trim();
+  const password = document.getElementById("pw").value;
+  const btn = document.getElementById("go");
+  setErr("");
+  if(!email || !password){ return setErr("Email and password are required."); }
+  btn.disabled = true;
+  try {
+    const { data, error } = await sb.auth.signInWithPassword({ email, password });
+    if(error) return setErr(error.message);
+    const res = await fetch("/auth/session", {
+      method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body: JSON.stringify({
+        access_token: data.session.access_token,
+        refresh_token: data.session.refresh_token,
+      }),
+    });
+    const body = await res.json();
+    if(!res.ok) return setErr(body.error || "Login failed");
+    location.href = body.redirect || "/";
+  } catch(e) {
+    setErr("Connection error. Try again.");
+  } finally {
+    btn.disabled = false;
+  }
+}
+</script>
+</body>
+</html>

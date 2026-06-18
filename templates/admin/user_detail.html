@@ -1,0 +1,43 @@
+{% extends "portal/base.html" %}
+{% block title %}User detail{% endblock %}
+{% block portal_title %}Admin Portal{% endblock %}
+{% block page_heading %}{{ target.email }}{% endblock %}
+{% block top_actions %}<a href="/admin/users" class="btn btn-soft">Back to users</a>{% endblock %}
+{% block nav %}{% include "portal/admin_nav.html" %}{% endblock %}
+{% block content %}
+<div class="cards" id="stats">
+  <div class="card"><div class="n">…</div><div class="l">Groups</div></div>
+  <div class="card"><div class="n">…</div><div class="l">Contacts</div></div>
+  <div class="card"><div class="n">…</div><div class="l">Templates</div></div>
+</div>
+<div class="card card-wide" style="margin-top:20px">
+  <div class="form-grid">
+    <div class="form-row"><label>Display name</label><input id="displayName" value="{{ target.display_name or '' }}"/></div>
+    <div class="check-row"><input type="checkbox" id="isActive" {% if target.is_active %}checked{% endif %}/><div class="check-body"><div class="label">Account active</div><div class="hint">Disabled users cannot sign in</div></div></div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap">
+      <button class="btn btn-primary" onclick="save()">Save</button>
+      <button class="btn btn-soft" onclick="resetPw()">Send password reset</button>
+      <button class="btn btn-danger" onclick="del()">Delete user</button>
+    </div>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+const uid="{{ target.id }}";
+async function load(){
+  const u=await api("/admin/api/users/"+uid);
+  document.getElementById("stats").innerHTML=`
+    <div class="card"><div class="n">${u.groupCount}</div><div class="l">Groups</div></div>
+    <div class="card"><div class="n">${u.contactCount}</div><div class="l">Contacts</div></div>
+    <div class="card"><div class="n">${u.templateCount}</div><div class="l">Templates</div></div>`;
+}
+async function save(){
+  await api("/admin/api/users/"+uid,{method:"PUT",body:JSON.stringify({displayName:displayName.value,isActive:isActive.checked})});
+  toast("Saved");
+}
+async function resetPw(){await api("/admin/api/users/"+uid+"/reset-password",{method:"POST",body:"{}"});toast("Reset email sent");}
+async function del(){if(!confirm("Delete this user permanently?"))return;await api("/admin/api/users/"+uid,{method:"DELETE"});location.href="/admin/users";}
+load();
+</script>
+{% endblock %}

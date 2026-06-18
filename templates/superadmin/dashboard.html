@@ -1,0 +1,35 @@
+{% extends "portal/base.html" %}
+{% block title %}Superadmin{% endblock %}
+{% block portal_title %}Superadmin{% endblock %}
+{% block page_heading %}{{ site_name }}{% endblock %}
+{% block page_sub %}<p>System overview</p>{% endblock %}
+{% block top_actions %}<span class="badge">Superadmin</span>{% endblock %}
+{% block nav %}{% include "portal/superadmin_nav.html" %}{% endblock %}
+{% block content %}
+<div class="cards">
+  <div class="card"><div class="n">{{ total_users }}</div><div class="l">Users</div></div>
+  <div class="card"><div class="n">{{ total_admins }}</div><div class="l">Admins</div></div>
+  <div class="card"><div class="n">{{ active }}</div><div class="l">Active accounts</div></div>
+  <div class="card"><div class="n">{{ disabled }}</div><div class="l">Disabled</div></div>
+  <div class="card"><div class="n">{{ releases_today }}</div><div class="l">Releases today</div></div>
+  <div class="card"><div class="n" id="statGroups">—</div><div class="l">Total groups</div></div>
+  <div class="card"><div class="n" id="statContacts">—</div><div class="l">Total contacts</div></div>
+</div>
+<h3 class="section-title">Recent activity</h3>
+<table>
+  <thead><tr><th>Time</th><th>Action</th><th>Detail</th></tr></thead>
+  <tbody>
+    {% for r in recent_audit %}
+    <tr><td>{{ r.created_at.strftime('%Y-%m-%d %H:%M') if r.created_at else '—' }}</td><td>{{ r.action }}</td><td>{{ r.detail }}</td></tr>
+    {% else %}<tr class="empty-row"><td colspan="3">No activity yet</td></tr>{% endfor %}
+  </tbody>
+</table>
+{% endblock %}
+{% block scripts %}
+<script>
+api("/superadmin/api/stats").then(s=>{
+  document.getElementById("statGroups").textContent=s.groups;
+  document.getElementById("statContacts").textContent=s.contacts;
+});
+</script>
+{% endblock %}

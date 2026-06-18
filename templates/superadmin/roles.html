@@ -1,0 +1,16 @@
+{% extends "portal/base.html" %}
+{% block title %}Roles{% endblock %}
+{% block portal_title %}Superadmin{% endblock %}
+{% block page_heading %}Role definitions{% endblock %}
+{% block nav %}{% include "portal/superadmin_nav.html" %}{% endblock %}
+{% block content %}
+<table>
+  <thead><tr><th>Role</th><th>Description</th><th>Assignable</th></tr></thead>
+  <tbody>
+    <tr><td><strong>user</strong></td><td>Manage schedules, groups, contacts, templates, and release messages.</td><td>Yes (default)</td></tr>
+    <tr><td><strong>admin</strong></td><td>Manage user accounts only. Cannot modify other admins or system settings.</td><td>By superadmin</td></tr>
+    <tr><td><strong>superadmin</strong></td><td>Full system control. Bootstrap via SUPERADMIN_EMAIL.</td><td>No</td></tr>
+  </tbody>
+</table>
+<p style="margin-top:20px;color:var(--muted);font-size:14px">Assign roles from <a href="/superadmin/users">All users</a> or <a href="/superadmin/admins">Admins</a>.</p>
+{% endblock %}

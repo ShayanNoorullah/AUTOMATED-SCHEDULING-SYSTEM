@@ -1,4 +1,5 @@
 # Secrets and local config
+run.local.bat
 env.bat
 groups_config.json
 

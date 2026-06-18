@@ -1,6 +1,6 @@
 @echo off
 echo Installing dependencies...
-python -m pip install flask flask-sqlalchemy psycopg2-binary cryptography selenium undetected-chromedriver pyperclip
+python -m pip install -r "%~dp0requirements.txt"
 echo.
-echo Done! You can now run: run.bat
+echo Done! Copy env.example.bat to env.bat and configure Supabase, then run: run.bat
 pause

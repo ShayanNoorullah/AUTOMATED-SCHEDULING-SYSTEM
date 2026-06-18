@@ -1,0 +1,28 @@
+{% extends "portal/base.html" %}
+{% block title %}Users{% endblock %}
+{% block portal_title %}Admin Portal{% endblock %}
+{% block page_heading %}User management{% endblock %}
+{% block top_actions %}<button class="btn btn-primary" id="createBtn" onclick="openCreate()">+ Create user</button>{% endblock %}
+{% block nav %}{% include "portal/admin_nav.html" %}{% endblock %}
+{% block content %}
+<table>
+  <thead><tr><th>Email</th><th>Name</th><th>Groups</th><th>Status</th><th>Actions</th></tr></thead>
+  <tbody id="userRows"><tr class="empty-row"><td colspan="5" class="loading">Loading…</td></tr></tbody>
+</table>
+<div class="modal-scrim" id="modal">
+  <div class="modal">
+    <h3 id="modalTitle">Create user</h3>
+    <div class="form-row"><label>Email</label><input id="mEmail" type="email"/></div>
+    <div class="form-row"><label>Display name</label><input id="mName"/></div>
+    <div class="form-row"><label>Password</label><input id="mPw" type="password"/></div>
+    <div class="modal-actions">
+      <button class="btn btn-soft" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="saveUser()">Save</button>
+    </div>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/admin.js') }}"></script>
+<script>loadUsers();</script>
+{% endblock %}

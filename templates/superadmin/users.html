@@ -1,0 +1,43 @@
+{% extends "portal/base.html" %}
+{% block title %}All users{% endblock %}
+{% block portal_title %}Superadmin{% endblock %}
+{% block page_heading %}All users{% endblock %}
+{% block nav %}{% include "portal/superadmin_nav.html" %}{% endblock %}
+{% block top_actions %}
+<div class="filter-bar">
+  <select id="roleFilter" onchange="load()"><option value="">All roles</option><option value="user">Users</option><option value="admin">Admins</option></select>
+</div>
+{% endblock %}
+{% block content %}
+<table>
+  <thead><tr><th>Email</th><th>Role</th><th>Status</th><th>Groups</th><th>Actions</th></tr></thead>
+  <tbody id="rows"><tr class="empty-row"><td colspan="5" class="loading">Loading…</td></tr></tbody>
+</table>
+{% endblock %}
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/superadmin.js') }}"></script>
+<script>
+async function load(){
+  const role=document.getElementById("roleFilter").value;
+  const users=await loadAllUsers(role||undefined);
+  const rows=document.getElementById("rows");
+  if(!users.length){rows.innerHTML='<tr class="empty-row"><td colspan="5">No users found</td></tr>';return;}
+  rows.innerHTML=users.map(u=>`<tr>
+    <td><a href="/superadmin/inspect/${u.id}">${esc(u.email)}</a></td>
+    <td>${esc(u.role)}</td>
+    <td>${u.isActive?'<span class="status-on">Active</span>':'<span class="status-off">Disabled</span>'}</td>
+    <td>${u.groupCount??0}</td>
+    <td class="td-actions">
+      ${u.role==='user'?`<button class="btn btn-sm btn-soft" onclick="promote('${u.id}','admin')">Make admin</button>`:''}
+      ${u.role==='admin'?`<button class="btn btn-sm btn-soft" onclick="promote('${u.id}','user')">Demote</button>`:''}
+      ${u.role!=='superadmin'?`<button class="btn btn-sm btn-soft" onclick="toggleActive('${u.id}',${!u.isActive})">${u.isActive?'Disable':'Enable'}</button>`:''}
+      ${u.role!=='superadmin'?`<button class="btn btn-sm btn-soft" onclick="resetPw('${u.id}')">Reset PW</button>`:''}
+      ${u.role!=='superadmin'?`<button class="btn btn-sm btn-danger" onclick="deleteUser('${u.id}').then(load)">Delete</button>`:''}
+    </td></tr>`).join("");
+}
+async function promote(id,role){await promoteRole(id,role);load();}
+async function toggleActive(id,active){await api(`/superadmin/api/users/${id}`,{method:"PUT",body:JSON.stringify({isActive:active})});toast("Updated");load();}
+async function resetPw(id){await api(`/superadmin/api/users/${id}/reset-password`,{method:"POST",body:"{}"});toast("Password reset email sent");}
+load();
+</script>
+{% endblock %}

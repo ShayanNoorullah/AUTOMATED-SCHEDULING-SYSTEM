@@ -1,0 +1,7 @@
+<a href="/admin" class="portal-nav-link{% if request.path in ('/admin', '/admin/') %} active{% endif %}">Dashboard</a>
+<a href="/admin/users" class="portal-nav-link{% if request.path.startswith('/admin/users') %} active{% endif %}">Users</a>
+<a href="/admin/activity" class="portal-nav-link{% if request.path.startswith('/admin/activity') %} active{% endif %}">Activity</a>
+<a href="/admin/profile" class="portal-nav-link{% if request.path.startswith('/admin/profile') %} active{% endif %}">Profile</a>
+<div class="portal-nav-divider"></div>
+<a href="/" class="portal-nav-link">User Dashboard</a>
+{% if profile.role == 'superadmin' %}<a href="/superadmin" class="portal-nav-link">Superadmin</a>{% endif %}

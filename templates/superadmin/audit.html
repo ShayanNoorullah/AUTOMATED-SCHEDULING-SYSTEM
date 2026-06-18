@@ -1,0 +1,31 @@
+{% extends "portal/base.html" %}
+{% block title %}Audit log{% endblock %}
+{% block portal_title %}Superadmin{% endblock %}
+{% block page_heading %}Global audit log{% endblock %}
+{% block nav %}{% include "portal/superadmin_nav.html" %}{% endblock %}
+{% block top_actions %}
+<div class="filter-bar">
+  <input id="filterAction" placeholder="Filter action…" style="padding:9px 12px;border:1px solid var(--border-strong);border-radius:var(--r-md);font-family:inherit"/>
+  <button class="btn btn-soft" onclick="load()">Refresh</button>
+  <a class="btn btn-primary" href="/superadmin/api/audit/export">Export CSV</a>
+</div>
+{% endblock %}
+{% block content %}
+<table>
+  <thead><tr><th>Time</th><th>Action</th><th>Detail</th><th>Actor</th><th>IP</th></tr></thead>
+  <tbody id="rows"><tr class="empty-row"><td colspan="5" class="loading">Loading…</td></tr></tbody>
+</table>
+{% endblock %}
+{% block scripts %}
+<script>
+async function load(){
+  const action=document.getElementById("filterAction").value.trim();
+  const url=action?`/superadmin/api/audit?action=${encodeURIComponent(action)}`:"/superadmin/api/audit";
+  const rows=await api(url);
+  const el=document.getElementById("rows");
+  if(!rows.length){el.innerHTML='<tr class="empty-row"><td colspan="5">No entries</td></tr>';return;}
+  el.innerHTML=rows.map(r=>`<tr><td>${fmtDate(r.at)}</td><td>${esc(r.action)}</td><td>${esc(r.detail)}</td><td>${esc(r.actorEmail||r.actorId||'—')}</td><td>${esc(r.ip)}</td></tr>`).join("");
+}
+load();
+</script>
+{% endblock %}

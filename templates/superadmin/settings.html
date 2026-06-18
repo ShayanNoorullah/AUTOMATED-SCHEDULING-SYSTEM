@@ -1,0 +1,86 @@
+{% extends "portal/base.html" %}
+{% block title %}Settings{% endblock %}
+{% block portal_title %}Superadmin{% endblock %}
+{% block page_heading %}System settings{% endblock %}
+{% block page_sub %}<p>Configure site, WhatsApp automation, and access policies</p>{% endblock %}
+{% block nav %}{% include "portal/superadmin_nav.html" %}{% endblock %}
+{% block content %}
+<div class="portal-tabs">
+  <button class="portal-tab on" data-tab="general" onclick="showPortalTab('general')">General</button>
+  <button class="portal-tab" data-tab="waha" onclick="showPortalTab('waha')">WhatsApp / WAHA</button>
+  <button class="portal-tab" data-tab="access" onclick="showPortalTab('access')">Access</button>
+  <button class="portal-tab" data-tab="system" onclick="showPortalTab('system')">System</button>
+</div>
+
+<div class="portal-tab-panel on" id="ptab-general">
+  <div class="card card-wide">
+    <div class="form-grid">
+      <div class="form-row"><label>Site name</label><input id="siteName" value="{{ site_name }}"/></div>
+      <div class="form-row"><label>Default delay (seconds)</label><input id="defaultDelay" type="number" min="0" max="300" value="{{ default_delay }}"/><span class="hint">Delay between automated sends for new users</span></div>
+      <div class="check-row"><input type="checkbox" id="maintenance" {% if maintenance_mode %}checked{% endif %}/><div class="check-body"><div class="label">Maintenance mode</div><div class="hint">Blocks automated release for regular users</div></div></div>
+      <button class="btn btn-primary" onclick="saveGeneral()">Save general settings</button>
+    </div>
+  </div>
+</div>
+
+<div class="portal-tab-panel" id="ptab-waha">
+  <div class="card card-wide">
+    <div class="form-grid">
+      <div class="form-row"><label>Automation provider</label>
+        <select id="waProvider">
+          <option value="selenium" {% if wa_provider == 'selenium' %}selected{% endif %}>Selenium (Chrome on Windows)</option>
+          <option value="waha" {% if wa_provider == 'waha' %}selected{% endif %}>WAHA (Docker HTTP API)</option>
+          <option value="direct_only" {% if wa_provider == 'direct_only' %}selected{% endif %}>Direct links only (no automation)</option>
+        </select>
+      </div>
+      <div class="form-row"><label>WAHA base URL</label><input id="wahaUrl" placeholder="http://localhost:3000" value="{{ waha_base_url }}"/></div>
+      <div class="form-row"><label>WAHA API key</label><input id="wahaKey" type="password" placeholder="Same as WAHA_API_KEY in Docker" value="{{ waha_api_key }}"/></div>
+      <div class="form-row"><label>WAHA session name</label><input id="wahaSession" value="{{ waha_session_name }}"/><span class="hint">WAHA Core (free): use <code>default</code> only</span></div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap">
+        <button class="btn btn-primary" onclick="saveWaha()">Save WhatsApp settings</button>
+        <button class="btn btn-soft" onclick="testWaha()">Test connection</button>
+        <span id="wahaTestResult" style="font-size:13px;color:var(--muted);align-self:center"></span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="portal-tab-panel" id="ptab-access">
+  <div class="card card-wide">
+    <div class="form-grid">
+      <div class="check-row"><input type="checkbox" id="allowCreate" {% if allow_user_creation %}checked{% endif %}/><div class="check-body"><div class="label">Allow admins to create users</div><div class="hint">When off, only superadmin can create accounts</div></div></div>
+      <div class="form-row"><label>Max users (0 = unlimited)</label><input id="maxUsers" type="number" min="0" value="{{ max_users }}"/></div>
+      <button class="btn btn-primary" onclick="saveAccess()">Save access settings</button>
+    </div>
+  </div>
+</div>
+
+<div class="portal-tab-panel" id="ptab-system">
+  <div class="card card-wide">
+    <p style="margin-bottom:16px;color:var(--muted);font-size:14px">Audit logs and exports for compliance and troubleshooting.</p>
+    <div style="display:flex;gap:10px;flex-wrap:wrap">
+      <a class="btn btn-soft" href="/superadmin/audit">View audit log</a>
+      <a class="btn btn-primary" href="/superadmin/api/audit/export">Export audit CSV</a>
+    </div>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/superadmin.js') }}"></script>
+<script>
+async function saveGeneral(){
+  await saveSettings({siteName:siteName.value,defaultDelaySeconds:parseInt(defaultDelay.value)||5,maintenanceMode:maintenance.checked});
+}
+async function saveWaha(){
+  await saveSettings({waProvider:waProvider.value,wahaBaseUrl:wahaUrl.value.trim(),wahaApiKey:wahaKey.value,wahaSessionName:wahaSession.value.trim()||'default'});
+}
+async function saveAccess(){
+  await saveSettings({allowUserCreation:allowCreate.checked,maxUsers:parseInt(maxUsers.value)||0});
+}
+async function testWaha(){
+  const el=document.getElementById("wahaTestResult");el.textContent="Testing…";
+  try{const r=await api("/superadmin/api/waha/health");el.textContent=r.ok?"Connected":(r.error||"Failed");el.style.color=r.ok?"var(--success)":"var(--error)";}
+  catch(e){el.textContent=e.message;el.style.color="var(--error)";}
+}
+</script>
+{% endblock %}

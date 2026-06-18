@@ -1,0 +1,25 @@
+{% extends "portal/base.html" %}
+{% block title %}Inspect{% endblock %}
+{% block portal_title %}Superadmin{% endblock %}
+{% block page_heading %}{{ target.email }}{% endblock %}
+{% block page_sub %}<p>Role: <strong>{{ target.role }}</strong> · {% if target.is_active %}Active{% else %}Disabled{% endif %}</p>{% endblock %}
+{% block top_actions %}<a class="btn btn-primary" href="/?asUser={{ target.id }}">Open schedule dashboard</a>{% endblock %}
+{% block nav %}{% include "portal/superadmin_nav.html" %}{% endblock %}
+{% block content %}
+<div class="cards" id="stats">
+  <div class="card"><div class="n">…</div><div class="l">Groups</div></div>
+  <div class="card"><div class="n">…</div><div class="l">Contacts</div></div>
+  <div class="card"><div class="n">…</div><div class="l">Templates</div></div>
+</div>
+<p style="margin-top:16px;font-size:14px;color:var(--muted)">Use "Open schedule dashboard" to view and edit this user's groups, templates, and contacts.</p>
+{% endblock %}
+{% block scripts %}
+<script>
+api("/superadmin/api/users/{{ target.id }}").then(u=>{
+  document.getElementById("stats").innerHTML=`
+    <div class="card"><div class="n">${u.groupCount}</div><div class="l">Groups</div></div>
+    <div class="card"><div class="n">${u.contactCount}</div><div class="l">Contacts</div></div>
+    <div class="card"><div class="n">${u.templateCount}</div><div class="l">Templates</div></div>`;
+}).catch(()=>{document.getElementById("stats").innerHTML='<p class="loading">Could not load stats</p>';});
+</script>
+{% endblock %}

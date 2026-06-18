@@ -5,3 +5,10 @@ cryptography
 selenium
 undetected-chromedriver
 pyperclip
+supabase
+PyJWT
+flask-limiter
+flask-talisman
+flask-wtf
+waitress
+requests
