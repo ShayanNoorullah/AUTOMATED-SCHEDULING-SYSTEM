@@ -1,0 +1,87 @@
+<div class="profile-hero">
+  <div class="profile-avatar" aria-hidden="true">{{ (profile.display_name or profile.email)[0]|upper }}</div>
+  <div class="profile-hero-body">
+    <h1>{{ profile.display_label() }}</h1>
+    <p class="profile-email">{{ profile.email }}</p>
+    <div class="profile-badges">
+      <span class="profile-role-badge role-{{ profile.role }}">{{ profile.role }}</span>
+      {% if profile.is_active %}<span class="profile-status-badge">Active</span>{% else %}<span class="profile-status-badge off">Disabled</span>{% endif %}
+    </div>
+  </div>
+</div>
+
+<div class="profile-meta-grid">
+  <div class="profile-meta-card">
+    <span class="k">Member since</span>
+    <span class="v">{{ profile.created_at.strftime('%d %b %Y') if profile.created_at else '—' }}</span>
+  </div>
+  <div class="profile-meta-card">
+    <span class="k">Last login</span>
+    <span class="v">{{ profile.last_login_at.strftime('%d %b %Y, %H:%M') if profile.last_login_at else '—' }}</span>
+  </div>
+  <div class="profile-meta-card">
+    <span class="k">Account ID</span>
+    <span class="v profile-id" title="{{ profile.id }}">{{ profile.id|string|truncate(13, True, '…') }}</span>
+  </div>
+</div>
+
+<div class="profile-grid">
+  <section class="profile-card">
+    <div class="profile-card-head">
+      <h3>Account</h3>
+      <p>Update how your name appears in the app.</p>
+    </div>
+    <div class="profile-form">
+      <div class="profile-field">
+        <label for="profileEmail">Email</label>
+        <input id="profileEmail" value="{{ profile.email }}" disabled class="is-readonly"/>
+        <span class="field-hint">Sign-in email cannot be changed here.</span>
+      </div>
+      <div class="profile-field">
+        <label for="displayName">Display name</label>
+        <input id="displayName" value="{{ profile.display_name or '' }}" placeholder="Your name" maxlength="120"/>
+      </div>
+      <div class="profile-field">
+        <label for="profileRole">Role</label>
+        <input id="profileRole" value="{{ profile.role }}" disabled class="is-readonly"/>
+      </div>
+    </div>
+    <div class="profile-card-actions">
+      <button class="btn btn-primary" id="saveProfileBtn" onclick="saveProfile()">Save changes</button>
+    </div>
+  </section>
+
+  <section class="profile-card">
+    <div class="profile-card-head">
+      <h3>Security</h3>
+      <p>Change your password. You will stay signed in on this device.</p>
+    </div>
+    <div class="profile-form">
+      <div class="profile-field">
+        <label for="curPw">Current password</label>
+        <div class="profile-pw-row">
+          <input id="curPw" type="password" autocomplete="current-password"/>
+          <button type="button" class="btn btn-ghost btn-sm" onclick="togglePw('curPw',this)">Show</button>
+        </div>
+      </div>
+      <div class="profile-field">
+        <label for="newPw">New password</label>
+        <div class="profile-pw-row">
+          <input id="newPw" type="password" autocomplete="new-password" minlength="8"/>
+          <button type="button" class="btn btn-ghost btn-sm" onclick="togglePw('newPw',this)">Show</button>
+        </div>
+        <span class="field-hint">Minimum 8 characters.</span>
+      </div>
+      <div class="profile-field">
+        <label for="newPw2">Confirm new password</label>
+        <div class="profile-pw-row">
+          <input id="newPw2" type="password" autocomplete="new-password" minlength="8"/>
+          <button type="button" class="btn btn-ghost btn-sm" onclick="togglePw('newPw2',this)">Show</button>
+        </div>
+      </div>
+    </div>
+    <div class="profile-card-actions">
+      <button class="btn btn-soft" id="savePwBtn" onclick="changePw()">Update password</button>
+    </div>
+  </section>
+</div>

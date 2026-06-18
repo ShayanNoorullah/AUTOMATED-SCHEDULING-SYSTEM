@@ -102,7 +102,15 @@ def inspect_user(user_id):
 @bp.route("/profile")
 @superadmin_required
 def super_profile():
-    return render_template("user/profile.html", profile=g.profile, back_url="/superadmin")
+    return render_template(
+        "user/profile.html",
+        profile=g.profile,
+        back_url="/superadmin",
+        back_label="Superadmin",
+        use_portal=True,
+        portal_kind="superadmin",
+        portal_title="Superadmin",
+    )
 
 
 @bp.route("/api/users", methods=["GET"])

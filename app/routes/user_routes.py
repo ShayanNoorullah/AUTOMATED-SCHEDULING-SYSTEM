@@ -53,7 +53,13 @@ def index():
 @bp.route("/profile")
 @login_required
 def profile_page():
-    return render_template("user/profile.html", profile=g.profile)
+    return render_template(
+        "user/profile.html",
+        profile=g.profile,
+        back_url="/",
+        back_label="Dashboard",
+        use_portal=False,
+    )
 
 
 @bp.route("/api/profile", methods=["GET"])

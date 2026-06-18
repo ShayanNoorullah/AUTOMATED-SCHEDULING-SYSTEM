@@ -61,7 +61,15 @@ def activity_page():
 @bp.route("/profile")
 @admin_required
 def admin_profile_page():
-    return render_template("user/profile.html", profile=g.profile, back_url="/admin")
+    return render_template(
+        "user/profile.html",
+        profile=g.profile,
+        back_url="/admin",
+        back_label="Admin portal",
+        use_portal=True,
+        portal_kind="admin",
+        portal_title="Admin",
+    )
 
 
 @bp.route("/api/users", methods=["GET"])

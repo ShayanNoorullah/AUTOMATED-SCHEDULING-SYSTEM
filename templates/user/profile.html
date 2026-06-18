@@ -1,42 +1,130 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="light">
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>Profile · SSIES</title>
-<link href="https://api.fontshare.com/v2/css?f[]=satoshi@400,500,700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/static/css/portal.css"/>
+<title>Profile · {{ site_name|default('SSIES') }}</title>
+<link rel="preconnect" href="https://api.fontshare.com">
+<link href="https://api.fontshare.com/v2/css?f[]=satoshi@400,500,700,900&display=swap" rel="stylesheet">
+<link href="{{ url_for('static', filename='css/dashboard.css') }}" rel="stylesheet"/>
+<link href="{{ url_for('static', filename='css/components.css') }}" rel="stylesheet"/>
+<link href="{{ url_for('static', filename='css/portal.css') }}" rel="stylesheet"/>
 </head>
-<body>
-<div class="layout" style="max-width:720px;margin:0 auto;padding:32px">
-  <div style="flex:1">
-    <div class="top"><h2>My Profile</h2><a href="{{ back_url or '/' }}" class="btn btn-soft">← Dashboard</a></div>
-    <div class="card" style="margin-bottom:20px">
-      <div class="form-row"><label>Email</label><input value="{{ profile.email }}" disabled/></div>
-      <div class="form-row"><label>Display name</label><input id="displayName" value="{{ profile.display_name or '' }}"/></div>
-      <div class="form-row"><label>Role</label><input value="{{ profile.role }}" disabled/></div>
-      <div class="form-row"><label>Member since</label><input value="{{ profile.created_at.strftime('%Y-%m-%d') if profile.created_at else '—' }}" disabled/></div>
-      <button class="btn btn-primary" onclick="saveProfile()">Save profile</button>
+<body class="profile-page{% if use_portal %} profile-portal{% endif %}">
+{% if use_portal %}
+<div class="portal-app" id="portalApp">
+  <div class="portal-scrim" onclick="togglePortalSidebar()"></div>
+  <aside class="portal-sidebar">
+    <div class="portal-brand">
+      <button type="button" class="portal-logo" onclick="togglePortalSidebar()" title="Toggle menu">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="#fff"><path d="M3.4 11.3 20.2 3.6c.8-.4 1.6.4 1.3 1.2l-6.1 16.5c-.3.8-1.4.8-1.7 0l-2.6-6.4a1 1 0 0 0-.5-.5L3.4 12.9c-.8-.3-.9-1.3 0-1.6Z"/></svg>
+      </button>
+      <div class="portal-brand-text">
+        <h1>{{ portal_title|default('Portal') }}</h1>
+        <p class="sub">{{ profile.display_label() }}</p>
+      </div>
     </div>
-    <div class="card">
-      <h3 style="margin-bottom:16px">Change password</h3>
-      <div class="form-row"><label>Current password</label><input id="curPw" type="password"/></div>
-      <div class="form-row"><label>New password (8+ chars)</label><input id="newPw" type="password"/></div>
-      <button class="btn btn-soft" onclick="changePw()">Update password</button>
+    <nav class="portal-nav">
+      {% if portal_kind == 'admin' %}{% include "portal/admin_nav.html" %}
+      {% elif portal_kind == 'superadmin' %}{% include "portal/superadmin_nav.html" %}
+      {% endif %}
+    </nav>
+    <div class="portal-foot">
+      <a href="/logout" class="portal-nav-link">Log out</a>
+    </div>
+  </aside>
+  <div class="portal-main">
+    <header class="portal-topbar">
+      <button type="button" class="portal-menu-btn" onclick="togglePortalSidebar()" aria-label="Menu">
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
+      </button>
+      <div class="portal-topbar-title">
+        <h2>My profile</h2>
+        <p>Account details and security</p>
+      </div>
+      <div class="portal-topbar-actions">
+        <a href="{{ back_url or '/' }}" class="btn btn-soft btn-sm">← {{ back_label or 'Back' }}</a>
+      </div>
+    </header>
+    <main class="portal-content profile-content-wrap">
+      {% include "user/_profile_panel.html" %}
+    </main>
+  </div>
+</div>
+{% else %}
+<div class="app profile-app" id="app">
+  <div class="rail-scrim" onclick="toggleRailMobile()"></div>
+  <aside class="rail">
+    <div class="brand">
+      <a href="{{ back_url or '/' }}" class="logo" title="{{ back_label or 'Dashboard' }}" style="text-decoration:none">
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="none"><path d="M3.4 11.3 20.2 3.6c.8-.4 1.6.4 1.3 1.2l-6.1 16.5c-.3.8-1.4.8-1.7 0l-2.6-6.4a1 1 0 0 0-.5-.5L3.4 12.9c-.8-.3-.9-1.3 0-1.6Z" fill="#fff"/></svg>
+      </a>
+      <div class="bt"><h1>Schedule Sender</h1><p>SSIES Automation</p></div>
+    </div>
+    <nav class="nav">
+      <a class="nav-item" href="{{ back_url or '/' }}" style="text-decoration:none"><span class="ico">←</span><span class="lbl">{{ back_label or 'Dashboard' }}</span></a>
+      <span class="nav-item active" style="cursor:default"><span class="ico svg-ico"><svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></span><span class="lbl">Profile</span></span>
+    </nav>
+    <div class="foot">
+      <div class="user"><div class="dot">{{ (profile.display_name or profile.email)[0]|upper }}</div><div class="lbl uname">{{ profile.display_label() }}</div></div>
+      {% if profile.role == 'admin' %}<a class="nav-item" href="/admin" style="text-decoration:none;display:flex"><span class="ico">🛡️</span><span class="lbl">Admin Portal</span></a>{% endif %}
+      {% if profile.role == 'superadmin' %}<a class="nav-item" href="/superadmin" style="text-decoration:none;display:flex"><span class="ico">⭐</span><span class="lbl">Superadmin</span></a>{% endif %}
+      <button class="nav-item" onclick="location.href='/logout'"><span class="ico">⎋</span><span class="lbl">Log out</span></button>
+    </div>
+  </aside>
+  <div class="main">
+    <div class="topbar">
+      <button class="menu-btn" onclick="toggleRailMobile()" title="Menu"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 12h16M4 18h16"/></svg></button>
+      <div class="tt"><h2>My profile</h2><p>Account details and security</p></div>
+      <div class="topbar-actions">
+        <button class="theme-toggle" id="quickTheme" onclick="quickToggleTheme()" title="Toggle theme">🌙</button>
+      </div>
+    </div>
+    <div class="content profile-content-wrap">
+      {% include "user/_profile_panel.html" %}
     </div>
   </div>
 </div>
-<script src="/static/js/api.js"></script>
+{% endif %}
+<div class="toast" id="toast"></div>
+<script src="{{ url_for('static', filename='js/api.js') }}"></script>
+{% if use_portal %}<script src="{{ url_for('static', filename='js/portal.js') }}"></script>{% else %}<script src="{{ url_for('static', filename='js/theme.js') }}"></script>{% endif %}
 <script>
+function toggleRailMobile(){
+  document.getElementById("app")?.classList.toggle("rail-open");
+}
 async function saveProfile(){
-  try{ await api("/api/profile",{method:"PUT",body:JSON.stringify({displayName:document.getElementById("displayName").value})}); toast("Profile saved"); }
-  catch(e){ toast(e.message,true); }
+  const btn=document.getElementById("saveProfileBtn");
+  if(btn)btn.disabled=true;
+  try{
+    await api("/api/profile",{method:"PUT",body:JSON.stringify({displayName:document.getElementById("displayName").value.trim()})});
+    toast("Profile saved");
+  }catch(e){toast(e.message||"Save failed",true);}
+  finally{if(btn)btn.disabled=false;}
 }
 async function changePw(){
+  const btn=document.getElementById("savePwBtn");
+  const cur=document.getElementById("curPw").value;
+  const nw=document.getElementById("newPw").value;
+  const nw2=document.getElementById("newPw2").value;
+  if(nw.length<8){toast("Password must be at least 8 characters",true);return;}
+  if(nw!==nw2){toast("New passwords do not match",true);return;}
+  if(btn)btn.disabled=true;
   try{
-    await api("/api/auth/change-password",{method:"POST",body:JSON.stringify({current:document.getElementById("curPw").value,new:document.getElementById("newPw").value})});
-    toast("Password updated"); document.getElementById("curPw").value=""; document.getElementById("newPw").value="";
-  }catch(e){ toast(e.message,true); }
+    await api("/api/auth/change-password",{method:"POST",body:JSON.stringify({current:cur,new:nw})});
+    toast("Password updated");
+    document.getElementById("curPw").value="";
+    document.getElementById("newPw").value="";
+    document.getElementById("newPw2").value="";
+  }catch(e){toast(e.message||"Password update failed",true);}
+  finally{if(btn)btn.disabled=false;}
+}
+function togglePw(id,btn){
+  const el=document.getElementById(id);
+  if(!el)return;
+  const show=el.type==="password";
+  el.type=show?"text":"password";
+  if(btn)btn.textContent=show?"Hide":"Show";
 }
 </script>
 </body>
