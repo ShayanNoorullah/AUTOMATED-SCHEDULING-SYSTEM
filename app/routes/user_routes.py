@@ -548,6 +548,16 @@ def status_stream():
                     headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
 
 
+@bp.route("/api/mobile/config", methods=["GET"])
+def mobile_config():
+    from app.services.users import get_system_setting
+    return jsonify({
+        "supabaseUrl": Config.SUPABASE_URL,
+        "supabaseAnonKey": Config.SUPABASE_ANON_KEY,
+        "siteName": get_system_setting("site_name", "SSIES Schedule Sender"),
+    })
+
+
 @bp.route("/health")
 def health():
     try:

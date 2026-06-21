@@ -38,3 +38,12 @@ Desktop.ini
 .claude/
 .vscode/
 .idea/
+
+# Mobile app (keep source; ignore build artifacts)
+mobile/node_modules/
+mobile/.expo/
+mobile/android/
+mobile/ios/
+mobile/.env
+mobile/gradle-build.log
+mobile/*.apk

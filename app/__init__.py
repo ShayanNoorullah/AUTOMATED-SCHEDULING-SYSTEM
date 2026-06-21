@@ -41,7 +41,7 @@ def create_app():
 
     PUBLIC_ENDPOINTS = {
         "auth.login_page", "auth.forgot_password_page", "auth.auth_session",
-        "auth.auth_refresh", "static", "user.health",
+        "auth.auth_refresh", "static", "user.health", "user.mobile_config",
     }
 
     @app.before_request

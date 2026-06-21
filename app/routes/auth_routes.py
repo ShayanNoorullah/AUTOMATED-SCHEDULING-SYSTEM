@@ -104,7 +104,8 @@ def auth_session():
 
 @bp.route("/auth/refresh", methods=["POST"])
 def auth_refresh():
-    refresh = request.cookies.get("sb_refresh_token")
+    data = request.json or {}
+    refresh = request.cookies.get("sb_refresh_token") or data.get("refresh_token")
     if not refresh:
         return jsonify({"error": "No refresh token"}), 401
     try:

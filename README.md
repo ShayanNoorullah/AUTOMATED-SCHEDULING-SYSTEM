@@ -251,6 +251,46 @@ Set provider to **Direct links only**. **Open in WhatsApp** sidebar uses `wa.me`
 
 ---
 
+## Android mobile app
+
+A separate **user-portal** Android app lives in [`mobile/`](mobile/). It uses the same Flask APIs with Bearer auth (no admin/superadmin UI).
+
+### Connect your phone to the PC server
+
+| Method | Server URL example |
+|--------|-------------------|
+| Same Wi‑Fi (LAN) | `http://192.168.1.14:5000` (use `ipconfig` on PC) |
+| Away from home | Cloudflare Tunnel URL pointing to `localhost:5000` |
+
+Requirements:
+- `run.bat` running on PC with `HOST=0.0.0.0`
+- Windows Firewall allows inbound TCP on port **5000**
+- Phone and PC on same network (for LAN)
+
+On first launch the app tests `GET /health` and loads Supabase keys from `GET /api/mobile/config` (or `.env` at build time).
+
+### Build APK
+
+```bat
+cd mobile
+npm install
+eas login
+eas build -p android --profile preview
+```
+
+Download the `.apk` from the Expo build page. See [`mobile/MOBILE_SETUP.md`](mobile/MOBILE_SETUP.md) for the full build, install, and server setup guide.
+
+### Mobile vs web
+
+| Feature | Mobile |
+|---------|--------|
+| Groups, schedule, templates, contacts | Yes |
+| Open in WhatsApp (`wa.me` / invite) | Yes — opens native WhatsApp |
+| Automated send | **WAHA only** (not Selenium) |
+| Profile, password, backup/restore | Yes |
+
+---
+
 ## API health check
 
 ```
