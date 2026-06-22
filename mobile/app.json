@@ -3,7 +3,7 @@
     "name": "SSIES Schedule",
     "slug": "ssies-schedule",
     "version": "1.0.0",
-    "orientation": "portrait",
+    "orientation": "default",
     "icon": "./assets/icon.png",
     "scheme": "ssies",
     "userInterfaceStyle": "automatic",

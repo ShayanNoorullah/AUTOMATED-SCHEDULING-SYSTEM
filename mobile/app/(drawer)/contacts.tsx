@@ -8,6 +8,8 @@ import {
   TextInput,
   View,
 } from "react-native";
+import { DrawerActions } from "@react-navigation/native";
+import { useNavigation } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import * as Clipboard from "expo-clipboard";
 import { api } from "../../src/api/endpoints";
@@ -22,8 +24,14 @@ import { formatRelativeTime } from "../../src/lib/time";
 import { buildContactUrl, contactMessage } from "../../src/lib/whatsappLinks";
 import type { Contact, ReleaseTarget } from "../../src/types";
 import { colors, styles } from "../../src/theme";
+import { useTheme } from "../../src/context/ThemeContext";
+import { useLayout } from "../../src/hooks/useLayout";
 
 export default function ContactsScreen() {
+  useTheme();
+  const navigation = useNavigation();
+  const { width } = useLayout();
+  const numColumns = width > 600 ? 2 : 1;
   const { contacts, groups, templates, refresh, loading } = useData();
   const [q, setQ] = useState("");
   const [edit, setEdit] = useState<{ name: string; phone: string; message: string } | null>(null);
@@ -37,12 +45,18 @@ export default function ContactsScreen() {
     (c) => !q || c.name.toLowerCase().includes(q.toLowerCase()) || (c.phone || "").includes(q)
   );
 
+  function closeDrawer() {
+    navigation.dispatch(DrawerActions.closeDrawer());
+  }
+
   function openNew() {
+    closeDrawer();
     setIdx(null);
     setEdit({ name: "", phone: "", message: "" });
   }
 
   function openContact(c: Contact, i: number) {
+    closeDrawer();
     setIdx(i);
     setEdit({ name: c.name, phone: c.phone, message: c.message || "" });
   }
@@ -170,7 +184,10 @@ export default function ContactsScreen() {
     <View style={styles.screen}>
       <FlatList
         data={filtered}
+        key={`contacts-${numColumns}`}
         keyExtractor={(c, i) => `${c.name}-${i}`}
+        numColumns={numColumns}
+        columnWrapperStyle={numColumns > 1 ? { gap: 12 } : undefined}
         refreshing={loading}
         onRefresh={refresh}
         contentContainerStyle={[styles.content, { paddingBottom: 88 }]}
@@ -190,19 +207,22 @@ export default function ContactsScreen() {
         renderItem={({ item, index }) => {
           const sent = item.lastReleased ? formatRelativeTime(item.lastReleased) : "";
           return (
-            <ListCard
-              title={item.name}
-              subtitle={`+${item.phone}${sent ? ` · ✓ ${sent}` : ""}`}
-              icon="person-outline"
-              onPress={() => openContact(item, index)}
-              footer={
-                <View style={styles.row}>
-                  <IconButton icon="logo-whatsapp" label="Open" onPress={() => openWa(item)} />
-                  <IconButton icon="send-outline" label="Send" onPress={() => sendOne(item)} />
-                  <IconButton icon="trash-outline" label="Delete" onPress={() => remove(index, item.name)} destructive />
-                </View>
-              }
-            />
+            <View style={numColumns > 1 ? { flex: 1 } : undefined}>
+              <ListCard
+                title={item.name}
+                subtitle={`+${item.phone}${sent ? ` · ✓ ${sent}` : ""}`}
+                icon="person-outline"
+                chevron
+                onPress={() => openContact(item, index)}
+                footer={
+                  <View style={styles.row}>
+                    <IconButton icon="logo-whatsapp" label="Open" onPress={() => openWa(item)} />
+                    <IconButton icon="send-outline" label="Send" onPress={() => sendOne(item)} />
+                    <IconButton icon="trash-outline" label="Delete" onPress={() => remove(index, item.name)} destructive />
+                  </View>
+                }
+              />
+            </View>
           );
         }}
         ListEmptyComponent={
@@ -226,6 +246,7 @@ export default function ContactsScreen() {
         visible={!!edit}
         title={idx === null ? "New contact" : "Edit contact"}
         onClose={() => setEdit(null)}
+        onShow={closeDrawer}
         footer={
           <View style={styles.row}>
             <Pressable style={[styles.btn, { flex: 1 }]} onPress={save} disabled={saving}>

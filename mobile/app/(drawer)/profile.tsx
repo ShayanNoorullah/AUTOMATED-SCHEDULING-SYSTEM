@@ -5,8 +5,10 @@ import { api } from "../../src/api/endpoints";
 import { AppLogo } from "../../src/components/AppLogo";
 import type { Profile } from "../../src/types";
 import { colors, styles } from "../../src/theme";
+import { useTheme } from "../../src/context/ThemeContext";
 
 export default function ProfileScreen() {
+  useTheme();
   const [profile, setProfile] = useState<Profile | null>(null);
   const [displayName, setDisplayName] = useState("");
   const [cur, setCur] = useState("");

@@ -3,12 +3,13 @@ import {
   Alert,
   FlatList,
   Pressable,
-  ScrollView,
   Switch,
   Text,
   TextInput,
   View,
 } from "react-native";
+import { DrawerActions } from "@react-navigation/native";
+import { useNavigation } from "expo-router";
 import { api } from "../../src/api/endpoints";
 import { EmptyState } from "../../src/components/EmptyState";
 import { FormModal } from "../../src/components/FormModal";
@@ -16,11 +17,18 @@ import { IconButton } from "../../src/components/IconButton";
 import { ListCard } from "../../src/components/ListCard";
 import { SearchBar } from "../../src/components/SearchBar";
 import { useData } from "../../src/context/DataContext";
+import { useTheme } from "../../src/context/ThemeContext";
+import { Button, SkeletonList } from "../../src/components/ui";
 import { emptyWeekSchedule, genMessage, messageFor, normalizeSchedule } from "../../src/lib/messageTokens";
 import type { Group } from "../../src/types";
+import { useLayout } from "../../src/hooks/useLayout";
 import { colors, styles } from "../../src/theme";
 
 export default function GroupsScreen() {
+  useTheme();
+  const navigation = useNavigation();
+  const { width } = useLayout();
+  const numColumns = width > 600 ? 2 : 1;
   const { groups, refresh, loading } = useData();
   const [edit, setEdit] = useState<Group | null>(null);
   const [idx, setIdx] = useState<number | null>(null);
@@ -29,12 +37,18 @@ export default function GroupsScreen() {
 
   const filtered = groups.filter((g) => !q || g.name.toLowerCase().includes(q.toLowerCase()));
 
+  function closeDrawer() {
+    navigation.dispatch(DrawerActions.closeDrawer());
+  }
+
   function openNew() {
+    closeDrawer();
     setIdx(null);
     setEdit({ name: "", schedule: emptyWeekSchedule(), message: "", inviteLink: "" });
   }
 
   function openGroup(g: Group, i: number) {
+    closeDrawer();
     setIdx(i);
     setEdit({ ...g, schedule: normalizeSchedule(g.schedule), inviteLink: g.inviteLink || "" });
   }
@@ -86,34 +100,40 @@ export default function GroupsScreen() {
     <View style={styles.screen}>
       <FlatList
         data={filtered}
+        key={`groups-${numColumns}`}
         keyExtractor={(g, i) => `${g.name}-${i}`}
+        numColumns={numColumns}
+        columnWrapperStyle={numColumns > 1 ? { gap: 12 } : undefined}
         refreshing={loading}
         onRefresh={refresh}
         contentContainerStyle={styles.content}
         ListHeaderComponent={
           <>
             <SearchBar value={q} onChangeText={setQ} placeholder="Search groups…" />
-            <Pressable style={styles.btn} onPress={openNew}>
-              <Text style={styles.btnText}>+ New group</Text>
-            </Pressable>
+            <Button label="New group" icon="add" onPress={openNew} full />
           </>
         }
         renderItem={({ item, index }) => (
-          <ListCard
-            title={item.name}
-            subtitle={`${item.schedule?.filter((s) => s.from).length || 0} days scheduled`}
-            icon="people-outline"
-            onPress={() => openGroup(item, index)}
-            footer={
+          <View style={numColumns > 1 ? { flex: 1 } : undefined}>
+            <ListCard
+              title={item.name}
+              subtitle={`${item.schedule?.filter((s) => s.from).length || 0} days scheduled`}
+              icon="people-outline"
+              chevron
+              onPress={() => openGroup(item, index)}
+              footer={
               <View style={styles.row}>
                 <IconButton icon="create-outline" label="Edit" onPress={() => openGroup(item, index)} />
                 <IconButton icon="trash-outline" label="Delete" onPress={() => remove(index, item.name)} destructive />
               </View>
             }
-          />
+            />
+          </View>
         )}
         ListEmptyComponent={
-          !loading ? (
+          loading ? (
+            <SkeletonList count={5} />
+          ) : (
             <EmptyState
               icon="people-outline"
               title="No groups yet"
@@ -121,7 +141,7 @@ export default function GroupsScreen() {
               actionLabel="+ New group"
               onAction={openNew}
             />
-          ) : null
+          )
         }
       />
 
@@ -129,6 +149,7 @@ export default function GroupsScreen() {
         visible={!!edit}
         title={idx === null ? "New group" : "Edit group"}
         onClose={() => setEdit(null)}
+        onShow={closeDrawer}
         footer={
           <View style={styles.row}>
             <Pressable style={[styles.btn, { flex: 1 }]} onPress={save} disabled={saving}>

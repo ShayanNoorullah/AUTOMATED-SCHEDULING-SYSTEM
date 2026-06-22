@@ -13,8 +13,10 @@ import {
   groupMessage,
 } from "../../src/lib/whatsappLinks";
 import { styles } from "../../src/theme";
+import { useTheme } from "../../src/context/ThemeContext";
 
 export default function OpenWaScreen() {
+  useTheme();
   const { groups, contacts } = useData();
   const [q, setQ] = useState("");
 

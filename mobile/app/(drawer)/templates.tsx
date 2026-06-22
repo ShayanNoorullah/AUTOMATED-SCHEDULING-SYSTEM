@@ -1,5 +1,7 @@
 import { useState } from "react";
 import { Alert, FlatList, Pressable, Text, TextInput, View } from "react-native";
+import { DrawerActions } from "@react-navigation/native";
+import { useNavigation } from "expo-router";
 import { api } from "../../src/api/endpoints";
 import { EmptyState } from "../../src/components/EmptyState";
 import { FormModal } from "../../src/components/FormModal";
@@ -7,11 +9,30 @@ import { IconButton } from "../../src/components/IconButton";
 import { ListCard } from "../../src/components/ListCard";
 import { useData } from "../../src/context/DataContext";
 import { styles } from "../../src/theme";
+import { useTheme } from "../../src/context/ThemeContext";
 
 export default function TemplatesScreen() {
+  useTheme();
+  const navigation = useNavigation();
   const { templates, refresh, loading } = useData();
   const [edit, setEdit] = useState<{ name: string; content: string } | null>(null);
   const [idx, setIdx] = useState<number | null>(null);
+
+  function closeDrawer() {
+    navigation.dispatch(DrawerActions.closeDrawer());
+  }
+
+  function openNew() {
+    closeDrawer();
+    setIdx(null);
+    setEdit({ name: "", content: "" });
+  }
+
+  function openTemplate(index: number, item: { name: string; content: string }) {
+    closeDrawer();
+    setIdx(index);
+    setEdit({ name: item.name, content: item.content });
+  }
 
   async function save() {
     if (!edit?.name.trim()) return;
@@ -48,13 +69,7 @@ export default function TemplatesScreen() {
         onRefresh={refresh}
         contentContainerStyle={styles.content}
         ListHeaderComponent={
-          <Pressable
-            style={styles.btn}
-            onPress={() => {
-              setIdx(null);
-              setEdit({ name: "", content: "" });
-            }}
-          >
+          <Pressable style={styles.btn} onPress={openNew}>
             <Text style={styles.btnText}>+ New template</Text>
           </Pressable>
         }
@@ -63,10 +78,7 @@ export default function TemplatesScreen() {
             title={item.name}
             subtitle={item.content}
             icon="document-text-outline"
-            onPress={() => {
-              setIdx(index);
-              setEdit({ name: item.name, content: item.content });
-            }}
+            onPress={() => openTemplate(index, item)}
             footer={
               <>
                 {item.isDefault ? (
@@ -87,10 +99,7 @@ export default function TemplatesScreen() {
               title="No templates"
               message="Create reusable message snippets for groups and contacts."
               actionLabel="+ New template"
-              onAction={() => {
-                setIdx(null);
-                setEdit({ name: "", content: "" });
-              }}
+              onAction={openNew}
             />
           ) : null
         }
@@ -100,6 +109,7 @@ export default function TemplatesScreen() {
         visible={!!edit}
         title={idx === null ? "New template" : "Edit template"}
         onClose={() => setEdit(null)}
+        onShow={closeDrawer}
         footer={
           <View style={styles.row}>
             <Pressable style={[styles.btn, { flex: 1 }]} onPress={save}>

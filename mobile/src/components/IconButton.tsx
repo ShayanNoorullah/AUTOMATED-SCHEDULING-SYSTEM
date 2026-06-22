@@ -1,6 +1,6 @@
-import { Pressable, Text, View } from "react-native";
+import { Modal, Pressable, ScrollView, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { colors, pressedOpacity, styles } from "../theme";
+import { colors, pressedOpacity, radii, styles } from "../theme";
 
 type Props = {
   icon: keyof typeof Ionicons.glyphMap;
@@ -47,43 +47,36 @@ type PickerModalProps = {
 };
 
 export function SimplePicker({ visible, title, items, onSelect, onClose }: PickerModalProps) {
-  if (!visible) return null;
   return (
-    <View
-      style={{
-        position: "absolute",
-        left: 0,
-        right: 0,
-        top: 0,
-        bottom: 0,
-        backgroundColor: "rgba(0,0,0,0.4)",
-        justifyContent: "flex-end",
-      }}
-    >
-      <Pressable style={{ flex: 1 }} onPress={onClose} />
-      <View
-        style={{
-          backgroundColor: colors.surface,
-          borderTopLeftRadius: 16,
-          borderTopRightRadius: 16,
-          padding: 16,
-          maxHeight: "50%",
-        }}
-      >
-        <Text style={[styles.sectionTitle, { marginBottom: 12 }]}>{title}</Text>
-        {items.map((item) => (
-          <Pressable
-            key={item.value}
-            style={{ paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: colors.border }}
-            onPress={() => {
-              onSelect(item.value);
-              onClose();
-            }}
-          >
-            <Text style={styles.listTitle}>{item.label}</Text>
-          </Pressable>
-        ))}
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
+      <View style={{ flex: 1, backgroundColor: colors.overlay, justifyContent: "flex-end" }}>
+        <Pressable style={{ flex: 1 }} onPress={onClose} />
+        <View
+          style={{
+            backgroundColor: colors.surface,
+            borderTopLeftRadius: radii.lg,
+            borderTopRightRadius: radii.lg,
+            padding: 16,
+            maxHeight: "50%",
+          }}
+        >
+          <Text style={[styles.sectionTitle, { marginBottom: 12 }]}>{title}</Text>
+          <ScrollView keyboardShouldPersistTaps="handled">
+            {items.map((item) => (
+              <Pressable
+                key={item.value}
+                style={{ paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: colors.border }}
+                onPress={() => {
+                  onSelect(item.value);
+                  onClose();
+                }}
+              >
+                <Text style={styles.listTitle}>{item.label}</Text>
+              </Pressable>
+            ))}
+          </ScrollView>
+        </View>
       </View>
-    </View>
+    </Modal>
   );
 }

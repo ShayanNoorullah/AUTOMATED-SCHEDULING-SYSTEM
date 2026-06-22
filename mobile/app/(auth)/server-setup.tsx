@@ -14,8 +14,10 @@ import Constants from "expo-constants";
 import { AppLogo } from "../../src/components/AppLogo";
 import { fetchMobileConfig, setServerUrl, testServerHealth } from "../../src/store/server";
 import { colors, styles } from "../../src/theme";
+import { useTheme } from "../../src/context/ThemeContext";
 
 export default function ServerSetupScreen() {
+  useTheme();
   const [url, setUrl] = useState("http://192.168.1.14:5000");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);

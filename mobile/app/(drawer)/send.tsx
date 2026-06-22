@@ -1,25 +1,22 @@
 import { useCallback, useEffect, useState } from "react";
-import {
-  ActivityIndicator,
-  Alert,
-  Image,
-  Pressable,
-  ScrollView,
-  Text,
-  View,
-} from "react-native";
+import { Alert, Image, ScrollView, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { api } from "../../src/api/endpoints";
 import { ListCard } from "../../src/components/ListCard";
 import { useData } from "../../src/context/DataContext";
+import { useTheme } from "../../src/context/ThemeContext";
+import { usePreferences } from "../../src/context/PreferencesContext";
+import { Badge, Button } from "../../src/components/ui";
 import { useReleaseStatus } from "../../src/hooks/useReleaseStatus";
 import { messageFor, replaceTokens } from "../../src/lib/messageTokens";
 import type { ReleaseTarget } from "../../src/types";
-import { colors, styles } from "../../src/theme";
+import { colors, spacing, styles, type as T } from "../../src/theme";
 
 type Pick = { key: string; name: string; type: "group" | "contact"; phone?: string; checked: boolean };
 
 export default function SendScreen() {
+  useTheme();
+  const { prefs } = usePreferences();
   const { groups, contacts, settings } = useData();
   const [session, setSession] = useState<Awaited<ReturnType<typeof api.waSession>> | null>(null);
   const [qr, setQr] = useState<string | null>(null);
@@ -160,7 +157,14 @@ export default function SendScreen() {
             size={20}
             color={session?.connected ? colors.success : colors.muted}
           />
-          <Text style={styles.title}>Session</Text>
+          <Text style={[styles.title, { marginBottom: 0 }]}>Session</Text>
+          <View style={{ marginLeft: "auto" }}>
+            <Badge
+              label={session?.connected ? "Connected" : "Offline"}
+              kind={session?.connected ? "success" : "neutral"}
+              icon={session?.connected ? "checkmark" : "ellipse"}
+            />
+          </View>
         </View>
         <Text style={styles.listSub}>
           {session?.connected ? `Connected (${provider})` : session?.detail || session?.error || "Not connected"}
@@ -174,15 +178,9 @@ export default function SendScreen() {
           </Text>
         ) : null}
         <View style={styles.row}>
-          <Pressable style={styles.btnSoft} onPress={startSession}>
-            <Text style={styles.btnSoftText}>Start / QR</Text>
-          </Pressable>
-          <Pressable style={styles.btnSoft} onPress={resetSession}>
-            <Text style={styles.btnSoftText}>Reset QR</Text>
-          </Pressable>
-          <Pressable style={styles.btnSoft} onPress={loadSession}>
-            <Text style={styles.btnSoftText}>Refresh</Text>
-          </Pressable>
+          <Button label="Start / QR" variant="soft" size="sm" icon="qr-code-outline" onPress={startSession} />
+          <Button label="Reset QR" variant="soft" size="sm" icon="refresh-outline" onPress={resetSession} />
+          <Button label="Refresh" variant="soft" size="sm" icon="sync-outline" onPress={loadSession} />
         </View>
         {qr ? (
           <Image source={{ uri: qr }} style={{ width: 220, height: 220, alignSelf: "center", marginTop: 12 }} />
@@ -190,6 +188,11 @@ export default function SendScreen() {
       </View>
 
       <Text style={styles.sectionTitle}>Select targets</Text>
+      {prefs.defaultSendMode !== "ask" ? (
+        <Text style={[styles.hint, { marginBottom: spacing.sm }]}>
+          Preferred method: {prefs.defaultSendMode === "automated" ? "Automated send (WAHA)" : "Open in WhatsApp (direct links)"}
+        </Text>
+      ) : null}
       {picks.map((p) => (
         <ListCard
           key={p.key}
@@ -209,18 +212,23 @@ export default function SendScreen() {
         />
       ))}
 
-      <Pressable style={[styles.btn, { marginTop: 12 }]} onPress={sendSelected} disabled={releasing}>
-        {releasing ? <ActivityIndicator color="#fff" /> : <Text style={styles.btnText}>Send selected</Text>}
-      </Pressable>
+      <Button
+        label={releasing ? "Sending…" : "Send selected"}
+        icon="send"
+        onPress={sendSelected}
+        loading={releasing}
+        full
+        style={{ marginTop: spacing.md }}
+      />
 
-      {lines.length > 0 ? (
-        <View style={[styles.card, { marginTop: 16 }]}>
+      {(prefs.statusLog === "always" || (prefs.statusLog === "auto" && (releasing || lines.length > 0))) ? (
+        <View style={[styles.card, { marginTop: 16, backgroundColor: colors.surface2 }]}>
           <Text style={styles.sectionTitle}>Status log</Text>
           {lines.map((l, i) => (
             <Text
               key={`${i}-${l.raw}`}
               style={{
-                fontSize: 12,
+                ...T.mono,
                 marginBottom: 4,
                 color: l.type === "error" ? colors.error : l.type === "success" ? colors.success : colors.muted,
               }}

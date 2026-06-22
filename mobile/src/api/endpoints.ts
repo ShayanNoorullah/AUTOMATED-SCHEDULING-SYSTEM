@@ -71,7 +71,7 @@ export const api = {
     apiRequest<{ ok: boolean }>(`/api/contacts/${idx}`, { method: "DELETE" }),
 
   getSettings: () => apiRequest<UserSettings>("/api/settings"),
-  updateSettings: (data: { delaySeconds?: number }) =>
+  updateSettings: (data: { delaySeconds?: number; headless?: boolean }) =>
     apiRequest<UserSettings>("/api/settings", {
       method: "PUT",
       body: JSON.stringify(data),

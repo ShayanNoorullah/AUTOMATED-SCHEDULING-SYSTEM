@@ -16,6 +16,7 @@ import { registerSession } from "../../src/api/client";
 import { initSupabase, signIn } from "../../src/store/auth";
 import { fetchMobileConfig, getServerUrl } from "../../src/store/server";
 import { colors, styles } from "../../src/theme";
+import { useTheme } from "../../src/context/ThemeContext";
 
 async function ensureSupabase() {
   const server = await getServerUrl();
@@ -34,6 +35,7 @@ async function ensureSupabase() {
 }
 
 export default function LoginScreen() {
+  useTheme();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
