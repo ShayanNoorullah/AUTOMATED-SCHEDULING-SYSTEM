@@ -11,13 +11,13 @@
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
-      "backgroundColor": "#0000EE"
+      "backgroundColor": "#FFFFFF"
     },
     "android": {
       "package": "com.ssies.schedule",
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#0000EE"
+        "backgroundColor": "#FFFFFF"
       }
     },
     "plugins": [

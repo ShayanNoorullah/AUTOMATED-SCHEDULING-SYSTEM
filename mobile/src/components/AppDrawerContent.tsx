@@ -3,7 +3,7 @@ import { DrawerContentScrollView, DrawerContentComponentProps } from "@react-nav
 import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { router, usePathname } from "expo-router";
-import { AppLogo } from "./AppLogo";
+import { SsiesMark } from "./SsiesMark";
 import { clearTokens } from "../store/auth";
 import { clearServerUrl } from "../store/server";
 import { useData } from "../context/DataContext";
@@ -52,7 +52,7 @@ export function AppDrawerContent(props: DrawerContentComponentProps) {
           gap: 10,
         }}
       >
-        <AppLogo size={36} iconSize={20} />
+        <SsiesMark size={36} />
         <Text style={[styles.listTitle, { flex: 1 }]} numberOfLines={1}>
           {siteName}
         </Text>

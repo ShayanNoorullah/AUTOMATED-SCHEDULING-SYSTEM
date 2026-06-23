@@ -120,4 +120,50 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ targets }),
     }),
+
+  releasePreflight: (targets: ReleaseTarget[]) =>
+    apiRequest<{ ready: boolean; checks: { id: string; label: string; ok: boolean; hint?: string }[] }>(
+      "/api/release/preflight",
+      { method: "POST", body: JSON.stringify({ targets }) }
+    ),
+
+  releaseHistory: (limit = 50) =>
+    apiRequest<{
+      total: number;
+      items: {
+        id: number;
+        targetName: string;
+        targetType: string;
+        status: string;
+        detail: string;
+        at: string;
+      }[];
+    }>(`/api/release-history?limit=${limit}`),
+
+  releaseRetry: (id: number) =>
+    apiRequest<{ ok: boolean }>("/api/release/retry", {
+      method: "POST",
+      body: JSON.stringify({ id }),
+    }),
+
+  waGroups: () => apiRequest<{ groups: { id: string; name: string }[] }>("/api/whatsapp/groups"),
+
+  validateGroupNames: (names: string[]) =>
+    apiRequest<{
+      validation: Record<string, { ok: boolean | null; match?: string; similar?: string[]; note?: string; error?: string }>;
+    }>("/api/whatsapp/groups/validate", {
+      method: "POST",
+      body: JSON.stringify({ names }),
+    }),
+
+  getScheduledJob: () =>
+    apiRequest<{ enabled: boolean; dow: number; hour: number; minute: number; lastRunAt: string | null }>(
+      "/api/scheduled-job"
+    ),
+
+  saveScheduledJob: (data: { enabled: boolean; dow: number; hour: number; minute: number }) =>
+    apiRequest<{ ok: boolean }>("/api/scheduled-job", {
+      method: "PUT",
+      body: JSON.stringify(data),
+    }),
 };

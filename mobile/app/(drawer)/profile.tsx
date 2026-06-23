@@ -62,7 +62,7 @@ export default function ProfileScreen() {
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
       <View style={[styles.card, { alignItems: "center", paddingVertical: 24 }]}>
-        <AppLogo size={64} iconSize={36} />
+        <AppLogo height={56} width={160} />
         <Text style={[styles.title, { marginTop: 12, textAlign: "center" }]}>
           {profile.displayName || profile.email}
         </Text>

@@ -1,13 +1,21 @@
 @echo off
 REM Local Android APK build (requires JDK 17 and Android SDK)
 cd /d "%~dp0"
+
+REM Prefer JDK 17 for Gradle / Android builds
+if exist "C:\Program Files\Java\jdk-17.0.18" (
+  set "JAVA_HOME=C:\Program Files\Java\jdk-17.0.18"
+) else if exist "C:\Program Files\Java\jdk-17" (
+  set "JAVA_HOME=C:\Program Files\Java\jdk-17"
+)
+if defined JAVA_HOME set "PATH=%JAVA_HOME%\bin;%PATH%"
+
 echo.
 echo SSIES Mobile - Local APK Build
 echo ==============================
 echo.
-echo Requires: JDK 17 (not JDK 21+), Android SDK, ANDROID_HOME set
-echo Tip: Use Android Studio's bundled JBR:
-echo   set JAVA_HOME=C:\Program Files\Android\Android Studio\jbr
+echo JAVA_HOME: %JAVA_HOME%
+echo Requires: JDK 17, Android SDK, ANDROID_HOME set
 echo.
 
 if not exist node_modules call npm install

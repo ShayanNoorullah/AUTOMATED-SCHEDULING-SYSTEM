@@ -60,7 +60,7 @@ export default function ServerSetupScreen() {
     <KeyboardAvoidingView style={styles.screen} behavior={Platform.OS === "ios" ? "padding" : undefined}>
       <ScrollView contentContainerStyle={[styles.content, { paddingTop: 48 }]}>
         <View style={{ alignItems: "center", marginBottom: 24 }}>
-          <AppLogo size={56} iconSize={32} />
+          <AppLogo height={52} width={150} />
           <Text style={[styles.title, { marginTop: 12, fontSize: 22, textAlign: "center" }]}>
             Connect to SSIES server
           </Text>

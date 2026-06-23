@@ -46,8 +46,9 @@ body{font-family:'Satoshi','Segoe UI',sans-serif;font-size:var(--font-base);colo
 .app{display:flex;height:100vh;}
 .rail{width:var(--rail-w);background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;flex-shrink:0;}
 .rail .brand{display:flex;align-items:center;gap:11px;padding:20px 18px;border-bottom:1px solid var(--border);}
-.rail .brand .logo{width:38px;height:38px;display:grid;place-items:center;background:var(--accent);color:#fff;border-radius:11px;font-size:19px;flex-shrink:0;cursor:pointer;position:relative;transition:transform .14s,box-shadow .14s;border:none;padding:0;}
-.rail .brand .logo:hover{transform:scale(1.04);box-shadow:0 4px 14px var(--accent-ring);}
+.rail .brand .logo{width:auto;height:40px;min-width:40px;display:flex;align-items:center;background:transparent;color:#fff;border-radius:0;font-size:19px;flex-shrink:0;cursor:pointer;position:relative;transition:transform .14s,box-shadow .14s;border:none;padding:0;}
+.rail .brand .logo img{height:38px;width:auto;display:block;object-fit:contain;}
+.rail .brand .logo:hover{transform:scale(1.02);}
 .rail .brand .logo .chev{position:absolute;bottom:-2px;right:-2px;width:14px;height:14px;background:var(--surface);border:1px solid var(--border);border-radius:50%;display:grid;place-items:center;opacity:.85;}
 .rail .brand .logo .chev svg{width:8px;height:8px;color:var(--text-muted);}
 .nav-item .ico.svg-ico{display:flex;align-items:center;justify-content:center;width:20px;height:20px;flex-shrink:0;}
@@ -80,8 +81,8 @@ body{font-family:'Satoshi','Segoe UI',sans-serif;font-size:var(--font-base);colo
 
 .main{flex:1;display:flex;flex-direction:column;min-width:0;}
 .topbar{height:64px;flex-shrink:0;display:flex;align-items:center;gap:16px;padding:0 28px;border-bottom:1px solid var(--border);background:linear-gradient(180deg,color-mix(in srgb,var(--surface) 92%,var(--accent-soft)),var(--surface));backdrop-filter:blur(10px);}
-.topbar-logo{display:none;width:36px;height:36px;border:none;border-radius:10px;background:var(--accent);color:#fff;cursor:pointer;align-items:center;justify-content:center;padding:0;flex-shrink:0;}
-.topbar-logo svg{width:18px;height:18px;}
+.topbar-logo{display:none;width:auto;height:36px;border:none;border-radius:0;background:transparent;color:#fff;cursor:pointer;align-items:center;justify-content:center;padding:0;flex-shrink:0;}
+.topbar-logo img{height:32px;width:auto;display:block;object-fit:contain;}
 .topbar .tt{flex:1;min-width:0;}
 .topbar .tt h2{font-size:19px;font-weight:700;letter-spacing:-.5px;}
 .topbar .tt p{font-size:12.5px;color:var(--text-muted);}

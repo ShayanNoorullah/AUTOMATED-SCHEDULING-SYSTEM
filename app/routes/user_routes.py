@@ -6,7 +6,7 @@ import queue
 from app.auth.decorators import login_required, superadmin_required
 from app.config import Config, DAYS
 from app.crypto import enc, dec
-from app.models import Group, Template, Contact, Profile, AuditLog, db
+from app.models import Group, Template, Contact, Profile, AuditLog, ReleaseLog, ScheduledJob, db
 from app.services.audit import audit
 from app.services.users import maintenance_mode
 from app.services.whatsapp import (
@@ -510,6 +510,126 @@ def whatsapp_direct_log():
     if not name:
         return jsonify({"error": "name required"}), 400
     log_direct_open(_effective_user_id(), name, data.get("type", "group"), g.profile.id)
+    return jsonify({"ok": True})
+
+
+@bp.route("/api/whatsapp/groups/validate", methods=["POST"])
+@login_required
+def whatsapp_validate_groups():
+    data = request.json or {}
+    names = data.get("names") or []
+    if isinstance(names, str):
+        names = [names]
+    from app.services.group_validate import validate_group_names
+    return jsonify({"validation": validate_group_names(names)})
+
+
+@bp.route("/api/release/preflight", methods=["POST"])
+@login_required
+def release_preflight():
+    from app.services.preflight import build_preflight
+    data = request.json or {}
+    targets = data.get("targets") or []
+    return jsonify(build_preflight(g.profile, targets))
+
+
+@bp.route("/api/release-history", methods=["GET"])
+@login_required
+def release_history():
+    uid = _effective_user_id()
+    limit = min(int(request.args.get("limit", 50)), 200)
+    offset = max(int(request.args.get("offset", 0)), 0)
+    q = ReleaseLog.query.filter_by(user_id=uid).order_by(ReleaseLog.created_at.desc())
+    total = q.count()
+    rows = q.offset(offset).limit(limit).all()
+    return jsonify({
+        "total": total,
+        "items": [
+            {
+                "id": r.id,
+                "targetName": r.target_name,
+                "targetType": r.target_type,
+                "status": r.status,
+                "detail": r.detail or "",
+                "at": r.created_at.isoformat() if r.created_at else "",
+            }
+            for r in rows
+        ],
+    })
+
+
+@bp.route("/api/release/retry", methods=["POST"])
+@login_required
+def release_retry():
+    if maintenance_mode() and not g.profile.is_admin():
+        return jsonify({"error": "System is in maintenance mode"}), 503
+    uid = _effective_user_id()
+    u = db.session.get(Profile, uid)
+    data = request.json or {}
+    log_id = data.get("id")
+    row = ReleaseLog.query.filter_by(id=log_id, user_id=uid).first()
+    if not row:
+        return jsonify({"error": "Not found"}), 404
+    if row.status == "success":
+        return jsonify({"error": "Already succeeded"}), 400
+    targets = [{"name": row.target_name}]
+    if row.target_type == "contact":
+        for c in Contact.query.filter_by(user_id=uid).all():
+            if c.name == row.target_name:
+                targets[0]["phone"] = dec(c.phone_enc)
+                targets[0]["message"] = dec(c.message_enc) or ""
+                break
+    else:
+        for gr in Group.query.filter_by(user_id=uid, name=row.target_name).all():
+            targets[0]["message"] = dec(gr.message_enc) or format_message(gr.schedule)
+            break
+    if not targets[0].get("message", "").strip():
+        return jsonify({"error": "No message content for retry"}), 400
+    from flask import current_app
+    ok, err = run_release(current_app._get_current_object(), uid, u.headless, u.delay_seconds, targets, g.profile.id)
+    if not ok:
+        code = 409 if err == "Release already in progress" else 400
+        return jsonify({"error": err}), code
+    return jsonify({"ok": True})
+
+
+@bp.route("/api/scheduled-job", methods=["GET", "PUT"])
+@login_required
+def scheduled_job():
+    from app.services.scheduler import parse_schedule, schedule_to_cron
+    uid = _effective_user_id()
+    job = ScheduledJob.query.filter_by(user_id=uid).first()
+    if request.method == "GET":
+        if not job:
+            return jsonify({
+                "enabled": False,
+                "dow": 0,
+                "hour": 9,
+                "minute": 0,
+                "lastRunAt": None,
+            })
+        cfg = parse_schedule(job.cron_expr) or {"dow": 0, "hour": 9, "minute": 0}
+        return jsonify({
+            "enabled": job.enabled,
+            "dow": cfg["dow"],
+            "hour": cfg["hour"],
+            "minute": cfg["minute"],
+            "lastRunAt": job.last_run_at.isoformat() if job.last_run_at else None,
+        })
+    data = request.json or {}
+    enabled = bool(data.get("enabled", False))
+    dow = int(data.get("dow", 0))
+    hour = int(data.get("hour", 9))
+    minute = int(data.get("minute", 0))
+    cron_expr = schedule_to_cron(dow, hour, minute)
+    if not job:
+        job = ScheduledJob(user_id=uid, cron_expr=cron_expr, enabled=enabled)
+        db.session.add(job)
+    else:
+        job.cron_expr = cron_expr
+        job.enabled = enabled
+    db.session.commit()
+    audit("scheduled_job", f"enabled={enabled} dow={dow} {hour}:{minute:02d}", actor_id=g.profile.id)
     return jsonify({"ok": True})
 
 

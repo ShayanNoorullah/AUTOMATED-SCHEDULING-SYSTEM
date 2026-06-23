@@ -12,6 +12,7 @@ export const NAV_ITEMS: NavItem[] = [
   { label: "Schedule", shortLabel: "Schedule", href: "/(drawer)/schedule", icon: "calendar-outline" },
   { label: "Open in WhatsApp", shortLabel: "Open WA", href: "/(drawer)/open-wa", icon: "open-outline" },
   { label: "Automated Send", shortLabel: "Send", href: "/(drawer)/send", icon: "chatbubble-ellipses-outline" },
+  { label: "Send History", shortLabel: "History", href: "/(drawer)/history", icon: "time-outline" },
   { label: "Templates", shortLabel: "Templates", href: "/(drawer)/templates", icon: "document-text-outline" },
   { label: "Contacts", shortLabel: "Contacts", href: "/(drawer)/contacts", icon: "person-outline" },
   { label: "Settings", shortLabel: "Settings", href: "/(drawer)/settings", icon: "settings-outline" },

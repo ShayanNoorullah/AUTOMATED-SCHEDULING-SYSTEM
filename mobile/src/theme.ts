@@ -11,8 +11,8 @@ import { StyleSheet, Platform } from "react-native";
 export type Scheme = "light" | "dark";
 
 export const lightColors = {
-  accent: "#4F46E5", accentHover: "#4338CA", accentDeep: "#3730A3",
-  accentSoft: "rgba(79,70,229,0.10)", accentBorder: "rgba(79,70,229,0.22)",
+  accent: "#0000EE", accentHover: "#0000C4", accentDeep: "#000099",
+  accentSoft: "rgba(0,0,238,0.10)", accentBorder: "rgba(0,0,238,0.22)",
   bg: "#F6F7FB", bgElevated: "#FFFFFF", surface: "#FFFFFF", surface2: "#F2F4F9",
   overlay: "rgba(15,23,42,0.45)",
   text: "#0F172A", textSoft: "#475569", muted: "#64748B", faint: "#94A3B8",

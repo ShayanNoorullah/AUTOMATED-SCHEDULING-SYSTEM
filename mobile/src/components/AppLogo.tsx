@@ -1,27 +1,29 @@
-import { View } from "react-native";
-import Svg, { Path } from "react-native-svg";
-import { colors } from "../theme";
+import { Image, View, type ImageStyle, type StyleProp, type ViewStyle } from "react-native";
+import { SsiesMark } from "./SsiesMark";
 
-type Props = { size?: number; iconSize?: number };
+const wordmark = require("../../assets/ssies-logo.png");
 
-export function AppLogo({ size = 46, iconSize = 26 }: Props) {
+type Props = {
+  height?: number;
+  width?: number;
+  variant?: "wordmark" | "mark";
+  style?: StyleProp<ViewStyle>;
+  imageStyle?: StyleProp<ImageStyle>;
+};
+
+export function AppLogo({ height = 40, width, variant = "wordmark", style, imageStyle }: Props) {
+  if (variant === "mark") {
+    return <SsiesMark size={height} style={style} bordered={false} />;
+  }
+  const w = width ?? height * 2.8;
   return (
-    <View
-      style={{
-        width: size,
-        height: size,
-        borderRadius: size * 0.28,
-        backgroundColor: colors.accent,
-        alignItems: "center",
-        justifyContent: "center",
-      }}
-    >
-      <Svg width={iconSize} height={iconSize} viewBox="0 0 24 24" fill="none">
-        <Path
-          d="M3.4 11.3 20.2 3.6c.8-.4 1.6.4 1.3 1.2l-6.1 16.5c-.3.8-1.4.8-1.7 0l-2.6-6.4a1 1 0 0 0-.5-.5L3.4 12.9c-.8-.3-.9-1.3.0-1.6Z"
-          fill="#fff"
-        />
-      </Svg>
+    <View style={[{ width: w, height, justifyContent: "center" }, style]}>
+      <Image
+        source={wordmark}
+        style={[{ width: w, height }, imageStyle]}
+        resizeMode="contain"
+        accessibilityLabel="SSIES logo"
+      />
     </View>
   );
 }

@@ -79,7 +79,7 @@ export default function LoginScreen() {
     <KeyboardAvoidingView style={styles.screen} behavior={Platform.OS === "ios" ? "padding" : undefined}>
       <ScrollView contentContainerStyle={[styles.content, { paddingTop: 48 }]}>
         <View style={{ alignItems: "center", marginBottom: 24 }}>
-          <AppLogo size={56} iconSize={32} />
+          <AppLogo height={52} width={150} />
           <Text style={[styles.title, { marginTop: 12, fontSize: 22 }]}>SSIES Schedule</Text>
           <Text style={[styles.subtitle, { textAlign: "center", marginBottom: 0 }]}>
             Sign in with your account email and password.

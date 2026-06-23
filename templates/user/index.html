@@ -4,6 +4,7 @@
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <title>WhatsApp Schedule Sender</title>
+{% include "_favicon.html" %}
 <link rel="preconnect" href="https://api.fontshare.com">
 <link href="https://api.fontshare.com/v2/css?f[]=satoshi@400,500,700,900&display=swap" rel="stylesheet">
 <link href="{{ url_for('static', filename='css/dashboard.css') }}" rel="stylesheet"/>
@@ -16,9 +17,7 @@
   <aside class="rail">
     <div class="brand">
       <button type="button" class="logo" id="brandLogo" onclick="toggleRailFromLogo()" title="Collapse sidebar">
-        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <path d="M3.4 11.3 20.2 3.6c.8-.4 1.6.4 1.3 1.2l-6.1 16.5c-.3.8-1.4.8-1.7 0l-2.6-6.4a1 1 0 0 0-.5-.5L3.4 12.9c-.8-.3-.9-1.3 0-1.6Z" fill="#fff"/>
-        </svg>
+        <img src="{{ url_for('static', filename='img/ssies-logo.png') }}" alt="SSIES" width="120" height="38"/>
         <span class="chev" id="logoChev"></span>
       </button>
       <div class="bt"><h1>Schedule Sender</h1><p>SSIES Automation</p></div>
@@ -30,6 +29,7 @@
       <button class="nav-item" data-view="wa-auto" onclick="showView('wa-auto')" title="Automated Send"><span class="ico svg-ico"><svg viewBox="0 0 24 24"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg></span><span class="lbl">Automated Send</span></button>
       <button class="nav-item" data-view="templates" onclick="showView('templates')" title="Templates"><span class="ico svg-ico"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M16 13H8M16 17H8M10 9H8"/></svg></span><span class="lbl">Templates</span></button>
       <button class="nav-item" data-view="contacts" onclick="showView('contacts')" title="Contacts"><span class="ico svg-ico"><svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></span><span class="lbl">Contacts</span></button>
+      <button class="nav-item" data-view="history" onclick="showView('history')" title="Send History"><span class="ico svg-ico"><svg viewBox="0 0 24 24"><path d="M3 3v5h5"/><path d="M3.05 13A9 9 0 1 0 6 5.3L3 8"/><path d="M12 7v5l3 3"/></svg></span><span class="lbl">Send History</span></button>
       <button class="nav-item" data-view="settings" onclick="showView('settings')" title="Settings"><span class="ico svg-ico"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg></span><span class="lbl">Settings</span></button>
       <a class="nav-item" href="/profile" style="text-decoration:none" title="Profile"><span class="ico svg-ico"><svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></span><span class="lbl">Profile</span></a>
     </nav>
@@ -45,7 +45,7 @@
   <div class="main">
     <div class="topbar">
       <button type="button" class="topbar-logo" id="topbarLogo" onclick="toggleRailFromLogo()" title="Open menu">
-        <svg viewBox="0 0 24 24" fill="none"><path d="M3.4 11.3 20.2 3.6c.8-.4 1.6.4 1.3 1.2l-6.1 16.5c-.3.8-1.4.8-1.7 0l-2.6-6.4a1 1 0 0 0-.5-.5L3.4 12.9c-.8-.3-.9-1.3 0-1.6Z" fill="#fff"/></svg>
+        <img src="{{ url_for('static', filename='img/ssies-logo.png') }}" alt="SSIES" width="100" height="32"/>
       </button>
       <button class="menu-btn" onclick="toggleRailMobile()" title="Menu"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 12h16M4 18h16"/></svg></button>
       <div class="tt"><h2 id="pageTitle">Groups</h2><p id="pageDesc">Manage your WhatsApp groups and weekly schedules</p></div>
@@ -71,7 +71,12 @@
               <div class="edit-left">
                 <div>
                   <div class="flabel">WhatsApp Group Name (exact match)</div>
-                  <input class="finput" id="gName" placeholder="e.g. SSIES Batch 2025" oninput="gOnSchedule()"/>
+                  <div style="display:flex;gap:8px;align-items:center;margin-bottom:6px">
+                    <input class="finput" id="gName" placeholder="e.g. SSIES Batch 2025" oninput="gOnSchedule();gValidateGroupName();updateGroupPreview()" style="flex:1;margin-bottom:0"/>
+                    <button class="btn btn-soft btn-sm" type="button" onclick="gFetchWaGroups()">Fetch WA</button>
+                  </div>
+                  <select class="finput hidden" id="gWaPick" onchange="gPickWaGroup(this.value)"><option value="">Pick from WhatsApp…</option></select>
+                  <div id="gNameStatus" class="hint" style="margin-bottom:8px"></div>
                 </div>
                 <div>
                   <div class="flabel">Group invite link <span style="font-weight:400;color:var(--text-soft)">optional</span></div>
@@ -106,7 +111,8 @@
                       <button class="lk" onclick="gRegen()">↺ Regenerate</button>
                     </div>
                   </div>
-                  <textarea class="msg-edit" id="gMsg" oninput="gMsgEdited=true" placeholder="Select days to auto-generate the message…"></textarea>
+                  <textarea class="msg-edit" id="gMsg" oninput="gMsgEdited=true;updateGroupPreview()" placeholder="Select days to auto-generate the message…"></textarea>
+                  <div class="msg-preview" id="gMsgPreview"></div>
                   <div class="msg-hint">Wrap *text* for bold. Use {date} / {weekday} tokens — replaced when sent.</div>
                 </div>
               </div>
@@ -176,7 +182,8 @@
                       <button class="lk" onclick="copyBox('cMsg')">⧉ Copy</button>
                     </div>
                   </div>
-                  <textarea class="msg-edit" id="cMsg" placeholder="Type a message, or load a group's message / template above…"></textarea>
+                  <textarea class="msg-edit" id="cMsg" oninput="updateContactPreview()" placeholder="Type a message, or load a group's message / template above…"></textarea>
+                  <div class="msg-preview" id="cMsgPreview"></div>
                   <div class="msg-hint">Wrap *text* for bold. Use {date} / {weekday} tokens — replaced when sent.</div>
                 </div>
               </div>
@@ -245,6 +252,20 @@
               <button class="btn btn-primary" id="autoBtn" onclick="runAutomatedFromPanel()">
                 <span id="autoTxt">Send selected</span><div class="spinner hidden" id="autoSpin"></div>
               </button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ════ SEND HISTORY ════ -->
+      <section class="view" id="view-history">
+        <div class="view-pad">
+          <div class="sec">
+            <div class="sec-h">Send History</div>
+            <div class="sec-b">
+              <p class="hint" style="margin-bottom:12px">Recent automated and direct sends logged for your account.</p>
+              <button class="btn btn-soft btn-sm" onclick="loadReleaseHistory()" style="margin-bottom:12px">Refresh</button>
+              <div id="historyList"><p class="hint">Open this page to load history.</p></div>
             </div>
           </div>
         </div>
@@ -395,6 +416,20 @@
                     <div><div class="st">Delay between sends</div><div class="sd">Seconds between recipients during bulk automated release.</div></div>
                     <input class="num" type="number" id="setDelay" min="0" max="300" onchange="saveAutomation()"/>
                   </div>
+                  <div class="srow" style="flex-direction:column;align-items:stretch;gap:10px">
+                    <div><div class="st">Scheduled weekly send</div><div class="sd">Automatically send all groups on the chosen day and time (UTC server clock).</div></div>
+                    <label class="toggle" style="align-self:flex-start"><input type="checkbox" id="schedEnabled"/><span class="tk"></span><span style="margin-left:8px;font-size:13px">Enable scheduled send</span></label>
+                    <div style="display:flex;gap:8px;flex-wrap:wrap">
+                      <select class="finput" id="schedDow" style="flex:1;min-width:140px;margin:0">
+                        <option value="0">Sunday</option><option value="1">Monday</option><option value="2">Tuesday</option>
+                        <option value="3">Wednesday</option><option value="4">Thursday</option><option value="5">Friday</option><option value="6">Saturday</option>
+                      </select>
+                      <input class="finput" id="schedHour" type="number" min="0" max="23" placeholder="Hour" style="width:80px;margin:0"/>
+                      <input class="finput" id="schedMinute" type="number" min="0" max="59" placeholder="Min" style="width:80px;margin:0"/>
+                    </div>
+                    <p class="hint" id="schedLastRun">Not run yet</p>
+                    <button class="btn btn-soft btn-sm" type="button" onclick="saveScheduledJob()" style="align-self:flex-start">Save schedule</button>
+                  </div>
                 </div>
               </div>
             </div>
@@ -505,6 +540,7 @@ const VIEW_META = {
   "wa-auto":{t:"Automated Send",d:"Link session and send schedules automatically"},
   templates:{t:"Templates",d:"Reusable message templates with tokens and customization"},
   contacts:{t:"Contacts",d:"Save people and send messages via automation or direct links"},
+  history:{t:"Send History",d:"Recent automated sends and retry failed deliveries"},
   settings:{t:"Settings",d:"Appearance, layout, WhatsApp, automation, security and data"},
 };
 function showView(v){
@@ -517,6 +553,8 @@ function showView(v){
   if (v==="templates") renderTemplates();
   if (v==="wa-direct") renderDirectPanel();
   if (v==="wa-auto") renderAutoSendPanel();
+  if (v==="history") loadReleaseHistory();
+  if (v==="settings") loadScheduledJob();
   if (window.innerWidth<=820) document.getElementById("app").classList.remove("rail-open");
 }
 
@@ -614,7 +652,7 @@ function selectGroup(i){
   DAYS.forEach(day=>{const c=document.getElementById(`chk-${day}`),f=document.getElementById(`from-${day}`),t=document.getElementById(`to-${day}`);
     const e=g.schedule.find(x=>x.day===day); c.checked=!!e; f.disabled=t.disabled=!e; f.value=e?e.from||"":""; t.value=e?e.to||"":"";});
   gMsgEdited=!!(g.message&&g.message.trim()); document.getElementById("gMsg").value=messageFor(g);
-  gShowEditor(); renderGroupList();
+  gShowEditor(); renderGroupList(); gValidateGroupName(); updateGroupPreview();
 }
 function newGroup(){ gSel=null; document.getElementById("gName").value="";
   const inv=document.getElementById("gInviteLink"); if(inv) inv.value="";
@@ -626,7 +664,7 @@ function gReadSchedule(){const s=[];for(const day of DAYS)if(document.getElement
   s.push({day,from:document.getElementById(`from-${day}`).value.trim(),to:document.getElementById(`to-${day}`).value.trim()});return s;}
 function gToggleDay(day){const c=document.getElementById(`chk-${day}`).checked,f=document.getElementById(`from-${day}`),t=document.getElementById(`to-${day}`);
   f.disabled=t.disabled=!c; if(c)f.focus();else{f.value=t.value="";} gOnSchedule();}
-function gOnSchedule(){ if(!gMsgEdited) document.getElementById("gMsg").value=genMessage(gReadSchedule()); }
+function gOnSchedule(){ if(!gMsgEdited) document.getElementById("gMsg").value=genMessage(gReadSchedule()); updateGroupPreview(); }
 function gRegen(){ gMsgEdited=false; document.getElementById("gMsg").value=genMessage(gReadSchedule()); toast("Regenerated from schedule"); }
 function gInsertTemplate(i){ if(i==="")return; document.getElementById("gMsg").value=replaceTokens(templates[i].content); gMsgEdited=true; document.getElementById("gTplPick").value=""; toast("Template inserted"); }
 function gBuild(){const name=document.getElementById("gName").value.trim();if(!name){toast("Enter the group name","err");return null;}
@@ -761,11 +799,11 @@ function renderContactList(){
 }
 function selectContact(i){cSel=i;const c=contacts[i];
   document.getElementById("cName").value=c.name;document.getElementById("cPhone").value=c.phone;document.getElementById("cMsg").value=c.message||"";
-  cShowEditor();renderContactList();}
+  cShowEditor();renderContactList();updateContactPreview();}
 function newContact(){cSel=null;document.getElementById("cName").value="";document.getElementById("cPhone").value="";document.getElementById("cMsg").value="";cShowEditor();renderContactList();document.getElementById("cName").focus();}
 function cShowEditor(){document.getElementById("cEmpty").classList.add("hidden");document.getElementById("cBody").classList.remove("hidden");document.getElementById("cActions").classList.remove("hidden");}
-function cLoadGroup(i){if(i==="")return;document.getElementById("cMsg").value=replaceTokens(messageFor(groups[i]));document.getElementById("cGroupPick").value="";toast(`Loaded "${groups[i].name}" message`);}
-function cInsertTemplate(i){if(i==="")return;document.getElementById("cMsg").value=replaceTokens(templates[i].content);document.getElementById("cTplPick").value="";toast("Template inserted");}
+function cLoadGroup(i){if(i==="")return;document.getElementById("cMsg").value=replaceTokens(messageFor(groups[i]));document.getElementById("cGroupPick").value="";updateContactPreview();toast(`Loaded "${groups[i].name}" message`);}
+function cInsertTemplate(i){if(i==="")return;document.getElementById("cMsg").value=replaceTokens(templates[i].content);document.getElementById("cTplPick").value="";updateContactPreview();toast("Template inserted");}
 function cBuild(){const name=document.getElementById("cName").value.trim();const phone=document.getElementById("cPhone").value.replace(/\D/g,"");
   if(!name){toast("Enter contact name","err");return null;}if(!phone){toast("Enter phone (digits, with country code)","err");return null;}
   const prev=cSel!==null?contacts[cSel]:{};
@@ -820,7 +858,12 @@ async function importConfig(input){const f=input.files[0];input.value="";if(!f)r
 /* ════ Release / SSE ════ */
 async function doRelease(targets,spin,btn,txt,label){
   if(!targets.length){toast("Nothing to send","err");return;}
-  if(!confirm(`Automated send to ${targets.length} recipient(s)?\n\n`+targets.map(t=>`• ${t.name}`).join("\n")))return;
+  try{
+    const pf=await runPreflight(targets);
+    const lines=(pf.checks||[]).map(c=>`${c.ok?"✓":"✗"} ${c.label}${c.hint?` — ${c.hint}`:""}`).join("\n");
+    if(!pf.ready){alert(`Cannot send yet:\n\n${lines}`);return;}
+    if(!confirm(`Pre-flight checks passed:\n\n${lines}\n\nAutomated send to ${targets.length} recipient(s)?\n\n`+targets.map(t=>`• ${t.name}`).join("\n")))return;
+  }catch{toast("Pre-flight check failed","err");return;}
   maybeShowStatusOnSend();setBusy(spin,btn,txt,true,"Sending…");showLog();document.getElementById("logLines").innerHTML="";
   const d=await (await fetch("/api/release",post({targets}))).json();
   if(d.error){toast(d.error,"err");setBusy(spin,btn,txt,false,label);}}
@@ -845,7 +888,8 @@ async function copyBox(id){try{await navigator.clipboard.writeText(document.getE
 async function copyText(t){try{await navigator.clipboard.writeText(t);toast("Copied ✓");}catch{toast("Copy failed","err");}}
 let tt;function toast(m,type="ok"){const e=document.getElementById("toast");e.textContent=m;e.className=`toast ${type} show`;clearTimeout(tt);tt=setTimeout(()=>e.classList.remove("show"),3000);}
 
-boot();
 </script>
+<script src="{{ url_for('static', filename='js/features.js') }}"></script>
+<script>boot();</script>
 </body>
 </html>

@@ -94,6 +94,12 @@ def create_app():
             except Exception as e:
                 print("NOTE: SQLite dev mode limited — configure Supabase DATABASE_URL:", e)
 
+    try:
+        from app.services.scheduler import start_scheduler
+        start_scheduler(app)
+    except ImportError:
+        print("NOTE: Install APScheduler for scheduled weekly sends: pip install APScheduler")
+
     return app
 
 

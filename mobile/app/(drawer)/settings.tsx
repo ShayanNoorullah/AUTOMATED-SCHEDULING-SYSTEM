@@ -97,6 +97,11 @@ export default function SettingsScreen() {
   const [cur, setCur] = useState("");
   const [nw, setNw] = useState("");
   const [audit, setAudit] = useState<{ action: string; detail: string; at: string }[]>([]);
+  const [schedEnabled, setSchedEnabled] = useState(false);
+  const [schedDow, setSchedDow] = useState("0");
+  const [schedHour, setSchedHour] = useState("9");
+  const [schedMinute, setSchedMinute] = useState("0");
+  const [schedLastRun, setSchedLastRun] = useState<string | null>(null);
 
   useEffect(() => {
     if (settings) {
@@ -104,6 +109,16 @@ export default function SettingsScreen() {
       setHeadless(!!settings.headless);
     }
   }, [settings]);
+
+  useEffect(() => {
+    api.getScheduledJob().then((d) => {
+      setSchedEnabled(!!d.enabled);
+      setSchedDow(String(d.dow ?? 0));
+      setSchedHour(String(d.hour ?? 9));
+      setSchedMinute(String(d.minute ?? 0));
+      setSchedLastRun(d.lastRunAt);
+    }).catch(() => {});
+  }, []);
 
   async function saveAutomation() {
     try {
@@ -113,6 +128,22 @@ export default function SettingsScreen() {
       });
       await refresh();
       Alert.alert("Saved", "Automation settings updated");
+    } catch (e) {
+      Alert.alert("Error", e instanceof Error ? e.message : "Save failed");
+    }
+  }
+
+  async function saveScheduledJob() {
+    try {
+      await api.saveScheduledJob({
+        enabled: schedEnabled,
+        dow: parseInt(schedDow, 10) || 0,
+        hour: parseInt(schedHour, 10) || 9,
+        minute: parseInt(schedMinute, 10) || 0,
+      });
+      const d = await api.getScheduledJob();
+      setSchedLastRun(d.lastRunAt);
+      Alert.alert("Saved", "Scheduled send updated");
     } catch (e) {
       Alert.alert("Error", e instanceof Error ? e.message : "Save failed");
     }
@@ -285,6 +316,24 @@ export default function SettingsScreen() {
           <Switch value={headless} onValueChange={setHeadless} trackColor={{ true: colors.accent }} />
         </View>
         <Button label="Save automation" icon="save-outline" onPress={saveAutomation} full />
+
+        <Text style={[styles.label, { marginTop: spacing.lg }]}>Scheduled weekly send</Text>
+        <Text style={styles.hint}>Automatically send all groups on the chosen day/time (server UTC clock).</Text>
+        <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginVertical: spacing.sm }}>
+          <Text style={styles.listTitle}>Enable scheduled send</Text>
+          <Switch value={schedEnabled} onValueChange={setSchedEnabled} trackColor={{ true: colors.accent }} />
+        </View>
+        <View style={{ flexDirection: "row", gap: spacing.sm, flexWrap: "wrap" }}>
+          {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((label, i) => (
+            <SegOption key={label} label={label} active={schedDow === String(i)} onPress={() => setSchedDow(String(i))} />
+          ))}
+        </View>
+        <View style={[styles.row, { marginTop: spacing.sm }]}>
+          <TextInput style={[styles.input, { flex: 1, marginBottom: 0 }]} value={schedHour} onChangeText={setSchedHour} keyboardType="number-pad" placeholder="Hour" placeholderTextColor={colors.faint} />
+          <TextInput style={[styles.input, { flex: 1, marginBottom: 0 }]} value={schedMinute} onChangeText={setSchedMinute} keyboardType="number-pad" placeholder="Min" placeholderTextColor={colors.faint} />
+        </View>
+        {schedLastRun ? <Text style={styles.hint}>Last run: {new Date(schedLastRun).toLocaleString()}</Text> : <Text style={styles.hint}>Not run yet</Text>}
+        <Button label="Save schedule" icon="calendar-outline" onPress={saveScheduledJob} variant="soft" full />
       </View>
 
       <View style={styles.card}>

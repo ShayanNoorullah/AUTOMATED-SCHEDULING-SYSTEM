@@ -67,7 +67,6 @@ export default function OpenWaScreen() {
           <ListCard
             title={item.name}
             subtitle={item.inviteLink ? "Invite link set" : "Opens WhatsApp Web / app"}
-            icon="people-outline"
             footer={<IconButton icon="logo-whatsapp" label="Open" onPress={() => openGroup(item.name)} />}
           />
         )}
@@ -82,7 +81,6 @@ export default function OpenWaScreen() {
                   key={c.name}
                   title={c.name}
                   subtitle={`+${c.phone}`}
-                  icon="person-outline"
                   footer={<IconButton icon="logo-whatsapp" label="Open" onPress={() => openContact(c.name)} />}
                 />
               ))

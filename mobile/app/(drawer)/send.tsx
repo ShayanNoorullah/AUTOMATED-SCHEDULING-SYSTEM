@@ -120,6 +120,25 @@ export default function SendScreen() {
       return;
     }
 
+    try {
+      const pf = await api.releasePreflight(targets);
+      const lines = pf.checks.map((c) => `${c.ok ? "✓" : "✗"} ${c.label}${c.hint ? `\n  ${c.hint}` : ""}`).join("\n");
+      if (!pf.ready) {
+        Alert.alert("Cannot send", lines);
+        return;
+      }
+      const proceed = await new Promise<boolean>((resolve) => {
+        Alert.alert("Pre-flight passed", `${lines}\n\nSend to ${targets.length} target(s)?`, [
+          { text: "Cancel", style: "cancel", onPress: () => resolve(false) },
+          { text: "Send", onPress: () => resolve(true) },
+        ]);
+      });
+      if (!proceed) return;
+    } catch (e) {
+      Alert.alert("Error", e instanceof Error ? e.message : "Pre-flight failed");
+      return;
+    }
+
     clear();
     setReleasing(true);
     try {

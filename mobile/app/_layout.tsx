@@ -18,6 +18,14 @@ function ThemedShell() {
               <Stack.Screen name="index" />
               <Stack.Screen name="(auth)" />
               <Stack.Screen name="(drawer)" />
+              <Stack.Screen
+                name="edit"
+                options={{
+                  presentation: "fullScreenModal",
+                  animation: "fade",
+                  contentStyle: { backgroundColor: colors.bg },
+                }}
+              />
             </Stack>
           </DataProvider>
         </PreferencesProvider>
