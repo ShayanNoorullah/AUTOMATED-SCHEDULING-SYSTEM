@@ -1,0 +1,8 @@
+# Set DUCKDNS_DOMAIN in .env (e.g. ssies-schedule.duckdns.org)
+{$DUCKDNS_DOMAIN} {
+	encode gzip
+	reverse_proxy app:5000 {
+		header_up X-Forwarded-Proto {scheme}
+		header_up X-Forwarded-Host {host}
+	}
+}

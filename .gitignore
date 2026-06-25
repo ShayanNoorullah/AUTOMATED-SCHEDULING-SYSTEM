@@ -1,6 +1,7 @@
 # Secrets and local config
 run.local.bat
 env.bat
+.env
 groups_config.json
 
 # Runtime data
@@ -38,6 +39,8 @@ Desktop.ini
 .claude/
 .vscode/
 .idea/
+
+static/ssies-schedule.apk
 
 # Mobile app (keep source; ignore build artifacts)
 mobile/node_modules/

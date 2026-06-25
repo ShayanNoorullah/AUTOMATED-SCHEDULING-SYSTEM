@@ -690,3 +690,28 @@ def health():
         "database": db_ok,
         "release_busy": release_lock.locked(),
     })
+
+
+@bp.route("/mobile/download")
+def mobile_download_page():
+    import os
+    from flask import current_app, render_template, send_from_directory
+
+    static_dir = current_app.static_folder or "static"
+    apk_name = "ssies-schedule.apk"
+    apk_path = os.path.join(static_dir, apk_name)
+    has_apk = os.path.isfile(apk_path)
+    return render_template("mobile/download.html", has_apk=has_apk, apk_name=apk_name)
+
+
+@bp.route("/mobile/download/apk")
+def mobile_download_apk():
+    import os
+    from flask import current_app, abort, send_from_directory
+
+    static_dir = current_app.static_folder or "static"
+    apk_name = "ssies-schedule.apk"
+    apk_path = os.path.join(static_dir, apk_name)
+    if not os.path.isfile(apk_path):
+        abort(404)
+    return send_from_directory(static_dir, apk_name, as_attachment=True, download_name=apk_name)

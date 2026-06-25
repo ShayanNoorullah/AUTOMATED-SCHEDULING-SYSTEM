@@ -21,13 +21,24 @@ def create_app():
     csrf = CSRFProtect(app)
     limiter = Limiter(get_remote_address, app=app, default_limits=["200 per minute"])
 
-    # Security headers when HTTPS enabled
+    # Security headers when HTTPS enabled (Caddy terminates TLS in Docker — no force_https redirect)
+    docker = os.environ.get("DOCKER") == "1"
     if Config.FORCE_HTTPS:
         try:
             from flask_talisman import Talisman
-            Talisman(app, force_https=True, session_cookie_secure=True)
+            Talisman(
+                app,
+                force_https=not docker,
+                session_cookie_secure=True,
+                # Templates use inline <style>/<script> and external CDNs (Supabase, fonts).
+                content_security_policy=False,
+            )
         except ImportError:
             pass
+
+    if Config.FORCE_HTTPS or docker:
+        from werkzeug.middleware.proxy_fix import ProxyFix
+        app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)
 
     from app.routes.auth_routes import bp as auth_bp
     from app.routes.user_routes import bp as user_bp
@@ -42,6 +53,7 @@ def create_app():
     PUBLIC_ENDPOINTS = {
         "auth.login_page", "auth.forgot_password_page", "auth.auth_session",
         "auth.auth_refresh", "static", "user.health", "user.mobile_config",
+        "user.mobile_download_page", "user.mobile_download_apk",
     }
 
     @app.before_request
@@ -86,6 +98,8 @@ def create_app():
             db.create_all()
             _seed_system_settings()
             _ensure_invite_link_column()
+            if os.environ.get("DOCKER") == "1":
+                _apply_docker_waha_settings()
         else:
             try:
                 db.create_all()
@@ -105,14 +119,16 @@ def create_app():
 
 def _seed_system_settings():
     from app.models import SystemSetting
+    docker = os.environ.get("DOCKER") == "1"
+    waha_key = (os.environ.get("WAHA_API_KEY") or "").strip()
     defaults = {
         "maintenance_mode": False,
         "site_name": "SSIES Schedule Sender",
         "default_delay_seconds": 5,
         "allow_user_creation": True,
-        "wa_provider": "selenium",
-        "waha_base_url": "http://localhost:3000",
-        "waha_api_key": "",
+        "wa_provider": "waha" if docker else "selenium",
+        "waha_base_url": "http://waha:3000" if docker else "http://localhost:3000",
+        "waha_api_key": waha_key if docker else "",
         "waha_session_name": "default",
         "max_users": 0,
     }
@@ -123,6 +139,18 @@ def _seed_system_settings():
         db.session.commit()
     except Exception:
         db.session.rollback()
+
+
+def _apply_docker_waha_settings():
+    """Keep WAHA settings aligned with container env on each deploy."""
+    from app.services.users import set_system_setting
+
+    waha_key = (os.environ.get("WAHA_API_KEY") or "").strip()
+    set_system_setting("wa_provider", "waha")
+    set_system_setting("waha_base_url", "http://waha:3000")
+    if waha_key:
+        set_system_setting("waha_api_key", waha_key)
+    set_system_setting("waha_session_name", "default")
 
 
 def _ensure_invite_link_column():

@@ -131,12 +131,15 @@ postgresql://postgres.xxxx:YOUR_PASSWORD@aws-0-region.pooler.supabase.com:6543/p
 
 ## Zero-cost deployment
 
+**Full cloud deployment (24/7, web + APK + WAHA):** see **[DEPLOY.md](DEPLOY.md)** — Oracle Cloud free VM + DuckDNS + Docker.
+
 | Component | Cost | How |
 |-----------|------|-----|
 | Database + Auth | Free | Supabase free tier (500 MB, 50k MAU) |
-| App server | Free | Run on your Windows PC via `run.bat` |
-| WhatsApp automation | Free | WAHA (Docker) or Selenium on same PC |
-| Remote access (optional) | Free | [Cloudflare Tunnel](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/) |
+| App server (cloud) | Free | Oracle Always Free VM + `docker-compose.prod.yml` |
+| App server (local) | Free | Run on your Windows PC via `run.bat` |
+| WhatsApp automation | Free | WAHA (Docker) — Selenium for local dev only |
+| Remote access (local PC) | Free | [Cloudflare Tunnel](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/) |
 
 ### Production mode (waitress)
 
