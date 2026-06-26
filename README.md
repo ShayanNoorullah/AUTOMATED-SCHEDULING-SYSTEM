@@ -4,6 +4,14 @@ A secured multi-portal web application for automating weekly class schedule mess
 
 Run the app on your **Windows PC** (free) with **Supabase free tier** for database and authentication. WhatsApp sending supports **WAHA (Docker)**, **Selenium + Chrome**, or **direct `wa.me` / invite links** only.
 
+**Quick guides:** [Run.md](Run.md) (start / stop / update) · [DEPLOY.md](DEPLOY.md) (cloud 24/7) · [mobile/MOBILE_SETUP.md](mobile/MOBILE_SETUP.md) (Android APK)
+
+## Screenshots
+
+| Groups & weekly schedule | Schedule table grid | Settings & appearance |
+|--------------------------|---------------------|------------------------|
+| ![Groups dashboard](docs/screenshots/groups.png) | ![Schedule table](docs/screenshots/schedule-table.png) | ![Settings](docs/screenshots/settings.png) |
+
 ## Portals
 
 | Role | URL | Capabilities |
@@ -131,7 +139,8 @@ postgresql://postgres.xxxx:YOUR_PASSWORD@aws-0-region.pooler.supabase.com:6543/p
 
 ## Zero-cost deployment
 
-**Full cloud deployment (24/7, web + APK + WAHA):** see **[DEPLOY.md](DEPLOY.md)** — Oracle Cloud free VM + DuckDNS + Docker.
+**Full cloud deployment (24/7, web + APK + WAHA):** see **[DEPLOY.md](DEPLOY.md)** — Oracle Cloud free VM + DuckDNS + Docker.  
+**Day-to-day commands:** see **[Run.md](Run.md)** — local `run.bat`, production Docker, mobile, updates.
 
 | Component | Cost | How |
 |-----------|------|-----|
@@ -219,6 +228,8 @@ static/js/             api.js, waha.js, whatsapp.js, theme.js, portal.js
 whatsapp_sender.py     Selenium WhatsApp automation
 app.py                 Entry point
 run.bat                Loads run.local.bat and starts the app
+Run.md                 Start, stop, update (local + production + mobile)
+DEPLOY.md              Oracle Cloud + DuckDNS deployment guide
 ```
 
 ## WhatsApp automation
