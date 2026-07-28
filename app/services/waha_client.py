@@ -1,35 +1,100 @@
 """WAHA (WhatsApp HTTP API) client."""
 import base64
+import contextvars
+from contextlib import contextmanager
 
 import requests
 
 from app.services.users import get_system_setting
 
-# WAHA Core (free Docker image) only supports one session named "default".
+# WAHA Core (free Docker image) only supports one session named "default" per container.
+# Per-user isolation uses separate free containers (see waha_slots.py) — no Plus license.
 CORE_SESSION = "default"
 _CONNECTED = frozenset({"WORKING", "CONNECTED", "OPEN", "AUTHENTICATED"})
+_user_ctx = contextvars.ContextVar("waha_user_id", default=None)
+_assign_ctx = contextvars.ContextVar("waha_assign_slot", default=False)
 
 
 class WahaError(Exception):
     pass
 
 
+@contextmanager
+def use_waha_user(user_id, assign=False):
+    """Bind WAHA calls to a specific SSIES account's container slot."""
+    t_user = _user_ctx.set(user_id)
+    t_assign = _assign_ctx.set(bool(assign))
+    try:
+        yield
+    finally:
+        _user_ctx.reset(t_user)
+        _assign_ctx.reset(t_assign)
+
+
+def _resolve_user_id(explicit=None):
+    if explicit is not None:
+        return explicit
+    uid = _user_ctx.get()
+    if uid is not None:
+        return uid
+    try:
+        from flask import g
+        return getattr(g, "user_id", None)
+    except RuntimeError:
+        return None
+
+
 def _is_core_only_error(msg):
     return "only 'default' session" in (msg or "").lower()
 
 
+def _is_transient_webjs_error(msg):
+    m = (msg or "").strip().lower()
+    if not m:
+        return False
+    # WAHA WEBJS can throw opaque "r" evaluate errors intermittently.
+    return (
+        m == "r"
+        or "execution context" in m
+        or "protocol error" in m
+        or "target closed" in m
+        or "evaluate" in m
+    )
+
+
 def _session_name(name=None):
-    raw = (name or get_system_setting("waha_session_name", CORE_SESSION) or CORE_SESSION).strip()
-    if not raw or raw.lower() == "ssies":
-        return CORE_SESSION
-    return raw
+    # Isolation is per container slot; Core session name is always "default".
+    return CORE_SESSION
 
 
-def _cfg(name=None):
+def _cfg(name=None, user_id=None, assign_slot=None):
+    uid = _resolve_user_id(user_id)
+    assign = _assign_ctx.get() if assign_slot is None else bool(assign_slot)
+    key = get_system_setting("waha_api_key", "") or ""
+    from app.services.waha_slots import primary_waha_base_url, slot_base_url
+
+    base = primary_waha_base_url()
+    slot = None
+    if uid is not None:
+        from app.services.waha_slots import ensure_user_slot, get_user_slot
+
+        slot = get_user_slot(uid)
+        if slot is None and assign:
+            try:
+                slot = ensure_user_slot(uid)
+            except (RuntimeError, ValueError) as e:
+                raise WahaError(str(e)) from e
+        if slot is None:
+            raise WahaError(
+                "WhatsApp not linked for this account yet — open Automated Send and scan QR"
+            )
+        base = slot_base_url(int(slot))
     return {
-        "base": (get_system_setting("waha_base_url", "") or "").rstrip("/"),
-        "key": get_system_setting("waha_api_key", "") or "",
-        "session": _session_name(name),
+        "base": base,
+        "key": key,
+        "session": CORE_SESSION,
+        "slot": slot,
+        "user_id": uid,
     }
 
 
@@ -65,7 +130,18 @@ def _req(method, path, session_name=None, **kwargs):
     try:
         r = requests.request(method, url, **kwargs)
     except requests.RequestException as e:
-        raise WahaError(str(e)) from e
+        err = str(e)
+        if "Failed to resolve" in err or "getaddrinfo" in err or "NameResolution" in err:
+            raise WahaError(
+                f"Cannot reach WAHA at {cfg['base']}. "
+                "Outside Docker use http://127.0.0.1:3000 and start the local WAHA container."
+            ) from e
+        if "Connection refused" in err or "Max retries exceeded" in err:
+            raise WahaError(
+                f"WAHA is not running at {cfg['base']}. "
+                "Start it with: cd docker && docker compose -f waha-compose.yml up -d"
+            ) from e
+        raise WahaError(err) from e
     if r.status_code == 401:
         raise WahaError("WAHA unauthorized — API key does not match WAHA_API_KEY in Docker")
     if r.status_code >= 400:
@@ -80,16 +156,27 @@ def _req(method, path, session_name=None, **kwargs):
 
 
 def health():
-    cfg = _cfg()
-    if not cfg["base"]:
+    """Probe the primary WAHA container (system settings URL) — not a user slot."""
+    from app.services.waha_slots import primary_waha_base_url
+
+    base = primary_waha_base_url()
+    key = get_system_setting("waha_api_key", "") or ""
+    if not base:
         return {"ok": False, "error": "WAHA base URL not configured"}
-    if not cfg["key"]:
+    if not key:
         return {"ok": False, "error": "WAHA API key not configured"}
     try:
-        _req("GET", "/api/sessions")
-        return {"ok": True, "session": cfg["session"]}
-    except WahaError as e:
-        return {"ok": False, "error": str(e)}
+        r = requests.get(f"{base}/api/sessions", headers=_headers(key), timeout=15)
+        if r.status_code == 401:
+            return {"ok": False, "error": "WAHA unauthorized — API key mismatch"}
+        if r.status_code >= 400:
+            return {"ok": False, "error": _parse_error(r.text, r.status_code)}
+        return {"ok": True, "session": CORE_SESSION, "base": base}
+    except requests.RequestException as e:
+        hint = ""
+        if "waha" in str(e).lower() or "getaddrinfo" in str(e).lower() or "NameResolution" in str(e):
+            hint = " — start WAHA locally (docker compose in /docker) or set base URL to http://localhost:3000"
+        return {"ok": False, "error": f"{e}{hint}"}
 
 
 def restart_session(name=None):
@@ -105,18 +192,19 @@ def restart_session(name=None):
     return _wait_for_qr_status(name)
 
 
-def reset_session(name=None):
+def reset_session(name=None, user_id=None):
     """Full logout + restart — use when QR scan fails or session is FAILED."""
-    name = _session_name(name)
-    try:
-        _req("POST", f"/api/sessions/{name}/stop", session_name=name)
-    except WahaError:
-        pass
-    try:
-        _req("POST", f"/api/sessions/{name}/logout", session_name=name)
-    except WahaError:
-        pass
-    return restart_session(name)
+    with use_waha_user(_resolve_user_id(user_id), assign=True):
+        name = _session_name(name)
+        try:
+            _req("POST", f"/api/sessions/{name}/stop", session_name=name)
+        except WahaError:
+            pass
+        try:
+            _req("POST", f"/api/sessions/{name}/logout", session_name=name)
+        except WahaError:
+            pass
+        return restart_session(name)
 
 
 def _wait_for_qr_status(name, timeout=25):
@@ -141,130 +229,162 @@ def _wait_for_qr_status(name, timeout=25):
     return last or session_status(name)
 
 
-def start_session(name=None):
-    name = _session_name(name)
-    st = session_status(name)
-    if st.get("connected"):
-        return st
-    status = st.get("status")
-    if status == "FAILED":
-        return restart_session(name)
-    if status == "SCAN_QR_CODE":
-        return st
-    if status == "STARTING":
-        return _wait_for_qr_status(name)
-    try:
-        _req("POST", "/api/sessions", session_name=name, json={"name": name, "start": True})
-    except WahaError as e:
-        msg = str(e)
-        if _is_core_only_error(msg) and name != CORE_SESSION:
-            return start_session(CORE_SESSION)
-        lower = msg.lower()
-        if "already exists" in lower or "already started" in lower:
-            if status == "STOPPED":
+def start_session(name=None, user_id=None):
+    with use_waha_user(_resolve_user_id(user_id), assign=True):
+        name = _session_name(name)
+        st = session_status(name)
+        if st.get("connected"):
+            return st
+        status = st.get("status")
+        if status == "FAILED":
+            return restart_session(name)
+        if status == "SCAN_QR_CODE":
+            return st
+        if status == "STARTING":
+            return _wait_for_qr_status(name)
+        try:
+            _req("POST", "/api/sessions", session_name=name, json={"name": name, "start": True})
+        except WahaError as e:
+            msg = str(e)
+            lower = msg.lower()
+            if "already exists" in lower or "already started" in lower:
+                if status == "STOPPED":
+                    try:
+                        _req("POST", f"/api/sessions/{name}/start", session_name=name)
+                    except WahaError as e2:
+                        if "already started" not in str(e2).lower():
+                            raise
+                else:
+                    return restart_session(name)
+            else:
                 try:
                     _req("POST", f"/api/sessions/{name}/start", session_name=name)
                 except WahaError as e2:
                     if "already started" not in str(e2).lower():
-                        raise
-            else:
-                return restart_session(name)
-        else:
-            try:
-                _req("POST", f"/api/sessions/{name}/start", session_name=name)
-            except WahaError as e2:
-                if "already started" not in str(e2).lower():
-                    raise WahaError(msg) from e
-    return _wait_for_qr_status(name)
+                        raise WahaError(msg) from e
+        return _wait_for_qr_status(name)
 
 
-def session_status(name=None):
-    name = _session_name(name)
-    try:
-        data = _req("GET", f"/api/sessions/{name}", session_name=name)
-    except WahaError as e:
-        msg = str(e)
-        if _is_core_only_error(msg) and name != CORE_SESSION:
-            return session_status(CORE_SESSION)
-        return {"name": name, "status": "ERROR", "connected": False, "error": msg}
-    status = (data.get("status") or data.get("state") or "").upper()
-    connected = status in _CONNECTED
-    out = {"name": name, "status": status or "UNKNOWN", "connected": connected, "raw": data}
-    if status == "SCAN_QR_CODE":
-        out["needsQr"] = True
-    return out
+def session_status(name=None, user_id=None):
+    uid = _resolve_user_id(user_id)
+    if uid is not None and not _assign_ctx.get():
+        from app.services.waha_slots import get_user_slot
+
+        if get_user_slot(uid) is None:
+            return {
+                "name": CORE_SESSION,
+                "status": "UNLINKED",
+                "connected": False,
+                "slot": None,
+                "detail": "WhatsApp not linked for this account yet — scan QR to connect your own number",
+            }
+
+    with use_waha_user(uid, assign=_assign_ctx.get()):
+        name = _session_name(name)
+        cfg = _cfg(name)
+        try:
+            data = _req("GET", f"/api/sessions/{name}", session_name=name)
+        except WahaError as e:
+            return {
+                "name": name,
+                "status": "ERROR",
+                "connected": False,
+                "error": str(e),
+                "slot": cfg.get("slot"),
+            }
+        status = (data.get("status") or data.get("state") or "").upper()
+        connected = status in _CONNECTED
+        out = {
+            "name": name,
+            "status": status or "UNKNOWN",
+            "connected": connected,
+            "raw": data,
+            "slot": cfg.get("slot"),
+        }
+        if status == "SCAN_QR_CODE":
+            out["needsQr"] = True
+        return out
 
 
-def get_qr(name=None):
-    name = _session_name(name)
-    cfg = _cfg(name)
-    if not cfg["key"]:
-        raise WahaError("WAHA API key not configured")
-    st = session_status(name)
-    if st.get("error"):
-        raise WahaError(st["error"])
-    status = st.get("status")
-    if status == "FAILED":
-        st = restart_session(name)
-    elif status in ("STOPPED", "ERROR"):
-        st = start_session(name)
-    elif status == "STARTING":
-        st = _wait_for_qr_status(name)
-    status = st.get("status")
-    if status == "FAILED":
-        raise WahaError("WAHA session failed — click Reset & new QR, then scan again")
-    if status not in ("SCAN_QR_CODE",) and not st.get("connected"):
-        st = _wait_for_qr_status(name, timeout=15)
+def get_qr(name=None, user_id=None):
+    with use_waha_user(_resolve_user_id(user_id), assign=True):
+        name = _session_name(name)
+        cfg = _cfg(name)
+        if not cfg["key"]:
+            raise WahaError("WAHA API key not configured")
+        st = session_status(name)
+        if st.get("error"):
+            raise WahaError(st["error"])
         status = st.get("status")
-    if status != "SCAN_QR_CODE":
-        if st.get("connected"):
-            return {"format": "text", "data": "", "connected": True}
-        raise WahaError(
-            f"QR not ready (status: {status or 'unknown'}) — wait a moment or use Reset & new QR"
-        )
-    url = f"{cfg['base']}/api/{name}/auth/qr"
-    r = requests.get(url, headers=_headers(cfg["key"]), timeout=45)
-    if r.status_code == 401:
-        raise WahaError("WAHA unauthorized — API key does not match WAHA_API_KEY in Docker")
-    if r.status_code == 422:
-        body = r.text or ""
-        if _is_core_only_error(body) and name != CORE_SESSION:
-            return get_qr(CORE_SESSION)
-        if "not as expected" in body.lower() or "FAILED" in body:
-            restart_session(name)
-            r = requests.get(url, headers=_headers(cfg["key"]), timeout=45)
-    if r.status_code >= 400:
-        raise WahaError(_parse_error(r.text, r.status_code))
-    ct = r.headers.get("content-type", "")
-    if "image" in ct:
-        b64 = base64.b64encode(r.content).decode("ascii")
-        return {"format": "image", "data": f"data:{ct};base64,{b64}"}
-    try:
-        data = r.json()
-        if data.get("qr"):
-            return {"format": "text", "data": data["qr"]}
-        if data.get("value"):
-            return {"format": "text", "data": data["value"]}
-    except ValueError:
-        pass
-    raw = (r.text or "").strip()
-    if raw and not raw.startswith("{"):
-        return {"format": "text", "data": raw}
-    raise WahaError("QR code not available yet — wait a few seconds and try again")
+        if status == "FAILED":
+            st = restart_session(name)
+        elif status in ("STOPPED", "ERROR", "UNLINKED"):
+            st = start_session(name)
+        elif status == "STARTING":
+            st = _wait_for_qr_status(name)
+        status = st.get("status")
+        if status == "FAILED":
+            raise WahaError("WAHA session failed — click Reset & new QR, then scan again")
+        if status not in ("SCAN_QR_CODE",) and not st.get("connected"):
+            st = _wait_for_qr_status(name, timeout=15)
+            status = st.get("status")
+        if status != "SCAN_QR_CODE":
+            if st.get("connected"):
+                return {"format": "text", "data": "", "connected": True, "slot": cfg.get("slot")}
+            raise WahaError(
+                f"QR not ready (status: {status or 'unknown'}) — wait a moment or use Reset & new QR"
+            )
+        url = f"{cfg['base']}/api/{name}/auth/qr"
+        r = requests.get(url, headers=_headers(cfg["key"]), timeout=45)
+        if r.status_code == 401:
+            raise WahaError("WAHA unauthorized — API key does not match WAHA_API_KEY in Docker")
+        if r.status_code == 422:
+            body = r.text or ""
+            if "not as expected" in body.lower() or "FAILED" in body:
+                restart_session(name)
+                r = requests.get(url, headers=_headers(cfg["key"]), timeout=45)
+        if r.status_code >= 400:
+            raise WahaError(_parse_error(r.text, r.status_code))
+        ct = r.headers.get("content-type", "")
+        if "image" in ct:
+            b64 = base64.b64encode(r.content).decode("ascii")
+            return {"format": "image", "data": f"data:{ct};base64,{b64}", "slot": cfg.get("slot")}
+        try:
+            data = r.json()
+            if data.get("qr"):
+                return {"format": "text", "data": data["qr"], "slot": cfg.get("slot")}
+            if data.get("value"):
+                return {"format": "text", "data": data["value"], "slot": cfg.get("slot")}
+        except ValueError:
+            pass
+        raw = (r.text or "").strip()
+        if raw and not raw.startswith("{"):
+            return {"format": "text", "data": raw, "slot": cfg.get("slot")}
+        raise WahaError("QR code not available yet — wait a few seconds and try again")
 
 
-def stop_session(name=None):
-    name = _session_name(name)
-    try:
-        _req("POST", f"/api/sessions/{name}/stop", session_name=name)
-    except WahaError:
-        pass
-    return {"ok": True}
+def stop_session(name=None, user_id=None):
+    with use_waha_user(_resolve_user_id(user_id), assign=False):
+        name = _session_name(name)
+        try:
+            _req("POST", f"/api/sessions/{name}/stop", session_name=name)
+        except WahaError:
+            pass
+        return {"ok": True}
 
 
 def send_text(chat_id, text, session=None):
     session = _session_name(session)
-    return _req("POST", "/api/sendText", session_name=session, json={"session": session, "chatId": chat_id, "text": text})
+    payload = {"session": session, "chatId": chat_id, "text": text}
+    try:
+        return _req("POST", "/api/sendText", session_name=session, json=payload)
+    except WahaError as e:
+        # Recover once from transient WAHA WEBJS/Puppeteer crashes.
+        if _is_transient_webjs_error(str(e)):
+            restart_session(session)
+            _wait_for_qr_status(session, timeout=20)
+            return _req("POST", "/api/sendText", session_name=session, json=payload)
+        raise
 
 
 def phone_chat_id(phone):
@@ -276,15 +396,100 @@ _chat_cache = {}
 
 
 def _norm_name(s):
-    return " ".join((s or "").strip().lower().split())
+    import unicodedata
+
+    raw = unicodedata.normalize("NFKC", (s or "").strip().lower())
+    # Normalize common variants so "O'LEVEL", "O’LEVEL" and similar names match.
+    raw = raw.replace("&", " and ")
+    cleaned = []
+    for ch in raw:
+        if ch.isalnum():
+            cleaned.append(ch)
+        else:
+            cleaned.append(" ")
+    return " ".join("".join(cleaned).split())
 
 
 def _group_label(g):
-    return (g.get("name") or g.get("subject") or g.get("title") or "").strip()
+    direct = g.get("name") or g.get("subject") or g.get("title")
+    if isinstance(direct, str) and direct.strip():
+        return direct.strip()
+    for key in ("pushName", "notifyName", "formattedName"):
+        val = g.get(key)
+        if isinstance(val, str) and val.strip():
+            return val.strip()
+    # Some WAHA engines return nested chat/contact objects.
+    for key in ("chat", "contact", "group"):
+        node = g.get(key)
+        if isinstance(node, dict):
+            val = (
+                node.get("name")
+                or node.get("subject")
+                or node.get("title")
+                or node.get("pushName")
+                or node.get("notifyName")
+                or node.get("formattedName")
+            )
+            if isinstance(val, str) and val.strip():
+                return val.strip()
+    return ""
 
 
 def _chat_id(g):
-    return g.get("id") or g.get("jid") or g.get("chatId")
+    raw = g.get("id") or g.get("jid") or g.get("chatId")
+    if isinstance(raw, str):
+        return raw
+    if isinstance(raw, dict):
+        # WAHA/WebJS commonly uses object IDs.
+        for k in ("_serialized", "serialized", "id", "jid", "chatId"):
+            v = raw.get(k)
+            if isinstance(v, str) and v.strip():
+                return v.strip()
+        user = raw.get("user")
+        server = raw.get("server")
+        if user and server:
+            return f"{user}@{server}"
+    return ""
+
+
+def _is_group_chat(g, gid):
+    gid_s = str(gid or "")
+    if gid_s.endswith("@g.us"):
+        return True
+    # Fallback for engines that expose flags/type fields.
+    if g.get("isGroup") is True or g.get("group") is True:
+        return True
+    chat_type = str(g.get("type") or g.get("chatType") or "").lower()
+    if chat_type in {"group", "groups", "g.us"}:
+        return True
+    # Group payloads often include participants/member lists.
+    if isinstance(g.get("participants"), list) or isinstance(g.get("members"), list):
+        return True
+    return False
+
+
+def _normalize_waha_items(data):
+    """WAHA engines return lists or dicts (NOWEB /groups is {chatId: group})."""
+    if isinstance(data, list):
+        return data
+    if not isinstance(data, dict):
+        return []
+    for key in ("chats", "groups", "data", "items"):
+        val = data.get(key)
+        if isinstance(val, list):
+            return val
+        if isinstance(val, dict):
+            return list(val.values())
+    if not data:
+        return []
+    sample = next(iter(data.values()), None)
+    if isinstance(sample, dict) and (
+        any(str(k).endswith("@g.us") for k in data.keys())
+        or sample.get("subject")
+        or sample.get("id")
+    ):
+        return list(data.values())
+    return []
 
 
 def _fetch_chat_items(session):
@@ -295,21 +500,45 @@ def _fetch_chat_items(session):
     cached = _chat_cache.get(session)
     if cached and now - cached["ts"] < 120:
         return cached["items"]
-    try:
+
+    def _load_groups(refresh=False):
+        if refresh:
+            try:
+                _req("POST", f"/api/{session}/groups/refresh", session_name=session, timeout=180)
+            except WahaError:
+                pass
         data = _req(
             "GET",
-            f"/api/{session}/chats/overview?limit=500",
+            f"/api/{session}/groups?exclude=participants&limit=500",
             session_name=session,
             timeout=120,
         )
-    except WahaError:
-        data = _req(
-            "GET",
-            f"/api/{session}/groups?exclude=participants&limit=200",
-            session_name=session,
-            timeout=90,
-        )
-    items = data if isinstance(data, list) else data.get("chats") or data.get("groups") or data.get("data") or []
+        return _normalize_waha_items(data)
+
+    items = []
+    tried_recover = False
+    while True:
+        try:
+            items = _load_groups(refresh=False)
+            if not items:
+                items = _load_groups(refresh=True)
+            if not items:
+                data = _req(
+                    "GET",
+                    f"/api/{session}/chats/overview?limit=500",
+                    session_name=session,
+                    timeout=120,
+                )
+                items = _normalize_waha_items(data)
+            break
+        except WahaError as e1:
+            if not tried_recover and _is_transient_webjs_error(str(e1)):
+                tried_recover = True
+                restart_session(session)
+                _wait_for_qr_status(session, timeout=20)
+                continue
+            raise
+
     _chat_cache[session] = {"ts": now, "items": items}
     return items
 
@@ -324,8 +553,12 @@ def list_groups(session=None):
         if not isinstance(g, dict):
             continue
         gid = _chat_id(g)
-        if not gid or not str(gid).endswith("@g.us"):
+        if not gid:
             continue
+        if not _is_group_chat(g, gid):
+            # NOWEB group payloads may omit flags; @g.us id is enough.
+            if not str(gid).endswith("@g.us"):
+                continue
         label = _group_label(g)
         if not label or gid in seen:
             continue
@@ -348,7 +581,9 @@ def find_group_chat_id(name, session=None, items=None):
         if not isinstance(g, dict):
             continue
         gid = _chat_id(g)
-        if not gid or not str(gid).endswith("@g.us"):
+        if not gid:
+            continue
+        if not _is_group_chat(g, gid) and not str(gid).endswith("@g.us"):
             continue
         gname = _group_label(g)
         gn = _norm_name(gname)
@@ -376,19 +611,20 @@ def _group_not_found_message(name, session=None):
     return f"Group not found in WAHA session: {name}"
 
 
-def send_to_target(name, message, phone=None, session=None):
-    session = _session_name(session)
-    text = (message or "").strip()
-    if not text:
-        return False, "Empty message"
-    if phone:
-        cid = phone_chat_id(phone)
-        if not cid:
-            return False, "Invalid phone"
-        send_text(cid, text, session)
+def send_to_target(name, message, phone=None, session=None, user_id=None):
+    with use_waha_user(_resolve_user_id(user_id), assign=False):
+        session = _session_name(session)
+        text = (message or "").strip()
+        if not text:
+            return False, "Empty message"
+        if phone:
+            cid = phone_chat_id(phone)
+            if not cid:
+                return False, "Invalid phone"
+            send_text(cid, text, session)
+            return True, None
+        gid = find_group_chat_id(name, session)
+        if not gid:
+            return False, _group_not_found_message(name, session)
+        send_text(gid, text, session)
         return True, None
-    gid = find_group_chat_id(name, session)
-    if not gid:
-        return False, _group_not_found_message(name, session)
-    send_text(gid, text, session)
-    return True, None

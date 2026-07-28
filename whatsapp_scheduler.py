@@ -22,7 +22,7 @@ def save_config(config):
 # ── Message formatter ────────────────────────────────────────────────────────
 
 def format_message(schedule_entries):
-    lines = ["*Note*", "Schedule for this week:", ""]
+    lines = ["*Note*", "Schedule for this week:"]
     for entry in schedule_entries:
         lines.append(f"* {entry['day']}: {entry['time']}")
     lines.append("*Kindly Acknowledge*")

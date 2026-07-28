@@ -4,6 +4,8 @@ A secured multi-portal web application for automating weekly class schedule mess
 
 Run the app on your **Windows PC** (free) with **Supabase free tier** for database and authentication. WhatsApp sending supports **WAHA (Docker)**, **Selenium + Chrome**, or **direct `wa.me` / invite links** only.
 
+**Live production (zero extra cloud cost):** [https://ssies-schedule.duckdns.org](https://ssies-schedule.duckdns.org) — Oracle Always Free VM + DuckDNS + free WAHA Core.
+
 **Quick guides:** [Run.md](Run.md) (start / stop / update) · [DEPLOY.md](DEPLOY.md) (cloud 24/7) · [mobile/MOBILE_SETUP.md](mobile/MOBILE_SETUP.md) (Android APK)
 
 ## Screenshots
@@ -26,11 +28,21 @@ Public self-registration is **disabled**. Admins create accounts via the admin p
 
 | Area | What it does |
 |------|----------------|
-| **Groups / Schedule table** | Manage weekly schedules and per-group messages |
+| **Groups / Schedule table** | Manage weekly schedules, per-group messages, and local notes under the table |
 | **Open in WhatsApp** | Client-side `wa.me` and group invite links — no session linking |
-| **Automated Send** | WAHA or Selenium — link session, select targets, send in bulk |
+| **Automated Send** | WAHA or Selenium — each account links **its own** WhatsApp, then bulk-sends |
 | **Templates** | Reusable message templates (default weekly schedule seeded for new users) |
 | **Profile** (`/profile`) | Display name, password, account info |
+
+Default automated message format:
+
+```text
+*Note*
+Schedule for this week:
+* Saturday: 12:00pm - 1:30pm
+* Sunday: 12:00pm - 1:30pm
+*Kindly Acknowledge*
+```
 
 ## Tech Stack
 
@@ -41,7 +53,7 @@ Public self-registration is **disabled**. Admins create accounts via the admin p
 | Auth | Supabase Auth (JWT in httpOnly cookies) |
 | Security | Flask-WTF CSRF, Flask-Limiter, Flask-Talisman (HTTPS) |
 | Encryption | Fernet (messages/contacts at rest) |
-| WhatsApp | WAHA (Docker HTTP API), Selenium + undetected-chromedriver, or direct links |
+| WhatsApp | WAHA Core (Docker HTTP API, free), Selenium + undetected-chromedriver, or direct links |
 | Frontend | Server-rendered HTML, dashboard + portal layouts, vanilla JavaScript |
 
 ## Prerequisites
@@ -50,7 +62,7 @@ Public self-registration is **disabled**. Admins create accounts via the admin p
 - **Google Chrome** (if using Selenium — update `version_main` in `whatsapp_sender.py` when Chrome updates)
 - **Docker Desktop** (optional, for WAHA automated send)
 - **Supabase account** (free tier at [supabase.com](https://supabase.com))
-- **WhatsApp account** for linking (WAHA QR or Chrome on first automated send)
+- **WhatsApp account** for linking (WAHA QR or Chrome on first automated send) — one number per SSIES user/admin/superadmin
 
 ---
 
@@ -80,6 +92,7 @@ install.bat
 4. **Authentication → URL Configuration** → add redirect URLs:
    - `http://localhost:5000/login`
    - Your Cloudflare Tunnel URL if used (see below)
+   - Production: `https://YOUR_SUBDOMAIN.duckdns.org/login`
 
 ### Step 4: Run database migrations
 
@@ -88,6 +101,8 @@ install.bat
    - [`supabase/migrations/001_initial_schema.sql`](supabase/migrations/001_initial_schema.sql)
    - [`supabase/migrations/002_group_invite_link.sql`](supabase/migrations/002_group_invite_link.sql)
 3. Verify tables include: `profiles`, `groups`, `templates`, `contacts`, `audit_log`, `release_log`, `system_settings`
+
+The app also auto-adds columns such as `profiles.waha_slot` and `groups.invite_link` on startup when missing.
 
 ### Step 5: Configure local run file
 
@@ -147,8 +162,10 @@ postgresql://postgres.xxxx:YOUR_PASSWORD@aws-0-region.pooler.supabase.com:6543/p
 | Database + Auth | Free | Supabase free tier (500 MB, 50k MAU) |
 | App server (cloud) | Free | Oracle Always Free VM + `docker-compose.prod.yml` |
 | App server (local) | Free | Run on your Windows PC via `run.bat` |
-| WhatsApp automation | Free | WAHA (Docker) — Selenium for local dev only |
+| WhatsApp automation | Free | **WAHA Core** (no Plus license) — one free container per linked account |
 | Remote access (local PC) | Free | [Cloudflare Tunnel](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/) |
+
+Production Compose runs **app + Caddy + `waha`…`waha5`** on the same VM. Extra WAHA containers use RAM only — still the free Core image, no new cloud products.
 
 ### Production mode (waitress)
 
@@ -186,7 +203,7 @@ set USE_WAITRESS=1
 - Everything an admin can do
 - Manage admins (create, demote, delete)
 - Promote users to admin
-- System settings (maintenance mode, site name, WAHA provider, defaults)
+- System settings (maintenance mode, site name, WAHA provider, slot count, defaults)
 - Global audit log + CSV export
 - Inspect and edit any user's schedule data (`/?asUser=<uuid>`)
 
@@ -201,6 +218,7 @@ set USE_WAITRESS=1
 - Row Level Security policies in Supabase migration
 - Fernet encryption for message/phone fields in database
 - Maintenance mode blocks release for non-admin users
+- Each SSIES account uses an isolated WAHA slot (separate WhatsApp link)
 
 ---
 
@@ -210,12 +228,13 @@ set USE_WAITRESS=1
 app/
   __init__.py          Flask factory
   config.py            Environment config
-  models.py            SQLAlchemy models (UUID profiles)
+  models.py            SQLAlchemy models (UUID profiles, waha_slot)
   auth/decorators.py   JWT auth + role guards
   routes/              auth, user, admin, superadmin blueprints
-  services/            audit, users, whatsapp, waha_client, whatsapp_links
+  services/            audit, users, whatsapp, waha_client, waha_slots, whatsapp_links
 docker/
-  waha-compose.yml     WAHA Docker service
+  waha-compose.yml     Local WAHA Docker service
+docker-compose.prod.yml  Production: app + Caddy + waha…waha5 (free Core)
 supabase/migrations/   SQL schema + RLS
 templates/
   auth/                Login, forgot password
@@ -238,6 +257,10 @@ DEPLOY.md              Oracle Cloud + DuckDNS deployment guide
 
 Headless automated sending without launching Chrome for each message.
 
+**Important:** WAHA Core (free) allows only one WhatsApp session (`default`) **per container**. SSIES isolates accounts by assigning each user/admin/superadmin a dedicated free container slot (`waha` = slot 1, `waha2` = slot 2, …). No WAHA Plus subscription is required.
+
+#### Local (Windows)
+
 1. Install [Docker Desktop](https://www.docker.com/) and run WAHA:
    ```bat
    cd docker
@@ -246,14 +269,20 @@ Headless automated sending without launching Chrome for each message.
    ```
 2. In **Superadmin → Settings → WhatsApp / WAHA**, set:
    - Provider: **WAHA**
-   - Base URL: `http://localhost:3000`
+   - Base URL: `http://localhost:3000` (or leave `http://waha:3000` — the app rewrites Docker hostnames to `127.0.0.1` when not running inside Compose)
    - API key: **exactly** the same as `WAHA_API_KEY` when you started Docker
-   - Session name: `default` (WAHA Core free image only supports this name)
+   - Session name: always `default` on Core (isolation is via slots, not session names)
 3. Click **Test connection** — must show **Connected** before linking.
-4. In the user dashboard → **Automated Send** → **Start / Show QR** → scan with WhatsApp.
+4. Each account → **Automated Send** → **Start / Show QR** → scan with **that account’s** WhatsApp.
 5. If linking fails, use **Reset & new QR** and scan within ~20 seconds.
 
-**Group names** in SSIES must match the WhatsApp group name exactly (as seen in your linked account).
+Local multi-account testing needs one WAHA process per slot (ports `3000`, `3001`, …) or use production Compose.
+
+#### Production (Oracle free VM)
+
+`docker-compose.prod.yml` starts five free Core containers by default (`WAHA_SLOTS=5`). Superadmin keeps the existing `waha` volume (slot 1). Other accounts scan QR on their own Automated Send page to claim slots 2–5.
+
+**Group names** in SSIES must match the WhatsApp group name exactly (as seen on the linked phone for that account).
 
 ### Option B — Selenium (Chrome on Windows)
 
@@ -275,8 +304,9 @@ A separate **user-portal** Android app lives in [`mobile/`](mobile/). It uses th
 |--------|-------------------|
 | Same Wi‑Fi (LAN) | `http://192.168.1.14:5000` (use `ipconfig` on PC) |
 | Away from home | Cloudflare Tunnel URL pointing to `localhost:5000` |
+| Production | `https://ssies-schedule.duckdns.org` |
 
-Requirements:
+Requirements (LAN):
 - `run.bat` running on PC with `HOST=0.0.0.0`
 - Windows Firewall allows inbound TCP on port **5000**
 - Phone and PC on same network (for LAN)
@@ -300,7 +330,7 @@ Download the `.apk` from the Expo build page. See [`mobile/MOBILE_SETUP.md`](mob
 |---------|--------|
 | Groups, schedule, templates, contacts | Yes |
 | Open in WhatsApp (`wa.me` / invite) | Yes — opens native WhatsApp |
-| Automated send | **WAHA only** (not Selenium) |
+| Automated send | **WAHA only** (not Selenium) — uses that user’s WAHA slot |
 | Profile, password, backup/restore | Yes |
 
 ---
@@ -329,10 +359,13 @@ Returns database connectivity and release lock status.
 | Garbled messages | Same `APP_ENCRYPTION_KEY` on all machines |
 | Chrome/send fails | Update `version_main` in `whatsapp_sender.py` |
 | WAHA link fails / closes | API key must match Docker `WAHA_API_KEY`; session name must be `default` |
+| Failed to resolve `waha` on Windows | App rewrites to `127.0.0.1:3000` outside Docker — restart Flask; start local WAHA |
+| All accounts share one WhatsApp | Deploy multi-slot compose; each user must scan QR on **their** Automated Send page |
+| All WhatsApp slots in use | Raise `WAHA_SLOTS` and add matching `wahaN` services (still free Core) |
 | WAHA unauthorized | Set API key in Superadmin settings (empty key is rejected) |
 | Phone: "Couldn't link device" | Tap **Reset & new QR**; scan within ~20s; turn off VPN; update WhatsApp |
 | WAHA session FAILED | `docker compose -f docker/waha-compose.yml restart` or **Reset & new QR** |
-| Group not found (WAHA) | Group name in SSIES must match WhatsApp group name exactly |
+| Group not found (WAHA) | Group name in SSIES must match WhatsApp group name on **that account’s** phone |
 | SSL connection error | Add `?sslmode=require` to `DATABASE_URL` |
 
 ## License

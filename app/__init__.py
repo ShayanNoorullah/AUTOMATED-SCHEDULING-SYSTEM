@@ -98,13 +98,19 @@ def create_app():
             db.create_all()
             _seed_system_settings()
             _ensure_invite_link_column()
+            _ensure_waha_slot_column()
             if os.environ.get("DOCKER") == "1":
                 _apply_docker_waha_settings()
+            from app.services.waha_slots import bootstrap_primary_slot
+            bootstrap_primary_slot()
         else:
             try:
                 db.create_all()
                 _seed_system_settings()
                 _ensure_invite_link_column()
+                _ensure_waha_slot_column()
+                from app.services.waha_slots import bootstrap_primary_slot
+                bootstrap_primary_slot()
             except Exception as e:
                 print("NOTE: SQLite dev mode limited — configure Supabase DATABASE_URL:", e)
 
@@ -130,6 +136,7 @@ def _seed_system_settings():
         "waha_base_url": "http://waha:3000" if docker else "http://localhost:3000",
         "waha_api_key": waha_key if docker else "",
         "waha_session_name": "default",
+        "waha_slots": int(os.environ.get("WAHA_SLOTS") or 5),
         "max_users": 0,
     }
     for key, val in defaults.items():
@@ -151,6 +158,23 @@ def _apply_docker_waha_settings():
     if waha_key:
         set_system_setting("waha_api_key", waha_key)
     set_system_setting("waha_session_name", "default")
+    slots = (os.environ.get("WAHA_SLOTS") or "").strip()
+    if slots.isdigit():
+        set_system_setting("waha_slots", max(1, min(20, int(slots))))
+
+
+def _ensure_waha_slot_column():
+    from sqlalchemy import inspect, text
+    try:
+        insp = inspect(db.engine)
+        if "profiles" not in insp.get_table_names():
+            return
+        cols = {c["name"] for c in insp.get_columns("profiles")}
+        if "waha_slot" not in cols:
+            db.session.execute(text("ALTER TABLE profiles ADD COLUMN waha_slot INTEGER"))
+            db.session.commit()
+    except Exception:
+        db.session.rollback()
 
 
 def _ensure_invite_link_column():

@@ -72,14 +72,21 @@ def padded_square_on_color(img: Image.Image, size: int, bg: tuple[int, int, int]
 
 
 def save_icons(mark: Image.Image) -> None:
+    # Browser tab favicons use a white tile so the mark stays readable.
+    web_bg = (255, 255, 255)
     web_sizes = {
         WEB_IMG / "favicon-32.png": 32,
         WEB_IMG / "favicon-180.png": 180,
     }
     for path, size in web_sizes.items():
-        square = padded_square_on_color(mark, size, (0, 0, 0))
+        square = padded_square_on_color(mark, size, web_bg)
         square.convert("RGB").save(path, optimize=True)
         print(f"  icon {size}px -> {path.relative_to(ROOT)}")
+
+    # Sidebar / topbar mark — white tile so it stays readable in dark mode.
+    rail_mark = WEB_IMG / "ssies-mark.png"
+    padded_square_on_color(mark, 180, web_bg).convert("RGB").save(rail_mark, optimize=True)
+    print(f"  mark -> {rail_mark.relative_to(ROOT)}")
 
     mobile_sizes = {
         MOBILE_ASSETS / "icon.png": 1024,
@@ -92,7 +99,7 @@ def save_icons(mark: Image.Image) -> None:
         print(f"  icon {size}px -> {path.relative_to(ROOT)}")
 
     ico_path = WEB_IMG / "favicon.ico"
-    ico_images = [padded_square_on_color(mark, s, (0, 0, 0)).convert("RGB") for s in (16, 32, 48)]
+    ico_images = [padded_square_on_color(mark, s, web_bg).convert("RGB") for s in (16, 32, 48)]
     ico_images[0].save(
         ico_path,
         format="ICO",

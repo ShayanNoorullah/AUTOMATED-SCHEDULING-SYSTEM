@@ -43,6 +43,8 @@ class Profile(db.Model):
     is_active = db.Column(db.Boolean, default=True, nullable=False)
     headless = db.Column(db.Boolean, default=False)
     delay_seconds = db.Column(db.Integer, default=5)
+    # Dedicated free WAHA Core container slot (1 → waha, 2 → waha2, …). Null until linked.
+    waha_slot = db.Column(db.Integer, nullable=True, index=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     last_login_at = db.Column(db.DateTime)

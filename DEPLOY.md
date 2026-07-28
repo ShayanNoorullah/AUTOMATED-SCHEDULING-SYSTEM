@@ -59,7 +59,7 @@ Ensure your superadmin exists in **Supabase → Authentication → Users** with 
 2. Create an **Ampere A1** instance:
    - Image: **Ubuntu 22.04 or 24.04**
    - Shape: **VM.Standard.A1.Flex** — recommend **2 OCPU**, **12 GB RAM**
-   - **ARM64 note:** `docker-compose.prod.yml` uses `devlikeapro/waha:arm` (not `:latest`, which is amd64-only).
+   - **ARM64 note:** use `devlikeapro/waha:noweb-arm-2026.6.1` (NOWEB engine; WEBJS/Chromium is unstable on Ampere).
 3. **Networking → Public IP** → reserve/assign a **public IPv4** to the instance.
 4. **Security List** (VCN ingress rules): allow TCP **22**, **80**, **443** from `0.0.0.0/0`.
 5. SSH in:
@@ -142,9 +142,10 @@ Services:
 |---------|------|
 | **caddy** | HTTPS reverse proxy (ports 80/443) |
 | **app** | Flask + Waitress + scheduler |
-| **waha** | WhatsApp HTTP API (internal only, port 3000 not public) |
+| **waha … waha5** | Free WAHA Core containers (1 WhatsApp account each — no Plus license) |
 
 WAHA settings are applied automatically when `DOCKER=1` (provider `waha`, base URL `http://waha:3000`).
+Each user/admin/superadmin gets their own slot (`waha` = slot 1, `waha2` = slot 2, …). Raising `WAHA_SLOTS` needs matching compose services — still the free image on the same VM (no extra cloud bill).
 
 ### 4.3 Upload mobile APK (optional)
 
@@ -169,7 +170,7 @@ Run these checks after deploy:
 | 2 | Open `/login` in browser | Login page loads over HTTPS |
 | 3 | Sign in as superadmin | Dashboard loads |
 | 4 | Superadmin → Settings → WhatsApp / WAHA → **Test connection** | Connected |
-| 5 | User dashboard → Automated Send → **Start / QR** | Scan with WhatsApp → linked |
+| 5 | Each account → Automated Send → **Start / QR** | That account’s own WhatsApp; other users stay unlinked until they scan |
 | 6 | `docker compose -f docker-compose.prod.yml logs app` | Scheduler tick messages (every minute) |
 | 7 | Settings → schedule a test job | `/api/scheduled-job` saves |
 
@@ -239,7 +240,7 @@ sudo systemctl enable docker
 
 - **Supabase**: Dashboard → Database → backups (free tier limits)
 - **App data**: Use in-app backup/export from Settings
-- **WAHA session**: Backup volume `waha-sessions` if you migrate VMs
+- **WAHA sessions**: Backup volumes `waha-sessions` … `waha-sessions-5` if you migrate VMs (one volume per linked account slot)
 
 ### Local dev vs production
 
@@ -259,7 +260,10 @@ sudo systemctl enable docker
 | Login works locally but not cloud | Supabase redirect URLs + `SUPABASE_JWT_SECRET` |
 | Mobile “cannot reach server” | Use `https://` URL; APK needs internet, not LAN IP |
 | WAHA unauthorized | `WAHA_API_KEY` in `.env` must match superadmin settings |
-| `no matching manifest for linux/arm64` | Use `devlikeapro/waha:arm` in compose (already set for Ampere VMs) |
+| All accounts share one WhatsApp | Deploy latest app + multi-`wahaN` compose; each user must scan QR on **their** Automated Send page |
+| “All WhatsApp slots are in use” | Raise `WAHA_SLOTS` and add `wahaN` services (still free Core image) |
+| `no matching manifest for linux/arm64` | Use `devlikeapro/waha:noweb-arm-2026.6.1` in compose (NOWEB on Ampere; avoid WEBJS Chromium crashes) |
+| All groups “Not found in WhatsApp” but WAHA connected | NOWEB returns groups as a dict — ensure latest `waha_client.py` is deployed; click **Fetch WA** |
 | `ERR_TOO_MANY_REDIRECTS` / `/health` loops | Rebuild app after fix: Talisman must not force HTTPS behind Caddy (`DOCKER=1`) |
 | Login page unstyled (plain HTML) | Rebuild app: Talisman default CSP blocks inline CSS (`content_security_policy=False`) |
 | Encrypted data garbled | Reuse original `APP_ENCRYPTION_KEY` from local dev |

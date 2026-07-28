@@ -120,6 +120,11 @@ def delete_user(target, actor):
 
     email = target.email
     uid = str(target.id)
+    try:
+        from app.services.waha_slots import release_user_slot
+        release_user_slot(target.id)
+    except Exception:
+        pass
     sb = get_supabase_admin()
     sb.auth.admin.delete_user(uid)
     db.session.delete(target)

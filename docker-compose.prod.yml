@@ -1,5 +1,19 @@
-# Production stack: Flask + WAHA + Caddy (HTTPS via DuckDNS)
+# Production stack: Flask + WAHA pool + Caddy (HTTPS via DuckDNS)
 # Usage: cp .env.production.example .env && docker compose -f docker-compose.prod.yml up -d --build
+#
+# WAHA Core (free) = 1 WhatsApp per container. We run several identical free
+# containers so each SSIES user/admin/superadmin can link their own number.
+# No WAHA Plus license — same free image, same Oracle VM (no extra cloud cost).
+
+x-waha: &waha-common
+  image: devlikeapro/waha:noweb-arm-2026.6.1
+  restart: unless-stopped
+  environment:
+    WAHA_API_KEY: ${WAHA_API_KEY}
+    WAHA_PRINT_QR: "False"
+  networks:
+    - ssies
+  # Port 3000 is NOT published — only reachable from app container
 
 services:
   app:
@@ -12,24 +26,41 @@ services:
       FORCE_HTTPS: "1"
       PORT: "5000"
       WAHA_BASE_URL: http://waha:3000
+      WAHA_SLOTS: ${WAHA_SLOTS:-5}
     depends_on:
-      waha:
-        condition: service_started
+      - waha
+      - waha2
+      - waha3
+      - waha4
+      - waha5
     networks:
       - ssies
 
+  # Slot 1 — keeps existing volume name so the current QR session is preserved
   waha:
-    # Oracle Ampere (ARM64): use :arm — :latest is amd64-only
-    image: devlikeapro/waha:arm
-    restart: unless-stopped
-    environment:
-      WAHA_API_KEY: ${WAHA_API_KEY}
-      WAHA_PRINT_QR: "False"
+    <<: *waha-common
     volumes:
       - waha-sessions:/app/.sessions
-    networks:
-      - ssies
-    # Port 3000 is NOT published — only reachable from app container
+
+  waha2:
+    <<: *waha-common
+    volumes:
+      - waha-sessions-2:/app/.sessions
+
+  waha3:
+    <<: *waha-common
+    volumes:
+      - waha-sessions-3:/app/.sessions
+
+  waha4:
+    <<: *waha-common
+    volumes:
+      - waha-sessions-4:/app/.sessions
+
+  waha5:
+    <<: *waha-common
+    volumes:
+      - waha-sessions-5:/app/.sessions
 
   caddy:
     image: caddy:2-alpine
@@ -50,6 +81,10 @@ services:
 
 volumes:
   waha-sessions:
+  waha-sessions-2:
+  waha-sessions-3:
+  waha-sessions-4:
+  waha-sessions-5:
   caddy_data:
   caddy_config:
 

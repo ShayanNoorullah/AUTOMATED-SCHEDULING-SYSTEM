@@ -14,20 +14,24 @@ def selenium_session_cached():
     return os.path.isdir(session_dir) and bool(os.listdir(session_dir))
 
 
-def session_info():
+def session_info(user_id=None):
     provider = get_provider()
     info = {"provider": provider, "connected": False, "detail": ""}
     if provider == "waha":
         from app.services.waha_client import session_status
-        st = session_status()
+        st = session_status(user_id=user_id)
         info["connected"] = st.get("connected", False)
         info["sessionName"] = st.get("name")
         info["status"] = st.get("status")
+        info["slot"] = st.get("slot")
         if st.get("error"):
             info["detail"] = st["error"]
             info["error"] = st["error"]
+        elif st.get("status") == "UNLINKED":
+            info["detail"] = st.get("detail") or "Scan QR to link WhatsApp for this account"
         elif info["connected"]:
-            info["detail"] = "WAHA connected"
+            slot = st.get("slot")
+            info["detail"] = f"WAHA connected (slot {slot})" if slot else "WAHA connected"
         elif st.get("status") == "SCAN_QR_CODE":
             info["detail"] = "Scan QR code below"
         elif st.get("status") == "STARTING":
@@ -44,26 +48,26 @@ def session_info():
     return info
 
 
-def require_connected():
+def require_connected(user_id=None):
     provider = get_provider()
     if provider == "direct_only":
         return False, "Automated send is disabled (direct links only mode)"
     if provider == "selenium":
         # First automated send opens Chrome for QR scan; no cached profile required.
         return True, None
-    info = session_info()
+    info = session_info(user_id=user_id)
     if provider == "waha" and not info.get("connected"):
-        return False, "WAHA not connected — open Automated Send and scan QR first"
+        return False, "WAHA not connected — open Automated Send and scan QR for this account first"
     return True, None
 
 
-def send_target(name, message, headless=False, phone=None, log=None, provider=None):
+def send_target(name, message, headless=False, phone=None, log=None, provider=None, user_id=None):
     provider = provider or get_provider()
     if provider == "direct_only":
         return False
     if provider == "waha":
         from app.services.waha_client import send_to_target as waha_send
-        ok, err = waha_send(name, message, phone=phone)
+        ok, err = waha_send(name, message, phone=phone, user_id=user_id)
         if log:
             if ok:
                 log(f"success:Sent via WAHA → {name}")

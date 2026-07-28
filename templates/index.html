@@ -688,7 +688,7 @@ function normalize(g){g.schedule=(g.schedule||[]).map(e=>{
   const t=(e.time||"").trim(),p=t.split(/\s*[-–]\s*|\s+to\s+/i);
   return p.length===2?{day:e.day,from:p[0].trim(),to:p[1].trim()}:{day:e.day,from:t,to:""};});}
 function genMessage(s){const v=s.filter(e=>(e.from||"").trim());if(!v.length)return"";
-  return ["*Note*","Schedule for this week:","",...v.map(e=>`* ${e.day}: ${fmtTime(e)}`),"*Kindly Acknowledge*"].join("\n");}
+  return ["*Note*","Schedule for this week:",...v.map(e=>`* ${e.day}: ${fmtTime(e)}`),"*Kindly Acknowledge*"].join("\n");}
 function messageFor(g){return (g.message&&g.message.trim())?g.message:genMessage(g.schedule);}
 function replaceTokens(t){
   const d=new Date();
@@ -849,7 +849,7 @@ function tplInsert(txt){
   ta.value=ta.value.slice(0,s)+txt+ta.value.slice(e); ta.focus(); ta.selectionStart=ta.selectionEnd=s+txt.length;
 }
 function tplInsertSchedule(){
-  tplInsert("*Note*\nSchedule for this week:\n\n* Saturday: 12:00pm - 1:30pm\n* Sunday: 12:00pm - 1:30pm\n\n*Kindly Acknowledge*");
+  tplInsert("*Note*\nSchedule for this week:\n* Saturday: 12:00pm - 1:30pm\n* Sunday: 12:00pm - 1:30pm\n*Kindly Acknowledge*");
 }
 async function saveTpl(){
   const name=document.getElementById("tplName").value.trim();

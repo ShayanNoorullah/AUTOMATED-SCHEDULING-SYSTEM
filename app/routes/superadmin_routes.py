@@ -80,6 +80,7 @@ def settings_page():
         waha_base_url=get_system_setting("waha_base_url", "http://localhost:3000"),
         waha_api_key=get_system_setting("waha_api_key", ""),
         waha_session_name=get_system_setting("waha_session_name", "default"),
+        waha_slots=get_system_setting("waha_slots", 5),
         max_users=get_system_setting("max_users", 0),
     )
 
@@ -224,6 +225,7 @@ def get_settings():
         "wahaBaseUrl": get_system_setting("waha_base_url", "http://localhost:3000"),
         "wahaApiKey": get_system_setting("waha_api_key", ""),
         "wahaSessionName": get_system_setting("waha_session_name", "default"),
+        "wahaSlots": get_system_setting("waha_slots", 5),
         "maxUsers": get_system_setting("max_users", 0),
     })
 
@@ -249,7 +251,9 @@ def update_settings():
     if "wahaApiKey" in data:
         set_system_setting("waha_api_key", str(data["wahaApiKey"])[:255])
     if "wahaSessionName" in data:
-        set_system_setting("waha_session_name", str(data["wahaSessionName"]).strip()[:64] or "default")
+        set_system_setting("waha_session_name", "default")
+    if "wahaSlots" in data:
+        set_system_setting("waha_slots", max(1, min(20, int(data["wahaSlots"]))))
     if "maxUsers" in data:
         set_system_setting("max_users", max(0, int(data["maxUsers"])))
     audit("settings_updated", str(list(data.keys()))[:200], actor_id=g.profile.id)

@@ -10,6 +10,7 @@ def build_preflight(profile, targets):
     targets = [t for t in (targets or []) if t.get("name")]
     group_targets = [t for t in targets if not t.get("phone")]
     contact_targets = [t for t in targets if t.get("phone")]
+    user_id = getattr(profile, "id", None)
 
     maint = maintenance_mode()
     if maint and not profile.is_admin():
@@ -22,7 +23,7 @@ def build_preflight(profile, targets):
     else:
         checks.append({"id": "maintenance", "label": "Maintenance mode off", "ok": True})
 
-    ok_conn, conn_err = require_connected()
+    ok_conn, conn_err = require_connected(user_id=user_id)
     checks.append({
         "id": "session",
         "label": "WhatsApp session connected",
@@ -40,7 +41,7 @@ def build_preflight(profile, targets):
 
     if group_targets and get_provider() == "waha":
         names = [t["name"] for t in group_targets]
-        validation = validate_group_names(names)
+        validation = validate_group_names(names, user_id=user_id)
         missing = [n for n, v in validation.items() if not v.get("ok")]
         checks.append({
             "id": "groups",

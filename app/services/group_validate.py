@@ -2,7 +2,7 @@
 from app.services.whatsapp_provider import get_provider
 
 
-def validate_group_names(names):
+def validate_group_names(names, user_id=None):
     """Return {name: {ok, match, similar}} for each name."""
     names = [n.strip() for n in names if (n or "").strip()]
     if not names:
@@ -12,10 +12,11 @@ def validate_group_names(names):
     if provider != "waha":
         return {n: {"ok": None, "match": None, "similar": [], "note": "WAHA not active"} for n in names}
 
-    from app.services.waha_client import WahaError, _norm_name, list_groups
+    from app.services.waha_client import WahaError, _norm_name, list_groups, use_waha_user
 
     try:
-        wa_groups = list_groups()
+        with use_waha_user(user_id, assign=False):
+            wa_groups = list_groups()
     except WahaError as e:
         return {n: {"ok": False, "match": None, "similar": [], "error": str(e)} for n in names}
 

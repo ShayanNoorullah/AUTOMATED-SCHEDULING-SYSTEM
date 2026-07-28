@@ -11,7 +11,7 @@ from app.services.audit import audit
 from app.services.users import maintenance_mode
 from app.services.whatsapp import (
     group_dict, template_dict, contact_dict, digits, format_message,
-    run_release, status_queue, release_lock,
+    run_release, status_queue, any_release_busy,
 )
 
 bp = Blueprint("user", __name__)
@@ -402,12 +402,13 @@ def import_config():
 @login_required
 def whatsapp_status():
     from app.services.whatsapp_provider import session_info
-    info = session_info()
+    info = session_info(user_id=_effective_user_id())
     return jsonify({
         "sessionCached": info.get("connected", False),
         "provider": info.get("provider"),
         "status": info.get("status"),
         "detail": info.get("detail"),
+        "slot": info.get("slot"),
         "webUrl": "https://web.whatsapp.com",
     })
 
@@ -416,7 +417,7 @@ def whatsapp_status():
 @login_required
 def whatsapp_session():
     from app.services.whatsapp_provider import session_info
-    return jsonify(session_info())
+    return jsonify(session_info(user_id=_effective_user_id()))
 
 
 @bp.route("/api/whatsapp/session/start", methods=["POST"])
@@ -427,7 +428,7 @@ def whatsapp_session_start():
     if provider == "waha":
         from app.services.waha_client import WahaError, start_session
         try:
-            return jsonify(start_session())
+            return jsonify(start_session(user_id=_effective_user_id()))
         except WahaError as e:
             return jsonify({"error": str(e), "connected": False}), 400
     if provider == "selenium":
@@ -443,7 +444,7 @@ def whatsapp_session_qr():
         return jsonify({"error": "QR available only for WAHA provider"}), 400
     from app.services.waha_client import get_qr
     try:
-        return jsonify(get_qr())
+        return jsonify(get_qr(user_id=_effective_user_id()))
     except Exception as e:
         return jsonify({"error": str(e)}), 400
 
@@ -456,7 +457,7 @@ def whatsapp_session_reset():
         return jsonify({"error": "Reset available only for WAHA provider"}), 400
     from app.services.waha_client import WahaError, reset_session
     try:
-        return jsonify(reset_session())
+        return jsonify(reset_session(user_id=_effective_user_id()))
     except WahaError as e:
         return jsonify({"error": str(e), "connected": False}), 400
 
@@ -467,7 +468,7 @@ def whatsapp_session_stop():
     from app.services.whatsapp_provider import get_provider
     if get_provider() == "waha":
         from app.services.waha_client import stop_session
-        return jsonify(stop_session())
+        return jsonify(stop_session(user_id=_effective_user_id()))
     return jsonify({"ok": True})
 
 
@@ -477,9 +478,10 @@ def whatsapp_waha_groups():
     from app.services.whatsapp_provider import get_provider
     if get_provider() != "waha":
         return jsonify({"error": "Available only when WAHA provider is active"}), 400
-    from app.services.waha_client import WahaError, list_groups
+    from app.services.waha_client import WahaError, list_groups, use_waha_user
     try:
-        return jsonify({"groups": list_groups()})
+        with use_waha_user(_effective_user_id(), assign=False):
+            return jsonify({"groups": list_groups()})
     except WahaError as e:
         return jsonify({"error": str(e)}), 400
 
@@ -521,7 +523,7 @@ def whatsapp_validate_groups():
     if isinstance(names, str):
         names = [names]
     from app.services.group_validate import validate_group_names
-    return jsonify({"validation": validate_group_names(names)})
+    return jsonify({"validation": validate_group_names(names, user_id=_effective_user_id())})
 
 
 @bp.route("/api/release/preflight", methods=["POST"])
@@ -530,7 +532,9 @@ def release_preflight():
     from app.services.preflight import build_preflight
     data = request.json or {}
     targets = data.get("targets") or []
-    return jsonify(build_preflight(g.profile, targets))
+    uid = _effective_user_id()
+    profile = g.profile if uid == g.profile.id else db.session.get(Profile, uid)
+    return jsonify(build_preflight(profile or g.profile, targets))
 
 
 @bp.route("/api/release-history", methods=["GET"])
@@ -688,7 +692,7 @@ def health():
     return jsonify({
         "status": "ok" if db_ok else "degraded",
         "database": db_ok,
-        "release_busy": release_lock.locked(),
+        "release_busy": any_release_busy(),
     })
 
 

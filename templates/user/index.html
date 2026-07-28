@@ -17,7 +17,7 @@
   <aside class="rail">
     <div class="brand">
       <button type="button" class="logo" id="brandLogo" onclick="toggleRailFromLogo()" title="Collapse sidebar">
-        <img src="{{ url_for('static', filename='img/ssies-logo.png') }}" alt="SSIES" width="120" height="38"/>
+        <img src="{{ url_for('static', filename='img/ssies-mark.png') }}" alt="SSIES" width="36" height="36"/>
         <span class="chev" id="logoChev"></span>
       </button>
       <div class="bt"><h1>Schedule Sender</h1><p>SSIES Automation</p></div>
@@ -45,7 +45,7 @@
   <div class="main">
     <div class="topbar">
       <button type="button" class="topbar-logo" id="topbarLogo" onclick="toggleRailFromLogo()" title="Open menu">
-        <img src="{{ url_for('static', filename='img/ssies-logo.png') }}" alt="SSIES" width="100" height="32"/>
+        <img src="{{ url_for('static', filename='img/ssies-mark.png') }}" alt="SSIES" width="28" height="28"/>
       </button>
       <button class="menu-btn" onclick="toggleRailMobile()" title="Menu"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 12h16M4 18h16"/></svg></button>
       <div class="tt"><h2 id="pageTitle">Groups</h2><p id="pageDesc">Manage your WhatsApp groups and weekly schedules</p></div>
@@ -139,7 +139,16 @@
             <span id="relTblTxt">Automated Selected</span><div class="spinner hidden" id="relTblSpin"></div>
           </button>
         </div>
-        <div class="view-pad" id="tableWrap"></div>
+        <div class="view-pad table-view-pad">
+          <div id="tableWrap"></div>
+          <div class="table-notes card">
+            <div class="card-h">Notes</div>
+            <div class="table-notes-body">
+              <textarea id="tableNotes" class="table-notes-input" rows="4" placeholder="Add comments or notes for this schedule table…" oninput="saveTableNotes()"></textarea>
+              <div class="hint">Saved on this device. Not sent with WhatsApp messages.</div>
+            </div>
+          </div>
+        </div>
       </section>
 
       <!-- ════ TEMPLATES ════ -->
@@ -227,7 +236,7 @@
         <div class="wa-panel">
           <div class="wa-hero">
             <h3>Automated Send</h3>
-            <p>Link your WhatsApp session first (WAHA QR or Chrome/Selenium), then send schedules automatically.</p>
+            <p>Link <strong>your</strong> WhatsApp on this account (each user has a separate WAHA connection). Then send schedules automatically.</p>
             <div class="wa-status" style="margin-top:12px"><span class="wa-dot" id="autoSessionDot"></span><span id="autoSessionText">Checking…</span> · <span id="autoProviderLabel">—</span></div>
           </div>
           <div class="wa-steps">
@@ -416,16 +425,30 @@
                     <div><div class="st">Delay between sends</div><div class="sd">Seconds between recipients during bulk automated release.</div></div>
                     <input class="num" type="number" id="setDelay" min="0" max="300" onchange="saveAutomation()"/>
                   </div>
-                  <div class="srow" style="flex-direction:column;align-items:stretch;gap:10px">
-                    <div><div class="st">Scheduled weekly send</div><div class="sd">Automatically send all groups on the chosen day and time (UTC server clock).</div></div>
-                    <label class="toggle" style="align-self:flex-start"><input type="checkbox" id="schedEnabled"/><span class="tk"></span><span style="margin-left:8px;font-size:13px">Enable scheduled send</span></label>
-                    <div style="display:flex;gap:8px;flex-wrap:wrap">
-                      <select class="finput" id="schedDow" style="flex:1;min-width:140px;margin:0">
-                        <option value="0">Sunday</option><option value="1">Monday</option><option value="2">Tuesday</option>
-                        <option value="3">Wednesday</option><option value="4">Thursday</option><option value="5">Friday</option><option value="6">Saturday</option>
-                      </select>
-                      <input class="finput" id="schedHour" type="number" min="0" max="23" placeholder="Hour" style="width:80px;margin:0"/>
-                      <input class="finput" id="schedMinute" type="number" min="0" max="59" placeholder="Min" style="width:80px;margin:0"/>
+                  <div class="srow srow-stack">
+                    <div class="srow-head">
+                      <div>
+                        <div class="st">Scheduled weekly send</div>
+                        <div class="sd">Automatically send all groups on the chosen day and time (UTC server clock).</div>
+                      </div>
+                      <label class="toggle" title="Enable scheduled send"><input type="checkbox" id="schedEnabled"/><span class="tk"></span></label>
+                    </div>
+                    <div class="sched-controls">
+                      <label class="sched-field">
+                        <span class="sched-lbl">Day</span>
+                        <select class="finput" id="schedDow">
+                          <option value="0">Sunday</option><option value="1">Monday</option><option value="2">Tuesday</option>
+                          <option value="3">Wednesday</option><option value="4">Thursday</option><option value="5">Friday</option><option value="6">Saturday</option>
+                        </select>
+                      </label>
+                      <label class="sched-field">
+                        <span class="sched-lbl">Hour (UTC)</span>
+                        <input class="finput" id="schedHour" type="number" min="0" max="23" placeholder="9"/>
+                      </label>
+                      <label class="sched-field">
+                        <span class="sched-lbl">Minute</span>
+                        <input class="finput" id="schedMinute" type="number" min="0" max="59" placeholder="0"/>
+                      </label>
                     </div>
                     <p class="hint" id="schedLastRun">Not run yet</p>
                     <button class="btn btn-soft btn-sm" type="button" onclick="saveScheduledJob()" style="align-self:flex-start">Save schedule</button>
@@ -584,7 +607,7 @@ function normalize(g){g.schedule=(g.schedule||[]).map(e=>{
   const t=(e.time||"").trim(),p=t.split(/\s*[-–]\s*|\s+to\s+/i);
   return p.length===2?{day:e.day,from:p[0].trim(),to:p[1].trim()}:{day:e.day,from:t,to:""};});}
 function genMessage(s){const v=s.filter(e=>(e.from||"").trim());if(!v.length)return"";
-  return ["*Note*","Schedule for this week:","",...v.map(e=>`* ${e.day}: ${fmtTime(e)}`),"*Kindly Acknowledge*"].join("\n");}
+  return ["*Note*","Schedule for this week:",...v.map(e=>`* ${e.day}: ${fmtTime(e)}`),"*Kindly Acknowledge*"].join("\n");}
 function messageFor(g){return (g.message&&g.message.trim())?g.message:genMessage(g.schedule);}
 function replaceTokens(t){
   const d=new Date();
@@ -595,7 +618,7 @@ function replaceTokens(t){
 
 /* ════ Boot ════ */
 async function boot(){
-  buildTimeOptions(); applyTheme(); updateLogoChevron();
+  buildTimeOptions(); applyTheme(); updateLogoChevron(); loadTableNotes();
   if(localStorage.getItem("rail-collapsed")==="1"){
     document.getElementById("app").classList.add("rail-collapsed");
     updateLogoChevron();
@@ -607,6 +630,15 @@ async function boot(){
   const landing = landingRaw === "whatsapp" ? "wa-direct" : landingRaw;
   if (VIEW_META[landing]) showView(landing);
   if (getStatusLogPref() === "always") showLog();
+}
+const TABLE_NOTES_KEY="schedule-table-notes";
+function loadTableNotes(){
+  const el=document.getElementById("tableNotes"); if(!el)return;
+  el.value=localStorage.getItem(TABLE_NOTES_KEY)||"";
+}
+function saveTableNotes(){
+  const el=document.getElementById("tableNotes"); if(!el)return;
+  localStorage.setItem(TABLE_NOTES_KEY, el.value);
 }
 async function loadGroups(){ groups=await (await fetch("/api/groups")).json();
   groups.forEach(g=>{ if(g.message===undefined)g.message=""; normalize(g); });
@@ -767,7 +799,7 @@ function tplInsert(txt){
   ta.value=ta.value.slice(0,s)+txt+ta.value.slice(e); ta.focus(); ta.selectionStart=ta.selectionEnd=s+txt.length;
 }
 function tplInsertSchedule(){
-  tplInsert("*Note*\nSchedule for this week:\n\n* Saturday: 12:00pm - 1:30pm\n* Sunday: 12:00pm - 1:30pm\n\n*Kindly Acknowledge*");
+  tplInsert("*Note*\nSchedule for this week:\n* Saturday: 12:00pm - 1:30pm\n* Sunday: 12:00pm - 1:30pm\n*Kindly Acknowledge*");
 }
 async function saveTpl(){
   const name=document.getElementById("tplName").value.trim();

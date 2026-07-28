@@ -33,9 +33,10 @@
           <option value="direct_only" {% if wa_provider == 'direct_only' %}selected{% endif %}>Direct links only (no automation)</option>
         </select>
       </div>
-      <div class="form-row"><label>WAHA base URL</label><input id="wahaUrl" placeholder="http://localhost:3000" value="{{ waha_base_url }}"/></div>
+      <div class="form-row"><label>WAHA base URL</label><input id="wahaUrl" placeholder="http://waha:3000" value="{{ waha_base_url }}"/><span class="hint">Primary container (slot 1). Extra free containers use waha2…wahaN automatically.</span></div>
       <div class="form-row"><label>WAHA API key</label><input id="wahaKey" type="password" placeholder="Same as WAHA_API_KEY in Docker" value="{{ waha_api_key }}"/></div>
-      <div class="form-row"><label>WAHA session name</label><input id="wahaSession" value="{{ waha_session_name }}"/><span class="hint">WAHA Core (free): use <code>default</code> only</span></div>
+      <div class="form-row"><label>WhatsApp slots</label><input id="wahaSlots" type="number" min="1" max="20" value="{{ waha_slots }}"/><span class="hint">One free WAHA Core container per account (no Plus license). Match <code>WAHA_SLOTS</code> / compose services.</span></div>
+      <div class="form-row"><label>WAHA session name</label><input id="wahaSession" value="{{ waha_session_name }}" disabled/><span class="hint">Always <code>default</code> on free WAHA Core — isolation is per container slot, not session name.</span></div>
       <div style="display:flex;gap:10px;flex-wrap:wrap">
         <button class="btn btn-primary" onclick="saveWaha()">Save WhatsApp settings</button>
         <button class="btn btn-soft" onclick="testWaha()">Test connection</button>
@@ -72,7 +73,13 @@ async function saveGeneral(){
   await saveSettings({siteName:siteName.value,defaultDelaySeconds:parseInt(defaultDelay.value)||5,maintenanceMode:maintenance.checked});
 }
 async function saveWaha(){
-  await saveSettings({waProvider:waProvider.value,wahaBaseUrl:wahaUrl.value.trim(),wahaApiKey:wahaKey.value,wahaSessionName:wahaSession.value.trim()||'default'});
+  await saveSettings({
+    waProvider:waProvider.value,
+    wahaBaseUrl:wahaUrl.value.trim(),
+    wahaApiKey:wahaKey.value,
+    wahaSessionName:'default',
+    wahaSlots:parseInt(wahaSlots.value)||5
+  });
 }
 async function saveAccess(){
   await saveSettings({allowUserCreation:allowCreate.checked,maxUsers:parseInt(maxUsers.value)||0});

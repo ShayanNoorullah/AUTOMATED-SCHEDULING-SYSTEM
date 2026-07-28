@@ -27,7 +27,6 @@ export function genMessage(schedule: ScheduleEntry[]): string {
   return [
     "*Note*",
     "Schedule for this week:",
-    "",
     ...v.map((e) => `* ${e.day}: ${fmtTime(e)}`),
     "*Kindly Acknowledge*",
   ].join("\n");
