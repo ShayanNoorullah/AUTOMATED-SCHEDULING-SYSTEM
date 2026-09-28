@@ -234,7 +234,8 @@ def start_session(name=None, user_id=None):
         name = _session_name(name)
         st = session_status(name)
         if st.get("connected"):
-            return st
+            ensure_noweb_store_enabled(name)
+            return session_status(name)
         status = st.get("status")
         if status == "FAILED":
             return restart_session(name)
@@ -243,11 +244,17 @@ def start_session(name=None, user_id=None):
         if status == "STARTING":
             return _wait_for_qr_status(name)
         try:
-            _req("POST", "/api/sessions", session_name=name, json={"name": name, "start": True})
+            _req(
+                "POST",
+                "/api/sessions",
+                session_name=name,
+                json={"name": name, "start": True, "config": _noweb_store_config()},
+            )
         except WahaError as e:
             msg = str(e)
             lower = msg.lower()
             if "already exists" in lower or "already started" in lower:
+                ensure_noweb_store_enabled(name)
                 if status == "STOPPED":
                     try:
                         _req("POST", f"/api/sessions/{name}/start", session_name=name)
@@ -259,9 +266,13 @@ def start_session(name=None, user_id=None):
             else:
                 try:
                     _req("POST", f"/api/sessions/{name}/start", session_name=name)
+                    ensure_noweb_store_enabled(name)
                 except WahaError as e2:
                     if "already started" not in str(e2).lower():
                         raise WahaError(msg) from e
+        else:
+            # Fresh session created with store config — nothing else to do
+            pass
         return _wait_for_qr_status(name)
 
 
@@ -392,11 +403,89 @@ def phone_chat_id(phone):
     return f"{p}@c.us" if p else ""
 
 
+def _noweb_store_config():
+    """NOWEB must persist chats/contacts/labels for Lists sync (WAHA store API)."""
+    return {
+        "noweb": {
+            "store": {
+                "enabled": True,
+                "fullSync": True,
+            }
+        }
+    }
+
+
+def _store_enabled(cfg):
+    if not isinstance(cfg, dict):
+        return False
+    noweb = cfg.get("noweb") if isinstance(cfg.get("noweb"), dict) else {}
+    store = noweb.get("store") if isinstance(noweb.get("store"), dict) else {}
+    return bool(store.get("enabled")) and bool(store.get("fullSync"))
+
+
+def ensure_noweb_store_enabled(name=None):
+    """
+    Enable config.noweb.store (enabled + fullSync) on the session.
+    Required for GET /labels and labeled chats on the NOWEB engine.
+    Idempotent; merges into existing session config then restarts if changed.
+    """
+    name = _session_name(name)
+    try:
+        data = _req("GET", f"/api/sessions/{name}", session_name=name) or {}
+    except WahaError:
+        return False
+    if not isinstance(data, dict):
+        return False
+    cfg = data.get("config") if isinstance(data.get("config"), dict) else {}
+    if _store_enabled(cfg):
+        return True
+
+    noweb = dict(cfg.get("noweb") if isinstance(cfg.get("noweb"), dict) else {})
+    noweb["store"] = {"enabled": True, "fullSync": True}
+    new_cfg = dict(cfg)
+    new_cfg["noweb"] = noweb
+    body = {"name": name, "config": new_cfg}
+    try:
+        _req("PUT", f"/api/sessions/{name}", session_name=name, json=body)
+    except WahaError:
+        try:
+            # Some WAHA builds document POST for update
+            _req("POST", f"/api/sessions/{name}", session_name=name, json=body)
+        except WahaError:
+            return False
+    try:
+        _req("POST", f"/api/sessions/{name}/restart", session_name=name)
+        _wait_for_qr_status(name, timeout=45)
+    except WahaError:
+        pass
+    return True
+
+
 def get_labels(session=None):
     """WhatsApp Business labels for the linked session."""
+    import time
+
     name = _session_name(session)
-    data = _req("GET", f"/api/{name}/labels", session_name=name)
-    return _normalize_waha_items(data)
+    ensure_noweb_store_enabled(name)
+    last_err = None
+    for attempt in range(4):
+        try:
+            data = _req("GET", f"/api/{name}/labels", session_name=name)
+            return _normalize_waha_items(data)
+        except WahaError as e:
+            last_err = e
+            msg = str(e).lower()
+            if "store" in msg or "noweb" in msg:
+                ensure_noweb_store_enabled(name)
+                time.sleep(2.5)
+                continue
+            if attempt < 3 and ("starting" in msg or "not ready" in msg or "working" in msg):
+                time.sleep(2.0)
+                continue
+            raise
+    if last_err:
+        raise last_err
+    return []
 
 
 def get_chats_for_label(label_id, session=None):
