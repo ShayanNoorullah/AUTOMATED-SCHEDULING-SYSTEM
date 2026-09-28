@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Users · Admin · SSIES</title>
+<link rel="icon" href="assets/img/favicon-32.png"/>
+<script>(function(){var m=localStorage.getItem("theme-mode")||"system";var d=m==="dark"||(m==="system"&&matchMedia("(prefers-color-scheme: dark)").matches);document.documentElement.setAttribute("data-theme",d?"dark":"light");var a=localStorage.getItem("accent")||(d?"#2dd4bf":"#0d9488");if(a.toLowerCase()==="#0000ee")a=(d?"#2dd4bf":"#0d9488");document.documentElement.style.setProperty("--accent",a);document.documentElement.setAttribute("data-nav",localStorage.getItem("nav-layout")||"sidebar");})();</script>
+<link rel="preconnect" href="https://api.fontshare.com">
+<link href="https://api.fontshare.com/v2/css?f[]=satoshi@400,500,700,900&display=swap" rel="stylesheet">
+<link href="assets/css/app.css?v=18" rel="stylesheet"/>
+</head>
+<body>
+<div class="shell" id="shell">
+  <div class="scrim" onclick="toggleRail()"></div>
+  <aside class="rail" id="rail"></aside>
+  <div class="main">
+    <div class="topbar">
+      <button class="menu-btn" onclick="toggleRail()" aria-label="Menu"><svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h16"/></svg></button>
+      <div class="tt"><h2>User management</h2><p>Create and manage user accounts</p></div>
+      <div class="topbar-actions"><button class="btn btn-primary btn-sm" onclick="openCreate()">+ Create user</button><button class="icon-btn" id="quickTheme" onclick="quickToggleTheme()" title="Toggle theme">🌙</button></div>
+    </div>
+    <div class="page-pad">
+      <div class="cards" id="uStats" style="margin-bottom:16px"></div>
+      <div id="userTable"></div>
+    </div>
+  </div>
+</div>
+
+<div class="modal-scrim" id="modal">
+  <div class="modal">
+    <div class="modal-h"><span id="modalTitle">Create user</span><button class="modal-x" onclick="closeModal()">✕</button></div>
+    <div class="modal-b">
+      <div class="profile-field"><label>Email</label><input id="mEmail" type="email"/></div>
+      <div class="profile-field"><label>Display name</label><input id="mName"/></div>
+      <div class="profile-field"><label>Password</label><input id="mPw" type="password" placeholder="min 8 characters"/></div>
+    </div>
+    <div class="modal-f"><button class="btn btn-soft" onclick="closeModal()">Cancel</button><button class="btn btn-primary" onclick="saveUser()">Save</button></div>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+<script src="assets/js/store.js?v=18"></script>
+<script src="assets/js/theme.js?v=18"></script>
+<script src="assets/js/portal.js?v=18"></script>
+<script>
+initPortal({ kind: "admin", active: "users" });
+applyTheme();
+
+function acctCell(u){ return `<div class="grid-name"><div class="av small${u.profilePic?' has-img':''}">${avatarInner(u.displayName||u.email,u.profilePic)}</div><div style="min-width:0"><b>${esc(u.displayName||"—")}</b><div class="hint" style="margin:0">${esc(u.email)}</div></div></div>`; }
+function statusCell(u){ return u.isActive?'<span class="status-on">Active</span>':'<span class="status-off">Disabled</span>'; }
+function uActions(u){ return `<div class="td-actions"><a class="btn btn-sm btn-soft" href="admin-user-detail.html?id=${u.id}" onclick="event.stopPropagation()">Manage</a><button class="btn btn-sm btn-soft" onclick="event.stopPropagation();toggleActive('${u.id}',${!u.isActive})">${u.isActive?"Disable":"Enable"}</button></div>`; }
+function uBoard(u){ return `<article class="ecard" onclick="location.href='admin-user-detail.html?id=${u.id}'" tabindex="0">
+  <div class="ecard-top"><div class="av small${u.profilePic?' has-img':''}">${avatarInner(u.displayName||u.email,u.profilePic)}</div><div class="ecard-id"><b>${esc(u.displayName||u.email)}</b><span>${esc(u.email)}</span></div></div>
+  <div class="ecard-days">${statusCell(u)}<span class="ec-chip">${u.groupCount||0} groups</span><span class="ec-chip">${u.lastLoginAt?relTime(u.lastLoginAt):"never in"}</span></div>
+  <div class="ecard-foot" onclick="event.stopPropagation()">${uActions(u)}</div></article>`; }
+
+portalTable({
+  id:"tblAdminUsers", mount:"userTable", modeKey:"adminusers-mode", modes:["table","board"],
+  searchPlaceholder:"Search users…", emptyText:"No users yet", emptyIco:"👤",
+  getRows:()=> listUsers().filter(u=>u.role!=="admin"&&u.role!=="superadmin"),
+  searchKeys:["email","displayName"],
+  filters:[ { key:"status", options:[{val:"",label:"All statuses"},{val:"active",label:"Active"},{val:"disabled",label:"Disabled"}], match:(u,v)=>v==="active"?u.isActive:!u.isActive } ],
+  columns:[
+    { label:"Account", render:acctCell },
+    { label:"Groups", render:(u)=>u.groupCount||0 },
+    { label:"Status", render:statusCell },
+    { label:"Last login", render:(u)=>u.lastLoginAt?relTime(u.lastLoginAt):"—" },
+    { label:"Actions", render:uActions },
+  ],
+  boardCard:uBoard,
+});
+function renderStats(){
+  const users=listUsers().filter(u=>u.role!=="admin"&&u.role!=="superadmin");
+  const active=users.filter(u=>u.isActive).length;
+  document.getElementById("uStats").innerHTML=`
+    <div class="stat"><div class="n">${users.length}</div><div class="l">Total users</div></div>
+    <div class="stat"><div class="n">${active}</div><div class="l">Active</div></div>
+    <div class="stat"><div class="n">${users.length-active}</div><div class="l">Disabled</div></div>`;
+}
+renderStats();
+function refresh(){ ptRefresh("tblAdminUsers"); renderStats(); }
+function toggleActive(id, active){ updateUser(id, { isActive: active }); toast(active?"Enabled":"Disabled"); refresh(); }
+function openCreate(){ document.getElementById("mEmail").value = document.getElementById("mName").value = document.getElementById("mPw").value = ""; document.getElementById("modal").classList.add("show"); }
+function closeModal(){ document.getElementById("modal").classList.remove("show"); }
+function saveUser(){
+  const email = document.getElementById("mEmail").value.trim();
+  const displayName = document.getElementById("mName").value.trim();
+  const password = document.getElementById("mPw").value;
+  if (!email) { toast("Email is required", "err"); return; }
+  if (password && password.length < 8) { toast("Password must be at least 8 characters", "err"); return; }
+  const res = createUser({ email, displayName, password, role: "user" });
+  if (res.error) { toast(res.error, "err"); return; }
+  closeModal(); toast("User created ✓"); refresh();
+}
+</script>
+</body>
+</html>

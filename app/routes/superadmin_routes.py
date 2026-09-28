@@ -24,6 +24,7 @@ def _uid(s):
 
 
 @bp.route("/")
+@bp.route("", strict_slashes=False)
 @superadmin_required
 def dashboard():
     total_users = Profile.query.filter_by(role="user").count()
@@ -57,13 +58,15 @@ def users_page():
 @bp.route("/admins")
 @superadmin_required
 def admins_page():
-    return render_template("superadmin/admins.html", profile=g.profile)
+    from flask import redirect
+    return redirect("/superadmin/users?tab=admins")
 
 
 @bp.route("/roles")
 @superadmin_required
 def roles_page():
-    return render_template("superadmin/roles.html", profile=g.profile)
+    from flask import redirect
+    return redirect("/superadmin/users?tab=roles")
 
 
 @bp.route("/settings")
@@ -125,10 +128,33 @@ def list_all_users():
     return jsonify([profile_dict(u, include_stats=True) for u in users])
 
 
+@bp.route("/api/users", methods=["POST"])
+@superadmin_required
+def create_user_api():
+    data = request.json or {}
+    email = (data.get("email") or "").strip()
+    password = data.get("password") or ""
+    display_name = (data.get("displayName") or "").strip()
+    role = (data.get("role") or "user").strip().lower()
+    if role not in ("user", "admin"):
+        return jsonify({"error": "Role must be user or admin"}), 400
+    if not email or len(password) < 8:
+        return jsonify({"error": "Valid email and password required"}), 400
+    try:
+        user = create_user(email, password, display_name, role=role, actor_id=g.profile.id)
+        return jsonify({"ok": True, "user": profile_dict(user, include_stats=True)})
+    except ValueError as e:
+        return jsonify({"error": str(e)}), 400
+
+
 @bp.route("/api/admins", methods=["GET"])
 @superadmin_required
 def list_admins():
-    admins = Profile.query.filter_by(role="admin").order_by(Profile.created_at.desc()).all()
+    admins = (
+        Profile.query.filter(Profile.role.in_(("admin", "superadmin")))
+        .order_by(Profile.created_at.desc())
+        .all()
+    )
     return jsonify([profile_dict(a, include_stats=True) for a in admins])
 
 

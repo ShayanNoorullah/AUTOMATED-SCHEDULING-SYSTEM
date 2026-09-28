@@ -2,22 +2,69 @@
 {% block title %}Activity{% endblock %}
 {% block portal_title %}Admin Portal{% endblock %}
 {% block page_heading %}My activity{% endblock %}
-{% block top_actions %}<button class="btn btn-soft" onclick="load()">Refresh</button>{% endblock %}
+{% block page_sub %}Recent actions on your account{% endblock %}
+{% block top_actions %}<button class="btn btn-soft btn-sm" onclick="refresh()">Refresh</button>{% endblock %}
 {% block nav %}{% include "portal/admin_nav.html" %}{% endblock %}
 {% block content %}
-<table>
-  <thead><tr><th>Time</th><th>Action</th><th>Detail</th><th>IP</th></tr></thead>
-  <tbody id="rows"><tr class="empty-row"><td colspan="4" class="loading">Loading…</td></tr></tbody>
-</table>
+<div id="actTable"></div>
 {% endblock %}
 {% block scripts %}
 <script>
-async function load(){
-  const rows=await api("/admin/api/activity");
-  const el=document.getElementById("rows");
-  if(!rows.length){el.innerHTML='<tr class="empty-row"><td colspan="4">No activity</td></tr>';return;}
-  el.innerHTML=rows.map(r=>`<tr><td>${fmtDate(r.at)}</td><td>${esc(r.action)}</td><td>${esc(r.detail)}</td><td>${esc(r.ip)}</td></tr>`).join("");
+const ACT_LABEL = {
+  login:"Signed in", login_failed:"Failed login", logout:"Signed out",
+  user_create:"Created user", user_update:"Updated user", user_delete:"Deleted user",
+  role_change:"Changed role", role_add:"Added role", role_update:"Updated role", role_delete:"Deleted role",
+  release:"Released messages", direct_whatsapp:"Opened WhatsApp",
+  settings_update:"Updated settings", config_restore:"Restored config",
+  password_change:"Changed password", password_reset_sent:"Sent password reset",
+  password_request:"Requested password reset", password_reset_approved:"Approved password reset",
+  password_reset_rejected:"Rejected password reset"
+};
+function actLabel(a){ return ACT_LABEL[a] || a; }
+let _rows = [];
+let _actReady = false;
+function actionOptions(){
+  const actions = [...new Set(_rows.map((r) => r.action))];
+  return [{val:"",label:"All actions"}].concat(actions.map((a) => ({val:a,label:actLabel(a)})));
 }
+function syncActionFilter(){
+  const st = typeof _pt !== "undefined" ? _pt.tblActivity : null;
+  if (!st || !st.filters || !st.filters[0]) return;
+  st.filters[0].options = actionOptions();
+  const sel = document.querySelector("#actTable .pt-filter");
+  if (sel) {
+    const cur = st.filter && st.filter.action != null ? st.filter.action : "";
+    sel.innerHTML = actionOptions().map((o) => `<option value="${escA(o.val)}"${o.val===cur?" selected":""}>${esc(o.label)}</option>`).join("");
+  }
+}
+async function load(keepState){
+  _rows = await api("/admin/api/activity");
+  if (_rows && !Array.isArray(_rows)) _rows = _rows.items || _rows.rows || [];
+  if (!_actReady) {
+    portalTable({
+      id:"tblActivity", mount:"actTable", perPage:10,
+      searchPlaceholder:"Search activity…", emptyText:"No activity yet", emptyIco:"📋",
+      getRows:() => _rows,
+      searchKeys:[(r) => actLabel(r.action), "detail", "ip"],
+      filters:[{
+        key:"action",
+        options:actionOptions(),
+        match:(r,v) => r.action === v
+      }],
+      columns:[
+        { label:"Time", render:(r) => fmtDate(r.at || r.created_at) },
+        { label:"Action", render:(r) => `<span class="chip">${esc(actLabel(r.action))}</span>` },
+        { label:"Detail", render:(r) => esc(r.detail || "—") },
+        { label:"IP", render:(r) => esc(r.ip || "—") },
+      ],
+    });
+    _actReady = true;
+  } else {
+    syncActionFilter();
+    ptRefresh("tblActivity");
+  }
+}
+async function refresh(){ await load(true); }
 load();
 </script>
 {% endblock %}

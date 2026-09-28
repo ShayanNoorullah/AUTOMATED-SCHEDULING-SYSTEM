@@ -5,49 +5,103 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <title>{% block title %}Portal{% endblock %} · {{ site_name|default('SSIES') }}</title>
 {% include "_favicon.html" %}
+<script>
+(function () {
+  var mode = localStorage.getItem("theme-mode") || "system";
+  var dark = mode === "dark" || (mode === "system" && matchMedia("(prefers-color-scheme: dark)").matches);
+  document.documentElement.setAttribute("data-theme", dark ? "dark" : "light");
+  var a = (localStorage.getItem("accent") || "").toLowerCase();
+  if (!a || a === "#0000ee" || a === "#c8a956" || a === "#b8943a" || a === "#d4b76a") {
+    localStorage.removeItem("accent");
+    a = "";
+  }
+  var accent = a || (dark ? "#2dd4bf" : "#0d9488");
+  document.documentElement.style.setProperty("--accent", accent);
+  document.documentElement.setAttribute("data-nav", localStorage.getItem("nav-layout") || "sidebar");
+})();
+</script>
 <link rel="preconnect" href="https://api.fontshare.com">
-<link href="https://api.fontshare.com/v2/css?f[]=satoshi@400,500,700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="{{ url_for('static', filename='css/portal.css') }}"/>
+<link href="https://api.fontshare.com/v2/css?f[]=satoshi@400,500,700,900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}?v=poc31"/>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/compat.css') }}?v=poc31"/>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/portal.css') }}?v=poc31"/>
+<script>
+window.SSIES_USER = {{ {
+  "email": profile.email,
+  "display_name": profile.display_name or profile.display_label(),
+  "role": profile.role,
+  "photo_url": profile.photo_url()
+} | tojson }};
+</script>
 {% block head %}{% endblock %}
 </head>
 <body>
-<div class="portal-app" id="portalApp">
-  <div class="portal-scrim" onclick="togglePortalSidebar()"></div>
-  <aside class="portal-sidebar">
-    <div class="portal-brand">
-      <button type="button" class="portal-logo" onclick="togglePortalSidebar()" title="Toggle menu">
-        <img src="{{ url_for('static', filename='img/ssies-logo.png') }}" alt="SSIES" width="110" height="36"/>
-      </button>
-      <div class="portal-brand-text">
+<div class="shell" id="shell">
+  <div class="scrim" onclick="toggleRail()"></div>
+  <aside class="rail">
+    <div class="rail-brand">
+      <div class="mark"><img src="{{ url_for('static', filename='img/ssies-mark.png') }}" alt="SSIES"/></div>
+      <div class="bt">
         <h1>{% block portal_title %}Portal{% endblock %}</h1>
-        <p class="sub">{{ profile.display_label() }}</p>
+        <p>{{ profile.display_label() }}</p>
       </div>
     </div>
-    <nav class="portal-nav">
+    <nav class="rail-nav">
       {% block nav %}{% endblock %}
+      <div class="nav-group nav-more hidden" id="navMoreGroup">
+        <button class="nav-item nav-group-btn" onclick="toggleNavGroup(this)" title="More">
+          <span class="ico"><svg viewBox="0 0 24 24"><circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/></svg></span>
+          <span class="lbl">More</span>
+          <svg class="caret" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M6 9l6 6 6-6"/></svg>
+        </button>
+        <div class="nav-submenu" id="navMoreMenu"></div>
+      </div>
     </nav>
-    <div class="portal-foot">
-      {% block foot_extra %}{% endblock %}
-      <a href="/logout" class="portal-nav-link">Log out</a>
+    <div class="rail-foot">
+      <div class="rail-user">
+        <div class="av{% if profile.photo_url() %} has-img{% endif %}" id="portalUserAv">{% if profile.photo_url() %}<img src="{{ profile.photo_url() }}" alt="" onerror="avatarImgFallback(this,'{{ profile.display_label()[0]|upper }}')"/>{% else %}{{ profile.display_label()[0]|upper }}{% endif %}</div>
+        <div style="min-width:0">
+          <div class="nm">{{ profile.display_label() }}</div>
+          <div class="rl">{{ profile.role }}</div>
+        </div>
+      </div>
+      {# Logout only shown on mobile / navbar cluster via theme.js; desktop sidebar hides rail-foot #}
+      <a class="nav-item" href="/logout"><span class="ico">⎋</span><span class="lbl">Log out</span></a>
     </div>
   </aside>
-  <div class="portal-main">
-    <header class="portal-topbar">
-      <button type="button" class="portal-menu-btn" onclick="togglePortalSidebar()" aria-label="Menu">
-        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
+  <div class="main">
+    <div class="topbar">
+      <button class="menu-btn" onclick="toggleRail()" aria-label="Menu">
+        <svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
       </button>
-      <div class="portal-topbar-title">
+      <div class="tt">
         <h2>{% block page_heading %}Dashboard{% endblock %}</h2>
-        <div class="portal-page-sub">{% block page_sub %}{% endblock %}</div>
+        <p>{% block page_sub %}{% endblock %}</p>
       </div>
-      <div class="portal-topbar-actions">{% block top_actions %}{% endblock %}</div>
-    </header>
-    <main class="portal-content">{% block content %}{% endblock %}</main>
+      <div class="topbar-actions">
+        {% block top_actions %}{% endblock %}
+        <button class="icon-btn" id="quickTheme" onclick="quickToggleTheme()" title="Toggle theme" aria-label="Toggle theme"></button>
+      </div>
+    </div>
+    <div class="page-pad">
+      {% block content %}{% endblock %}
+    </div>
   </div>
 </div>
 <div class="toast" id="toast"></div>
-<script src="{{ url_for('static', filename='js/api.js') }}"></script>
-<script src="{{ url_for('static', filename='js/portal.js') }}"></script>
+<script src="{{ url_for('static', filename='js/api.js') }}?v=poc31"></script>
+<script src="{{ url_for('static', filename='js/chrome.js') }}?v=poc31"></script>
+<script src="{{ url_for('static', filename='js/theme.js') }}?v=poc31"></script>
+<script src="{{ url_for('static', filename='js/portal.js') }}?v=poc31"></script>
+<script>
+/* Portal aliases — keep old page scripts working */
+function togglePortalSidebar(){ if(typeof toggleRail==="function") toggleRail(); }
+document.addEventListener("DOMContentLoaded", function(){
+  if(typeof applyTheme==="function") applyTheme();
+  if(typeof restoreNavOpen==="function") restoreNavOpen();
+  if(typeof reflowNavbar==="function") requestAnimationFrame(reflowNavbar);
+});
+</script>
 {% block scripts %}{% endblock %}
 </body>
 </html>

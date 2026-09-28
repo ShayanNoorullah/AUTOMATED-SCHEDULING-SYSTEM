@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Profile · Admin · SSIES</title>
+<link rel="icon" href="assets/img/favicon-32.png"/>
+<script>(function(){var m=localStorage.getItem("theme-mode")||"system";var d=m==="dark"||(m==="system"&&matchMedia("(prefers-color-scheme: dark)").matches);document.documentElement.setAttribute("data-theme",d?"dark":"light");var a=localStorage.getItem("accent")||(d?"#2dd4bf":"#0d9488");if(a.toLowerCase()==="#0000ee")a=(d?"#2dd4bf":"#0d9488");document.documentElement.style.setProperty("--accent",a);document.documentElement.setAttribute("data-nav",localStorage.getItem("nav-layout")||"sidebar");})();</script>
+<link rel="preconnect" href="https://api.fontshare.com">
+<link href="https://api.fontshare.com/v2/css?f[]=satoshi@400,500,700,900&display=swap" rel="stylesheet">
+<link href="assets/css/app.css?v=18" rel="stylesheet"/>
+</head>
+<body>
+<div class="shell" id="shell">
+  <div class="scrim" onclick="toggleRail()"></div>
+  <aside class="rail" id="rail"></aside>
+  <div class="main">
+    <div class="topbar">
+      <button class="menu-btn" onclick="toggleRail()" aria-label="Menu"><svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h16"/></svg></button>
+      <div class="tt"><h2>My profile</h2><p>Admin account details and security</p></div>
+      <div class="topbar-actions"><button class="icon-btn" id="quickTheme" onclick="quickToggleTheme()" title="Toggle theme">🌙</button></div>
+    </div>
+    <div class="content" id="profileContent"></div>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+<script src="assets/js/store.js?v=18"></script>
+<script src="assets/js/theme.js?v=18"></script>
+<script src="assets/js/portal.js?v=18"></script>
+<script src="assets/js/profile-common.js?v=18"></script>
+<script>
+mountProfile(function(){ document.getElementById("rail").innerHTML = portalRailHtml("admin", "profile"); }, ["admin","superadmin"]);
+</script>
+</body>
+</html>

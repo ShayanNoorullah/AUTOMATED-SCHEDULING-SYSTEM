@@ -6,7 +6,8 @@
 # No WAHA Plus license — same free image, same Oracle VM (no extra cloud cost).
 
 x-waha: &waha-common
-  image: devlikeapro/waha:noweb-arm-2026.6.1
+  # Pin free Core NOWEB ARM image (no Plus license). 2026.7.2 fixes WhatsApp protocol Connection Failure.
+  image: devlikeapro/waha:noweb-arm-2026.7.2
   restart: unless-stopped
   environment:
     WAHA_API_KEY: ${WAHA_API_KEY}
@@ -27,6 +28,9 @@ services:
       PORT: "5000"
       WAHA_BASE_URL: http://waha:3000
       WAHA_SLOTS: ${WAHA_SLOTS:-5}
+    volumes:
+      # Persist profile/group/contact photos across rebuilds
+      - app-instance:/app/instance
     depends_on:
       - waha
       - waha2
@@ -80,6 +84,7 @@ services:
       - ssies
 
 volumes:
+  app-instance:
   waha-sessions:
   waha-sessions-2:
   waha-sessions-3:

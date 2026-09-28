@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Superadmin · SSIES Schedule Sender</title>
+<link rel="icon" href="assets/img/favicon-32.png"/>
+<script>(function(){var m=localStorage.getItem("theme-mode")||"system";var d=m==="dark"||(m==="system"&&matchMedia("(prefers-color-scheme: dark)").matches);document.documentElement.setAttribute("data-theme",d?"dark":"light");var a=localStorage.getItem("accent")||(d?"#2dd4bf":"#0d9488");if(a.toLowerCase()==="#0000ee")a=(d?"#2dd4bf":"#0d9488");document.documentElement.style.setProperty("--accent",a);document.documentElement.setAttribute("data-nav",localStorage.getItem("nav-layout")||"sidebar");})();</script>
+<link rel="preconnect" href="https://api.fontshare.com">
+<link href="https://api.fontshare.com/v2/css?f[]=satoshi@400,500,700,900&display=swap" rel="stylesheet">
+<link href="assets/css/app.css?v=18" rel="stylesheet"/>
+</head>
+<body>
+<div class="shell" id="shell">
+  <div class="scrim" onclick="toggleRail()"></div>
+  <aside class="rail" id="rail"></aside>
+  <div class="main">
+    <div class="topbar">
+      <button class="menu-btn" onclick="toggleRail()" aria-label="Menu"><svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h16"/></svg></button>
+      <div class="tt"><h2 id="siteName">System overview</h2><p>System overview</p></div>
+      <div class="topbar-actions"><span class="badge">Superadmin</span><button class="icon-btn" id="quickTheme" onclick="quickToggleTheme()" title="Toggle theme">🌙</button></div>
+    </div>
+    <div class="page-pad">
+      <div class="dash-hero"><div><h2 id="siteHero">System overview</h2><p>Full control over users, admins, WhatsApp automation and audit.</p></div><a class="btn btn-primary" href="superadmin-settings.html">System settings</a></div>
+      <div class="cards" id="stats" style="margin-top:18px"></div>
+      <div class="dash-grid">
+        <div class="sec"><div class="sec-h">Quick actions</div><div class="sec-b dash-actions" id="quickActions"></div></div>
+        <div class="sec"><div class="sec-h">Pending requests</div><div class="sec-b" id="pendReqs"></div></div>
+      </div>
+      <div class="dash-grid dash-grid-2" style="margin-top:16px">
+        <div class="sec"><div class="sec-h">Role distribution</div><div class="sec-b" id="roleDist"></div></div>
+        <div class="sec"><div class="sec-h">System health</div><div class="sec-b" id="sysHealth"></div></div>
+      </div>
+      <div class="sec" style="margin-top:16px"><div class="sec-h">Recent activity<a class="btn btn-soft btn-sm" style="margin-left:auto" href="superadmin-audit.html">Full audit log</a></div>
+        <div class="sec-b"><div id="recentTable"></div></div>
+      </div>
+    </div>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+<script src="assets/js/store.js?v=18"></script>
+<script src="assets/js/theme.js?v=18"></script>
+<script src="assets/js/portal.js?v=18"></script>
+<script>
+initPortal({ kind: "superadmin", active: "dashboard" });
+applyTheme();
+document.getElementById("siteName").textContent = STORE.system.siteName;
+document.getElementById("siteHero").textContent = STORE.system.siteName;
+document.getElementById("quickActions").innerHTML = `
+  <a class="dash-action" href="superadmin-users.html?tab=users"><span class="da-ico">👥</span><span class="da-body"><b>Users</b><i>Status · roles · reset</i></span></a>
+  <a class="dash-action" href="superadmin-users.html?tab=admins"><span class="da-ico">🛡️</span><span class="da-body"><b>Admins</b><i>Create & manage admins</i></span></a>
+  <a class="dash-action" href="superadmin-users.html?tab=roles"><span class="da-ico">🔑</span><span class="da-body"><b>Roles & access</b><i>Define roles & permissions</i></span></a>
+  <a class="dash-action" href="superadmin-settings.html"><span class="da-ico">⚙️</span><span class="da-body"><b>System settings</b><i>WAHA · access · site</i></span></a>`;
+function renderPend() {
+  const el = document.getElementById("pendReqs"); const p = pendingRequestsFor("superadmin");
+  el.innerHTML = p.length ? p.map((r) => `<div class="dash-status-row" style="flex-wrap:wrap;gap:8px"><div style="min-width:0"><b>${esc(r.userEmail)}</b><div class="hint" style="margin:0">${esc(r.userRole)} · ${relTime(r.requestedAt)}</div></div><div style="margin-left:auto;display:flex;gap:8px"><button class="btn btn-primary btn-sm" onclick="approve('${r.id}')">Approve</button><button class="btn btn-soft btn-sm" onclick="decline('${r.id}')">Reject</button></div></div>`).join("") : '<p class="hint">No pending requests 🎉</p>';
+}
+function approve(id) { approvePasswordRequest(id); toast("Password reset approved ✓"); renderPend(); if (typeof updateNotifBadge === "function") updateNotifBadge(); }
+function decline(id) { rejectPasswordRequest(id); toast("Request declined"); renderPend(); if (typeof updateNotifBadge === "function") updateNotifBadge(); }
+renderPend();
+const users = STORE.users.filter((u) => u.role === "user");
+const admins = STORE.users.filter((u) => u.role === "admin");
+const active = STORE.users.filter((u) => u.isActive).length;
+const disabled = STORE.users.length - active;
+let totalGroups = 0, totalContacts = 0;
+Object.values(STORE.data).forEach((d) => { totalGroups += (d.groups || []).length; totalContacts += (d.contacts || []).length; });
+document.getElementById("stats").innerHTML = `
+  <div class="stat"><div class="n">${users.length}</div><div class="l">Users</div></div>
+  <div class="stat"><div class="n">${admins.length}</div><div class="l">Admins</div></div>
+  <div class="stat"><div class="n">${active}</div><div class="l">Active accounts</div></div>
+  <div class="stat"><div class="n">${disabled}</div><div class="l">Disabled</div></div>
+  <div class="stat"><div class="n">${STORE.releasesToday}</div><div class="l">Releases today</div></div>
+  <div class="stat"><div class="n">${totalGroups}</div><div class="l">Total groups</div></div>
+  <div class="stat"><div class="n">${totalContacts}</div><div class="l">Total contacts</div></div>`;
+(function renderSuperInsights() {
+  const supers = STORE.users.filter((u) => u.role === "superadmin").length;
+  const total = STORE.users.length || 1;
+  const seg = [{ k: "Users", n: users.length, c: "dist-a" }, { k: "Admins", n: admins.length, c: "dist-b" }, { k: "Superadmins", n: supers, c: "dist-c" }];
+  const rd = document.getElementById("roleDist");
+  if (rd) rd.innerHTML =
+    `<div class="dist-bar">${seg.map((s) => `<span class="${s.c}" style="width:${Math.round((s.n / total) * 100)}%"></span>`).join("")}</div>` +
+    `<div class="dist-legend">${seg.map((s) => `<span><i class="dot-${s.c.slice(-1)}"></i>${s.k} · ${s.n}</span>`).join("")}</div>` +
+    `<div class="dash-status-row"><span>Active accounts</span><span style="margin-left:auto;font-weight:700">${active} / ${STORE.users.length}</span></div>`;
+  const sh = document.getElementById("sysHealth");
+  if (sh) sh.innerHTML = `
+    <div class="dash-status-row"><span class="dot-live ${STORE.system.maintenanceMode ? "" : "on"}"></span><span>${STORE.system.maintenanceMode ? "Maintenance mode" : "All systems operational"}</span></div>
+    <div class="dash-status-row"><span>WhatsApp provider</span><span class="chip chip-default" style="margin-left:auto">${esc((STORE.system.waProvider || "waha").toUpperCase())}</span></div>
+    <div class="dash-status-row"><span>Releases today</span><span style="margin-left:auto;font-weight:700">${STORE.releasesToday}</span></div>
+    <div class="dash-status-row"><span>User limit</span><span style="margin-left:auto;font-weight:700">${users.length} / ${STORE.system.maxUsers || "∞"}</span></div>`;
+})();
+const SA_ACT = { login:"Signed in", login_failed:"Failed login", logout:"Signed out", user_create:"Created user", user_update:"Updated user", user_delete:"Deleted user", role_change:"Changed role", role_add:"Added role", role_update:"Updated role", role_delete:"Deleted role", release:"Released messages", direct_whatsapp:"Opened WhatsApp", settings_update:"Updated settings", config_restore:"Restored config" };
+portalTable({
+  id:"saRecent", mount:"recentTable", bare:true, perPage:5, emptyText:"No activity yet",
+  getRows:()=> STORE.globalAudit,
+  columns:[
+    { label:"Time", render:(r)=>fmtDate(r.at) },
+    { label:"Action", render:(r)=>`<span class="chip">${esc(SA_ACT[r.action]||r.action)}</span>` },
+    { label:"Detail", render:(r)=>esc(r.detail||"—") },
+    { label:"Actor", render:(r)=>esc(r.actorEmail||"—") },
+  ],
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>User management · Superadmin · SSIES</title>
+<link rel="icon" href="assets/img/favicon-32.png"/>
+<script>(function(){var m=localStorage.getItem("theme-mode")||"system";var d=m==="dark"||(m==="system"&&matchMedia("(prefers-color-scheme: dark)").matches);document.documentElement.setAttribute("data-theme",d?"dark":"light");var a=localStorage.getItem("accent")||(d?"#2dd4bf":"#0d9488");if(a.toLowerCase()==="#0000ee")a=(d?"#2dd4bf":"#0d9488");document.documentElement.style.setProperty("--accent",a);document.documentElement.setAttribute("data-nav",localStorage.getItem("nav-layout")||"sidebar");})();</script>
+<link rel="preconnect" href="https://api.fontshare.com">
+<link href="https://api.fontshare.com/v2/css?f[]=satoshi@400,500,700,900&display=swap" rel="stylesheet">
+<link href="assets/css/app.css?v=18" rel="stylesheet"/>
+</head>
+<body>
+<div class="shell" id="shell">
+  <div class="scrim" onclick="toggleRail()"></div>
+  <aside class="rail" id="rail"></aside>
+  <div class="main">
+    <div class="topbar">
+      <button class="menu-btn" onclick="toggleRail()" aria-label="Menu"><svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h16"/></svg></button>
+      <div class="tt"><h2>User management</h2><p>Users, admins and role definitions</p></div>
+      <div class="topbar-actions"><button class="icon-btn" id="quickTheme" onclick="quickToggleTheme()" title="Toggle theme">🌙</button></div>
+    </div>
+    <div class="page-pad">
+      <div class="cards" id="umStats" style="margin-bottom:16px"></div>
+      <div class="pt-tabs" id="umTabs">
+        <button data-tab="users" class="on" onclick="umTab('users')"><span>Users</span><span class="pt-tab-n" id="cntUsers">0</span></button>
+        <button data-tab="admins" onclick="umTab('admins')"><span>Admins</span><span class="pt-tab-n" id="cntAdmins">0</span></button>
+        <button data-tab="roles" onclick="umTab('roles')"><span>Roles &amp; access</span><span class="pt-tab-n" id="cntRoles">0</span></button>
+      </div>
+
+      <section class="um-panel" id="panel-users">
+        <div class="um-head"><div><h3>Users</h3><p class="hint" style="margin:0">Accounts that manage schedules and send messages.</p></div>
+          <button class="btn btn-primary btn-sm" onclick="openUserModal('user')">+ Create user</button></div>
+        <div id="usersTable"></div>
+      </section>
+
+      <section class="um-panel hidden" id="panel-admins">
+        <div class="um-head"><div><h3>Administrators</h3><p class="hint" style="margin:0">Elevated accounts that manage users and the system.</p></div>
+          <button class="btn btn-primary btn-sm" onclick="openUserModal('admin')">+ Create admin</button></div>
+        <div id="adminsTable"></div>
+      </section>
+
+      <section class="um-panel hidden" id="panel-roles">
+        <div class="um-head"><div><h3>Roles &amp; access</h3><p class="hint" style="margin:0">Define roles and the permissions each one grants.</p></div>
+          <button class="btn btn-primary btn-sm" onclick="openRoleModal()">+ Add role</button></div>
+        <div id="rolesTable"></div>
+      </section>
+    </div>
+  </div>
+</div>
+
+<!-- Create / edit account -->
+<div class="modal-scrim" id="userModal">
+  <div class="modal">
+    <div class="modal-h"><span id="userModalTitle">Create user</span><button class="modal-x" onclick="closeUserModal()">✕</button></div>
+    <div class="modal-b">
+      <div class="profile-field"><label>Email</label><input id="uEmail" type="email" placeholder="name@ssies.edu.pk"/></div>
+      <div class="profile-field"><label>Display name</label><input id="uName" placeholder="Full name"/></div>
+      <div class="profile-field"><label>Role</label><select id="uRole" class="field"></select></div>
+      <div class="profile-field"><label>Temporary password</label><input id="uPw" type="password" placeholder="min 8 characters"/></div>
+    </div>
+    <div class="modal-f"><button class="btn btn-soft" onclick="closeUserModal()">Cancel</button><button class="btn btn-primary" onclick="saveUser()">Create account</button></div>
+  </div>
+</div>
+
+<!-- Add / edit role -->
+<div class="modal-scrim" id="roleModal">
+  <div class="modal">
+    <div class="modal-h"><span id="roleModalTitle">Add role</span><button class="modal-x" onclick="closeRoleModal()">✕</button></div>
+    <div class="modal-b">
+      <div class="profile-field"><label>Role key <span class="field-hint" style="display:inline">lowercase id</span></label><input id="rKey" placeholder="e.g. coordinator"/></div>
+      <div class="profile-field"><label>Display name</label><input id="rLabel" placeholder="e.g. Coordinator"/></div>
+      <div class="profile-field"><label>Description</label><input id="rDesc" placeholder="What this role can do"/></div>
+      <div class="profile-field"><label>Permissions</label><div class="perm-grid" id="rPerms"></div></div>
+    </div>
+    <div class="modal-f"><button class="btn btn-soft" onclick="closeRoleModal()">Cancel</button><button class="btn btn-primary" id="roleSaveBtn" onclick="saveRole()">Add role</button></div>
+  </div>
+</div>
+
+<!-- Account detail / edit (click a Users/Admins record) -->
+<div class="modal-scrim" id="acctModal">
+  <div class="modal">
+    <div class="modal-h">
+      <span id="acctTitle">Account details</span>
+      <button class="icon-btn acct-pencil" id="acctPencil" onclick="acctToggleEdit()" title="Edit account" style="margin-left:auto"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg></button>
+      <button class="modal-x" onclick="closeAcct()">✕</button>
+    </div>
+    <div class="modal-b" id="acctBody"></div>
+    <div class="modal-f" id="acctFoot"></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+<script src="assets/js/store.js?v=18"></script>
+<script src="assets/js/theme.js?v=18"></script>
+<script src="assets/js/portal.js?v=18"></script>
+<script>
+initPortal({ kind: "superadmin", active: (new URLSearchParams(location.search).get("tab") || "users") });
+applyTheme();
+
+/* ---- shared cell renderers ---- */
+function acctCell(u){ return `<div class="grid-name"><div class="av small${u.profilePic?' has-img':''}">${avatarInner(u.displayName||u.email,u.profilePic)}</div><div style="min-width:0"><b>${esc(u.displayName||"—")}</b><div class="hint" style="margin:0">${esc(u.email)}</div></div></div>`; }
+function roleChip(k){ return `<span class="role-chip role-${esc(k)}">${esc(roleLabel(k))}</span>`; }
+function statusCell(u){ return u.isActive?'<span class="status-on">Active</span>':'<span class="status-off">Disabled</span>'; }
+function userActions(u){
+  const bits=[];
+  if(u.role!=="superadmin"){
+    if(u.role==="admin") bits.push(`<button class="btn btn-sm btn-soft" onclick="event.stopPropagation();umDemote('${u.id}')">Demote</button>`);
+    else bits.push(`<button class="btn btn-sm btn-soft" onclick="event.stopPropagation();umPromote('${u.id}')">Make admin</button>`);
+    bits.push(`<button class="btn btn-sm btn-soft" onclick="event.stopPropagation();umToggle('${u.id}',${!u.isActive})">${u.isActive?"Disable":"Enable"}</button>`);
+    bits.push(`<button class="btn btn-sm btn-danger" onclick="event.stopPropagation();umDelete('${u.id}')">Delete</button>`);
+  } else bits.push('<span class="hint" style="margin:0">Protected</span>');
+  return `<div class="td-actions">${bits.join("")}</div>`;
+}
+function userBoardCard(u){
+  return `<article class="ecard" onclick="openAccountDetail('${u.id}')" tabindex="0" onkeydown="if(event.key==='Enter')openAccountDetail('${u.id}')">
+    <div class="ecard-top"><div class="av small${u.profilePic?' has-img':''}">${avatarInner(u.displayName||u.email,u.profilePic)}</div>
+      <div class="ecard-id"><b>${esc(u.displayName||u.email)}</b><span>${esc(u.email)}</span></div>${roleChip(u.role)}</div>
+    <div class="ecard-days">${statusCell(u)}<span class="ec-chip">${u.groupCount||0} groups</span><span class="ec-chip">${u.lastLoginAt?relTime(u.lastLoginAt):"never in"}</span></div>
+    <div class="ecard-foot" onclick="event.stopPropagation()">${userActions(u)}</div>
+  </article>`;
+}
+const statusFilter = { key:"status", options:[{val:"",label:"All statuses"},{val:"active",label:"Active"},{val:"disabled",label:"Disabled"}], match:(u,v)=> v==="active"?u.isActive:!u.isActive };
+
+/* ---- Users tab ---- */
+portalTable({
+  id:"tblUsers", mount:"usersTable", modeKey:"um-users-mode", modes:["table","board"],
+  searchPlaceholder:"Search users…", emptyText:"No users yet", emptyIco:"👤",
+  getRows:()=> listUsers().filter(u=>u.role!=="admin"&&u.role!=="superadmin"),
+  searchKeys:["email","displayName"],
+  rowClick:(u)=>`openAccountDetail('${u.id}')`,
+  filters:[ statusFilter, { key:"role", options:[{val:"",label:"All roles"}].concat(assignableRoles().filter(r=>r.key!=="admin").map(r=>({val:r.key,label:r.label}))), match:(u,v)=>u.role===v } ],
+  columns:[
+    { label:"Account", render:acctCell },
+    { label:"Role", render:(u)=>roleChip(u.role) },
+    { label:"Status", render:statusCell },
+    { label:"Groups", render:(u)=>u.groupCount||0 },
+    { label:"Last login", render:(u)=>u.lastLoginAt?relTime(u.lastLoginAt):"—" },
+    { label:"Actions", render:userActions },
+  ],
+  boardCard:userBoardCard,
+});
+
+/* ---- Admins tab ---- */
+portalTable({
+  id:"tblAdmins", mount:"adminsTable", modeKey:"um-admins-mode", modes:["table","board"],
+  searchPlaceholder:"Search admins…", emptyText:"No admins yet", emptyIco:"🛡️",
+  getRows:()=> listUsers().filter(u=>u.role==="admin"||u.role==="superadmin"),
+  searchKeys:["email","displayName"],
+  rowClick:(u)=>`openAccountDetail('${u.id}')`,
+  filters:[ statusFilter, { key:"role", options:[{val:"",label:"All"},{val:"admin",label:"Admin"},{val:"superadmin",label:"Superadmin"}], match:(u,v)=>u.role===v } ],
+  columns:[
+    { label:"Account", render:acctCell },
+    { label:"Role", render:(u)=>roleChip(u.role) },
+    { label:"Status", render:statusCell },
+    { label:"Created", render:(u)=>fmtShortDate(u.createdAt) },
+    { label:"Last login", render:(u)=>u.lastLoginAt?relTime(u.lastLoginAt):"—" },
+    { label:"Actions", render:userActions },
+  ],
+  boardCard:userBoardCard,
+});
+
+/* ---- Roles tab ---- */
+function permChips(r){ if((r.permissions||[]).includes("*")) return '<span class="perm-chip all">All permissions</span>'; const ps=r.permissions||[]; if(!ps.length) return '<span class="hint" style="margin:0">None</span>'; return ps.map(p=>{const d=PERMISSIONS.find(x=>x.key===p);return `<span class="perm-chip">${esc(d?d.label:p)}</span>`;}).join(""); }
+function roleActions(r){
+  const bits=[`<button class="btn btn-sm btn-soft" onclick="event.stopPropagation();openRoleModal('${r.key}')">Edit</button>`];
+  if(!r.builtin) bits.push(`<button class="btn btn-sm btn-danger" onclick="event.stopPropagation();deleteRoleUI('${r.key}')">Delete</button>`);
+  return `<div class="td-actions">${bits.join("")}</div>`;
+}
+function roleBoardCard(r){
+  return `<article class="ecard role-card">
+    <div class="ecard-top"><div class="role-ico">${PORTAL_ICO.roles}</div><div class="ecard-id"><b>${esc(r.label)}</b><span>${esc(r.key)}${r.builtin?" · built-in":" · custom"}</span></div><span class="ec-chip">${roleUserCount(r.key)} account${roleUserCount(r.key)===1?"":"s"}</span></div>
+    <p class="role-desc">${esc(r.description||"No description")}</p>
+    <div class="perm-list">${permChips(r)}</div>
+    <div class="ecard-foot">${roleActions(r)}</div>
+  </article>`;
+}
+portalTable({
+  id:"tblRoles", mount:"rolesTable", modeKey:"um-roles-mode", modes:["board","table"], perPage:9,
+  searchPlaceholder:"Search roles…", emptyText:"No roles defined", emptyIco:"🛡️",
+  getRows:()=> listRoles(),
+  searchKeys:["label","key","description"],
+  filters:[ { key:"type", options:[{val:"",label:"All roles"},{val:"builtin",label:"Built-in"},{val:"custom",label:"Custom"}], match:(r,v)=> v==="builtin"?r.builtin:!r.builtin } ],
+  columns:[
+    { label:"Role", render:(r)=>`<div class="grid-name"><div class="role-ico sm">${PORTAL_ICO.roles}</div><div><b>${esc(r.label)}</b><div class="hint" style="margin:0">${esc(r.key)}</div></div></div>` },
+    { label:"Description", render:(r)=>`<span class="hint" style="margin:0">${esc(r.description||"—")}</span>` },
+    { label:"Permissions", render:(r)=>`<div class="perm-list">${permChips(r)}</div>` },
+    { label:"Accounts", render:(r)=>roleUserCount(r.key) },
+    { label:"Type", render:(r)=> r.builtin?'<span class="chip">Built-in</span>':'<span class="chip chip-default">Custom</span>' },
+    { label:"Actions", render:roleActions },
+  ],
+  boardCard:roleBoardCard,
+});
+
+/* ---- tabs + stats ---- */
+function umTab(t){
+  document.querySelectorAll("#umTabs button").forEach(b=>b.classList.toggle("on", b.dataset.tab===t));
+  document.querySelectorAll(".um-panel").forEach(p=>p.classList.toggle("hidden", p.id!=="panel-"+t));
+  try{ history.replaceState(null,"","superadmin-users.html?tab="+t); }catch(e){}
+}
+function umUpdateCounts(){
+  const users=STORE.users.filter(u=>u.role!=="admin"&&u.role!=="superadmin").length;
+  const admins=STORE.users.filter(u=>u.role==="admin"||u.role==="superadmin").length;
+  document.getElementById("cntUsers").textContent=users;
+  document.getElementById("cntAdmins").textContent=admins;
+  document.getElementById("cntRoles").textContent=listRoles().length;
+  const active=STORE.users.filter(u=>u.isActive).length;
+  document.getElementById("umStats").innerHTML=`
+    <div class="stat"><div class="n">${users}</div><div class="l">Users</div></div>
+    <div class="stat"><div class="n">${admins}</div><div class="l">Admins</div></div>
+    <div class="stat"><div class="n">${active}</div><div class="l">Active accounts</div></div>
+    <div class="stat"><div class="n">${listRoles().length}</div><div class="l">Roles defined</div></div>`;
+}
+function refreshAll(){ ptRefresh("tblUsers"); ptRefresh("tblAdmins"); ptRefresh("tblRoles"); umUpdateCounts(); }
+
+/* ---- account actions ---- */
+function umPromote(id){ setRole(id,"admin"); toast("Promoted to admin ✓"); refreshAll(); }
+function umDemote(id){ setRole(id,"user"); toast("Demoted to user"); refreshAll(); }
+function umToggle(id,active){ updateUser(id,{isActive:active}); toast(active?"Account enabled":"Account disabled"); refreshAll(); }
+function umDelete(id){ const u=findUser(id); if(!confirm(`Delete ${u?u.email:"this account"} permanently?`)) return; deleteUser(id); toast("Account deleted"); refreshAll(); }
+
+let userModalRole="user";
+function openUserModal(role){
+  userModalRole=role||"user";
+  document.getElementById("userModalTitle").textContent = role==="admin"?"Create admin":"Create user";
+  document.getElementById("uEmail").value=document.getElementById("uName").value=document.getElementById("uPw").value="";
+  const sel=document.getElementById("uRole");
+  sel.innerHTML=assignableRoles().map(r=>`<option value="${r.key}">${esc(r.label)}</option>`).join("");
+  sel.value = role==="admin"?"admin":"user";
+  document.getElementById("userModal").classList.add("show");
+  document.getElementById("uEmail").focus();
+}
+function closeUserModal(){ document.getElementById("userModal").classList.remove("show"); }
+function saveUser(){
+  const email=document.getElementById("uEmail").value.trim();
+  const displayName=document.getElementById("uName").value.trim();
+  const role=document.getElementById("uRole").value;
+  const password=document.getElementById("uPw").value;
+  if(!email){ toast("Email is required","err"); return; }
+  if(password && password.length<8){ toast("Password must be at least 8 characters","err"); return; }
+  const res=createUser({email,displayName,password,role});
+  if(res.error){ toast(res.error,"err"); return; }
+  closeUserModal(); toast("Account created ✓"); refreshAll();
+  umTab(role==="admin"||role==="superadmin"?"admins":"users");
+}
+
+/* ---- role management ---- */
+let editingRole=null;
+function openRoleModal(key){
+  editingRole=key||null;
+  const r=key?roleByKey(key):null;
+  document.getElementById("roleModalTitle").textContent = key?("Edit role · "+r.label):"Add role";
+  document.getElementById("roleSaveBtn").textContent = key?"Save changes":"Add role";
+  document.getElementById("rKey").value = r?r.key:"";
+  document.getElementById("rKey").disabled = !!(r&&r.builtin);
+  document.getElementById("rLabel").value = r?r.label:"";
+  document.getElementById("rDesc").value = r?r.description:"";
+  const all = r && (r.permissions||[]).includes("*");
+  document.getElementById("rPerms").innerHTML = PERMISSIONS.map(p=>`<label class="perm-check"><input type="checkbox" value="${p.key}" ${r&&(r.permissions||[]).includes(p.key)?"checked":""} ${all?"disabled checked":""}/><span>${esc(p.label)}</span></label>`).join("");
+  document.getElementById("roleModal").classList.add("show");
+}
+function closeRoleModal(){ document.getElementById("roleModal").classList.remove("show"); }
+function saveRole(){
+  const key=document.getElementById("rKey").value.trim();
+  const label=document.getElementById("rLabel").value.trim();
+  const description=document.getElementById("rDesc").value.trim();
+  const permissions=[...document.querySelectorAll("#rPerms input:checked")].map(c=>c.value);
+  if(editingRole){
+    const r=roleByKey(editingRole);
+    const patch={label,description}; if(!r.builtin) patch.permissions=permissions;
+    const res=updateRole(editingRole,patch); if(res.error){ toast(res.error,"err"); return; }
+    toast("Role updated ✓");
+  } else {
+    const res=addRole({key,label,description,permissions}); if(res.error){ toast(res.error,"err"); return; }
+    toast("Role added ✓");
+  }
+  closeRoleModal(); refreshAll();
+}
+function deleteRoleUI(key){ const r=roleByKey(key); if(!confirm(`Delete the "${r?r.label:key}" role?`)) return; const res=deleteRole(key); if(res.error){ toast(res.error,"err"); return; } toast("Role deleted"); refreshAll(); }
+
+/* ---- clickable account → view / pencil-edit form (#7) ---- */
+let acctId=null, acctEdit=false;
+function openAccountDetail(id){ acctId=id; acctEdit=false; renderAcct(); document.getElementById("acctModal").classList.add("show"); }
+function closeAcct(){ document.getElementById("acctModal").classList.remove("show"); }
+function acctToggleEdit(){ acctEdit=!acctEdit; renderAcct(); }
+function acctCancel(){ acctEdit=false; renderAcct(); }
+function renderAcct(){
+  const u=findUser(acctId); if(!u) return;
+  const st=userStats(u.id); const isSuper=u.role==="superadmin";
+  document.getElementById("acctTitle").textContent = acctEdit?"Edit account":"Account details";
+  const pencil=document.getElementById("acctPencil"); pencil.style.display = (acctEdit||isSuper)?"none":"";
+  const hero=`<div class="acct-hero"><div class="av small${u.profilePic?' has-img':''}">${avatarInner(u.displayName||u.email,u.profilePic)}</div><div class="acct-hero-body"><h3>${esc(u.displayName||"—")}</h3><div class="em">${esc(u.email)}</div></div></div>`;
+  const body=document.getElementById("acctBody"), foot=document.getElementById("acctFoot");
+  if(!acctEdit){
+    body.innerHTML = hero + `<div class="acct-view">
+      <div class="acct-row"><span class="k">Role</span><span class="v">${roleChip(u.role)}</span></div>
+      <div class="acct-row"><span class="k">Status</span><span class="v">${statusCell(u)}</span></div>
+      <div class="acct-row"><span class="k">Groups</span><span class="v">${st.groupCount}</span></div>
+      <div class="acct-row"><span class="k">Contacts</span><span class="v">${st.contactCount}</span></div>
+      <div class="acct-row"><span class="k">Created</span><span class="v">${fmtShortDate(u.createdAt)}</span></div>
+      <div class="acct-row"><span class="k">Last login</span><span class="v">${u.lastLoginAt?relTime(u.lastLoginAt):"—"}</span></div>
+      <div class="acct-row"><span class="k">Account ID</span><span class="v">${esc(u.id)}</span></div>
+    </div>`;
+    foot.innerHTML = `<button class="btn btn-soft" onclick="closeAcct()">Close</button>${isSuper?"":`<button class="btn btn-primary" style="margin-left:auto" onclick="acctToggleEdit()"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg> Edit details</button>`}`;
+  } else {
+    const roleOpts=assignableRoles().map(r=>`<option value="${r.key}" ${u.role===r.key?"selected":""}>${esc(r.label)}</option>`).join("");
+    body.innerHTML = hero + `<div class="acct-edit">
+      <div class="profile-field"><label>Display name</label><input id="acctName" value="${escA(u.displayName||"")}" placeholder="Full name"/></div>
+      <div class="profile-field"><label>Email</label><input value="${escA(u.email)}" disabled class="is-readonly"/><span class="field-hint">Sign-in email cannot be changed here.</span></div>
+      <div class="profile-field"><label>Role</label><select id="acctRole">${roleOpts}</select></div>
+      <label class="wa-check-row" style="padding:0"><input type="checkbox" id="acctActive" ${u.isActive?"checked":""}/><span><strong>Active account</strong><span class="sub">Disabled accounts cannot sign in</span></span></label>
+      <div class="profile-field"><label>Reset password <span class="field-hint" style="display:inline">optional</span></label><input id="acctPw" type="password" placeholder="Set a new password (min 8)"/></div>
+    </div>`;
+    foot.innerHTML = `<button class="btn btn-soft" onclick="acctCancel()">Cancel</button><button class="btn btn-primary" style="margin-left:auto" onclick="acctSave()">Save changes</button>`;
+  }
+}
+function acctSave(){
+  const u=findUser(acctId); if(!u) return;
+  const name=document.getElementById("acctName").value.trim();
+  const pw=document.getElementById("acctPw").value;
+  if(pw && pw.length<8){ toast("Password must be at least 8 characters","err"); return; }
+  const role=document.getElementById("acctRole").value;
+  const patch={ displayName:name, isActive:document.getElementById("acctActive").checked };
+  if(pw) patch.password=pw;
+  if(role!==u.role) setRole(u.id, role);
+  updateUser(u.id, patch);
+  toast("Account updated ✓"); acctEdit=false; renderAcct(); refreshAll();
+}
+document.addEventListener("click",(e)=>{ if(e.target && e.target.id==="acctModal") closeAcct(); });
+
+umUpdateCounts();
+umTab(new URLSearchParams(location.search).get("tab") || "users");
+</script>
+</body>
+</html>

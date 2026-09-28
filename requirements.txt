@@ -13,4 +13,6 @@ flask-wtf
 waitress
 requests
 Pillow>=10.0.0
+qrcode>=7.4.0
 APScheduler>=3.10.0
+webauthn>=2.0

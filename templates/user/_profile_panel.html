@@ -1,11 +1,27 @@
 <div class="profile-hero">
-  <div class="profile-avatar" aria-hidden="true">{{ (profile.display_name or profile.email)[0]|upper }}</div>
+  <div class="profile-avatar-wrap">
+    <div class="profile-avatar{% if profile.photo_url() %} has-img{% endif %}" id="profileAvatar" aria-hidden="true">
+      {% if profile.photo_url() %}
+      <img src="{{ profile.photo_url() }}" alt="" onerror="avatarImgFallback(this,'{{ (profile.display_name or profile.email)[0]|upper }}')"/>
+      {% else %}
+      {{ (profile.display_name or profile.email)[0]|upper }}
+      {% endif %}
+    </div>
+    <button class="profile-avatar-edit" type="button" onclick="document.getElementById('profileImgInput').click()" title="Change photo">
+      <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+    </button>
+    <input type="file" id="profileImgInput" accept="image/*" hidden onchange="pickProfileImage(this)"/>
+  </div>
   <div class="profile-hero-body">
-    <h1>{{ profile.display_label() }}</h1>
+    <h1 id="profileHeroName">{{ profile.display_label() }}</h1>
     <p class="profile-email">{{ profile.email }}</p>
     <div class="profile-badges">
       <span class="profile-role-badge role-{{ profile.role }}">{{ profile.role }}</span>
       {% if profile.is_active %}<span class="profile-status-badge">Active</span>{% else %}<span class="profile-status-badge off">Disabled</span>{% endif %}
+    </div>
+    <div class="profile-photo-actions">
+      <button class="btn btn-soft btn-sm" type="button" onclick="document.getElementById('profileImgInput').click()">Upload photo</button>
+      <button class="btn btn-ghost btn-sm" type="button" id="removePhotoBtn" onclick="removeProfileImage()" {% if not profile.photo_url() %}style="display:none"{% endif %}>Remove</button>
     </div>
   </div>
 </div>
@@ -17,7 +33,7 @@
   </div>
   <div class="profile-meta-card">
     <span class="k">Last login</span>
-    <span class="v">{{ profile.last_login_at.strftime('%d %b %Y, %H:%M') if profile.last_login_at else '—' }}</span>
+    <span class="v">{{ profile.last_login_at.strftime('%d %b %Y') if profile.last_login_at else '—' }}</span>
   </div>
   <div class="profile-meta-card">
     <span class="k">Account ID</span>
@@ -54,8 +70,9 @@
   <section class="profile-card">
     <div class="profile-card-head">
       <h3>Security</h3>
-      <p>Change your password. You will stay signed in on this device.</p>
+      <p>{% if profile.role == 'superadmin' %}Change your password directly.{% else %}Choose a new password. An administrator must approve the change before it takes effect.{% endif %}</p>
     </div>
+    <div id="pwPendingBanner" class="pending-banner" style="display:none"></div>
     <div class="profile-form">
       <div class="profile-field">
         <label for="curPw">Current password</label>
@@ -81,7 +98,7 @@
       </div>
     </div>
     <div class="profile-card-actions">
-      <button class="btn btn-soft" id="savePwBtn" onclick="changePw()">Update password</button>
+      <button class="btn btn-soft" id="savePwBtn" onclick="changePw()">{% if profile.role == 'superadmin' %}Update password{% else %}Request password reset{% endif %}</button>
     </div>
   </section>
 </div>

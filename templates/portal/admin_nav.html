@@ -1,7 +1,38 @@
-<a href="/admin" class="portal-nav-link{% if request.path in ('/admin', '/admin/') %} active{% endif %}">Dashboard</a>
-<a href="/admin/users" class="portal-nav-link{% if request.path.startswith('/admin/users') %} active{% endif %}">Users</a>
-<a href="/admin/activity" class="portal-nav-link{% if request.path.startswith('/admin/activity') %} active{% endif %}">Activity</a>
-<a href="/admin/profile" class="portal-nav-link{% if request.path.startswith('/admin/profile') %} active{% endif %}">Profile</a>
-<div class="portal-nav-divider"></div>
-<a href="/" class="portal-nav-link">User Dashboard</a>
-{% if profile.role == 'superadmin' %}<a href="/superadmin" class="portal-nav-link">Superadmin</a>{% endif %}
+{# Admin nav — POC grouped structure (People / Account) #}
+{% set p = request.path %}
+<button class="nav-item{% if p in ('/admin', '/admin/') %} active{% endif %}" onclick="location.href='/admin/'" type="button">
+  <span class="ico"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg></span>
+  <span class="lbl">Dashboard</span>
+</button>
+
+<div class="nav-group{% if p.startswith('/admin/users') or p.startswith('/admin/activity') %} has-active open{% endif %}" id="grpPeople">
+  <button class="nav-item nav-group-btn" onclick="toggleNavGroup(this)" title="People" type="button">
+    <span class="ico"><svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg></span>
+    <span class="lbl">People</span>
+    <svg class="caret" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M6 9l6 6 6-6"/></svg>
+  </button>
+  <div class="nav-submenu">
+    <a class="nav-item nav-sub{% if p.startswith('/admin/users') %} active{% endif %}" href="/admin/users">
+      <span class="ico"><svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg></span>
+      <span class="lbl">Users</span>
+    </a>
+    <a class="nav-item nav-sub{% if p.startswith('/admin/activity') %} active{% endif %}" href="/admin/activity">
+      <span class="ico"><svg viewBox="0 0 24 24"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg></span>
+      <span class="lbl">Activity log</span>
+    </a>
+  </div>
+</div>
+
+<div class="nav-group{% if p.startswith('/admin/profile') %} has-active open{% endif %}" id="grpAccount">
+  <button class="nav-item nav-group-btn" onclick="toggleNavGroup(this)" title="Account" type="button">
+    <span class="ico"><svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></span>
+    <span class="lbl">Account</span>
+    <svg class="caret" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M6 9l6 6 6-6"/></svg>
+  </button>
+  <div class="nav-submenu">
+    <a class="nav-item nav-sub{% if p.startswith('/admin/profile') %} active{% endif %}" href="/admin/profile">
+      <span class="ico"><svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></span>
+      <span class="lbl">Profile</span>
+    </a>
+  </div>
+</div>

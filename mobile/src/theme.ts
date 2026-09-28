@@ -11,30 +11,30 @@ import { StyleSheet, Platform } from "react-native";
 export type Scheme = "light" | "dark";
 
 export const lightColors = {
-  accent: "#0000EE", accentHover: "#0000C4", accentDeep: "#000099",
-  accentSoft: "rgba(0,0,238,0.10)", accentBorder: "rgba(0,0,238,0.22)",
-  bg: "#F6F7FB", bgElevated: "#FFFFFF", surface: "#FFFFFF", surface2: "#F2F4F9",
-  overlay: "rgba(15,23,42,0.45)",
-  text: "#0F172A", textSoft: "#475569", muted: "#64748B", faint: "#94A3B8",
-  border: "rgba(15,23,42,0.10)", borderStrong: "rgba(15,23,42,0.16)",
-  success: "#0E9F6E", successSoft: "rgba(14,159,110,0.12)",
-  error: "#E02424", errorSoft: "rgba(224,36,36,0.10)",
-  warn: "#C27803", warnSoft: "rgba(194,120,3,0.12)",
-  track: "#E2E8F0", white: "#FFFFFF",
+  accent: "#0d9488", accentHover: "#0f766e", accentDeep: "#115e59",
+  accentSoft: "rgba(13,148,136,0.14)", accentBorder: "rgba(13,148,136,0.28)",
+  bg: "#F1F7F6", bgElevated: "#FFFFFF", surface: "#FFFFFF", surface2: "#F2F9F8",
+  overlay: "rgba(10,31,28,0.45)",
+  text: "#0A1F1C", textSoft: "#4A5F5B", muted: "#4A5F5B", faint: "#849893",
+  border: "rgba(13,148,136,0.13)", borderStrong: "rgba(13,148,136,0.24)",
+  success: "#0FB981", successSoft: "rgba(15,185,129,0.12)",
+  error: "#F0463F", errorSoft: "rgba(240,70,63,0.10)",
+  warn: "#F59E0B", warnSoft: "rgba(245,158,11,0.12)",
+  track: "#E6F2F0", white: "#FFFFFF",
 };
 
 export const darkColors: typeof lightColors = {
   ...lightColors,
-  accent: "#818CF8", accentHover: "#A5B4FC", accentDeep: "#6366F1",
-  accentSoft: "rgba(129,140,248,0.16)", accentBorder: "rgba(129,140,248,0.30)",
-  bg: "#0B1020", bgElevated: "#141A2C", surface: "#161D31", surface2: "#1C2438",
+  accent: "#2dd4bf", accentHover: "#5eead4", accentDeep: "#0d9488",
+  accentSoft: "rgba(45,212,191,0.20)", accentBorder: "rgba(45,212,191,0.34)",
+  bg: "#03070A", bgElevated: "#0B1615", surface: "#0B1615", surface2: "#0F201D",
   overlay: "rgba(0,0,0,0.6)",
-  text: "#E8ECF6", textSoft: "#AEB7C7", muted: "#8A95A8", faint: "#5C6679",
-  border: "rgba(255,255,255,0.10)", borderStrong: "rgba(255,255,255,0.18)",
+  text: "#E8F5F2", textSoft: "#B6CBC6", muted: "#849893", faint: "#5A736E",
+  border: "rgba(45,212,191,0.14)", borderStrong: "rgba(45,212,191,0.26)",
   success: "#34D399", successSoft: "rgba(52,211,153,0.16)",
   error: "#F87171", errorSoft: "rgba(248,113,113,0.16)",
   warn: "#FBBF24", warnSoft: "rgba(251,191,36,0.16)",
-  track: "#2A344A", white: "#FFFFFF",
+  track: "#163029", white: "#FFFFFF",
 };
 
 export const spacing = { xs: 4, sm: 8, md: 12, lg: 16, xl: 24, xxl: 32 };
@@ -159,7 +159,7 @@ export function makeStyles(c: typeof lightColors, prefs: ThemePrefs = DEFAULT_PR
       alignItems: "center", justifyContent: "center", flexDirection: "row", gap: sp.sm,
       minHeight: 48, ...elevation.sm,
     },
-    btnText: { color: "#fff", fontWeight: "700" as const, fontSize: Math.round(15 * fs), letterSpacing: -0.2 },
+    btnText: { color: "#1C1917", fontWeight: "700" as const, fontSize: Math.round(15 * fs), letterSpacing: -0.2 },
     btnSoft: {
       backgroundColor: c.surface, borderWidth: 1, borderColor: c.borderStrong,
       paddingVertical: 11, paddingHorizontal: 14, borderRadius: rad.md,

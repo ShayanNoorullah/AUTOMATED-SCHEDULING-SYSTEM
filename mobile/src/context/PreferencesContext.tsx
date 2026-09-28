@@ -118,12 +118,13 @@ export const DEFAULT_PAGE_ROUTES: Record<DefaultPage, string> = {
 };
 
 export const ACCENT_SWATCHES = [
-  "#4F46E5",
-  "#0000EE",
+  "#0d9488",
+  "#2dd4bf",
+  "#c8a956",
   "#2563EB",
   "#0891B2",
   "#059669",
   "#D97706",
   "#DC2626",
-  "#7C3AED",
+  "#111827",
 ];

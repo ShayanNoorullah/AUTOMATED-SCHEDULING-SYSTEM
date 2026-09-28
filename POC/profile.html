@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Profile · SSIES Schedule Sender</title>
+<link rel="icon" href="assets/img/favicon-32.png"/>
+<script>(function(){var m=localStorage.getItem("theme-mode")||"system";var d=m==="dark"||(m==="system"&&matchMedia("(prefers-color-scheme: dark)").matches);document.documentElement.setAttribute("data-theme",d?"dark":"light");var a=localStorage.getItem("accent")||(d?"#2dd4bf":"#0d9488");if(a.toLowerCase()==="#0000ee")a=(d?"#2dd4bf":"#0d9488");document.documentElement.style.setProperty("--accent",a);document.documentElement.setAttribute("data-nav",localStorage.getItem("nav-layout")||"sidebar");})();</script>
+<link rel="preconnect" href="https://api.fontshare.com">
+<link href="https://api.fontshare.com/v2/css?f[]=satoshi@400,500,700,900&display=swap" rel="stylesheet">
+<link href="assets/css/app.css?v=18" rel="stylesheet"/>
+</head>
+<body>
+<div class="shell" id="shell">
+  <div class="scrim" onclick="toggleRail()"></div>
+  <aside class="rail" id="rail"></aside>
+  <div class="main">
+    <div class="topbar">
+      <button class="menu-btn" onclick="toggleRail()" aria-label="Menu"><svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h16"/></svg></button>
+      <div class="tt"><h2>My profile</h2><p>Account details and security</p></div>
+      <div class="topbar-actions"><button class="icon-btn" id="quickTheme" onclick="quickToggleTheme()" title="Toggle theme">🌙</button></div>
+    </div>
+    <div class="content" id="profileContent"></div>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+<script src="assets/js/store.js?v=18"></script>
+<script src="assets/js/theme.js?v=18"></script>
+<script src="assets/js/profile-common.js?v=18"></script>
+<script>
+/* User-site profile: the same grouped navigation as the user dashboard. */
+const ICO = {
+  dash:'<svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg>',
+  sched:'<svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>',
+  contacts:'<svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>',
+  send:'<svg viewBox="0 0 24 24"><path d="M22 2 11 13"/><path d="M22 2 15 22l-4-9-9-4 20-7z"/></svg>',
+  tpl:'<svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg>',
+  settings:'<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>',
+  user:'<svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>'
+};
+const CARET = '<svg class="caret" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M6 9l6 6 6-6"/></svg>';
+function buildUserRail(){
+  const grp = (id, ico, label, cls, subs) =>
+    `<div class="nav-group${cls?(" "+cls):""}" id="${id}">
+      <button class="nav-item nav-group-btn" onclick="toggleNavGroup(this)" title="${label}"><span class="ico">${ico}</span><span class="lbl">${label}</span>${CARET}</button>
+      <div class="nav-submenu">${subs.map(s=>`<a class="nav-item nav-sub${s.active?" active":""}" href="${s.href}"><span class="ico">${s.ico}</span><span class="lbl">${s.label}</span></a>`).join("")}</div>
+    </div>`;
+  const nav =
+    `<a class="nav-item" href="dashboard.html?view=dashboard"><span class="ico">${ICO.dash}</span><span class="lbl">Dashboard</span></a>` +
+    grp("navSchedGroup", ICO.sched, "Scheduler", "", [
+      {href:"dashboard.html?view=groups", ico:ICO.contacts, label:"Groups"},
+      {href:"dashboard.html?view=contacts", ico:ICO.contacts, label:"Contacts"},
+      {href:"dashboard.html?view=table", ico:ICO.sched, label:"Table view"},
+      {href:"dashboard.html?view=table&sched=board", ico:ICO.sched, label:"Board view"},
+    ]) +
+    grp("navMsgGroup", ICO.send, "Messaging", "", [
+      {href:"dashboard.html?view=wa-direct", ico:ICO.send, label:"Open in WhatsApp"},
+      {href:"dashboard.html?view=wa-auto", ico:ICO.send, label:"Automated Send"},
+      {href:"dashboard.html?view=templates", ico:ICO.tpl, label:"Templates"},
+      {href:"dashboard.html?view=history", ico:ICO.tpl, label:"Send History"},
+    ]) +
+    grp("navAccountGroup", ICO.user, "Account", "has-active open", [
+      {href:"dashboard.html?view=settings", ico:ICO.settings, label:"Settings"},
+      {href:"profile.html", ico:ICO.user, label:"Profile", active:true},
+    ]) +
+    `<div class="nav-group nav-more hidden" id="navMoreGroup"><button class="nav-item nav-group-btn" onclick="toggleNavGroup(this)" title="More"><span class="ico"><svg viewBox="0 0 24 24"><circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/></svg></span><span class="lbl">More</span>${CARET}</button><div class="nav-submenu" id="navMoreMenu"></div></div>`;
+  document.getElementById("rail").innerHTML =
+    `<div class="rail-brand"><div class="mark"><img src="assets/img/ssies-mark.png" alt="SSIES"/></div><div class="bt"><h1>Schedule Sender</h1><p>SSIES Automation</p></div></div>` +
+    `<nav class="rail-nav">${nav}</nav>` +
+    `<div class="rail-foot"><div class="rail-user"><div class="av${u.profilePic?" has-img":""}" id="userDot">${avatarInner(u.displayName||u.email,u.profilePic)}</div><div style="min-width:0"><div class="nm">${esc(u.displayName||u.email)}</div><div class="rl">${esc(u.role)}</div></div></div><button class="nav-item" onclick="logout()"><span class="ico">⎋</span><span class="lbl">Log out</span></button></div>`;
+}
+mountProfile(buildUserRail, ["user","admin","superadmin"]);
+</script>
+</body>
+</html>

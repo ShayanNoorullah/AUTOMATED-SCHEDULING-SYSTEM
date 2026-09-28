@@ -75,47 +75,28 @@ async function renderDirectPanel(force) {
 
   if (gList) {
     const filtered = waCache.links.groups.filter((g) => !q || g.name.toLowerCase().includes(q));
-    if (!filtered.length) {
-      gList.innerHTML = '<p class="hint">No groups match. Add groups with optional invite links.</p>';
-    } else {
-      gList.innerHTML = filtered
-        .map((g) => {
-          const preview = esc((g.message || "").slice(0, 80)) + ((g.message || "").length > 80 ? "…" : "");
-          return `<div class="wa-row wa-row-rich">
-            <div class="nm">${esc(g.name)}
-              <div class="sub">${g.inviteLink ? "Invite link set" : "No invite link — opens WhatsApp Web"}</div>
-              <div class="preview">${preview || "<em>No message</em>"}</div>
-            </div>
-            <div class="wa-row-actions">
-              <button class="btn btn-ghost btn-sm" onclick="copyDirectMessage('group','${escA(g.name)}')">Copy</button>
-              <button class="btn btn-soft btn-sm" data-name="${escA(g.name)}" onclick="openDirectGroupByName(this.dataset.name)">Open</button>
-            </div>
-          </div>`;
-        })
-        .join("");
-    }
+    gList.innerHTML = !filtered.length
+      ? '<p class="hint">No groups match. Add groups with optional invite links.</p>'
+      : filtered
+          .map((g) => {
+            const preview = esc((g.message || "").slice(0, 80)) + ((g.message || "").length > 80 ? "…" : "");
+            return `<div class="wa-row"><div class="nm">${esc(g.name)}<div class="sub">${g.inviteLink ? "Invite link set" : "No invite link — opens WhatsApp Web"}</div><div class="preview">${preview || "<em>No message</em>"}</div></div><div class="wa-row-actions"><button class="btn btn-ghost btn-sm" onclick="copyDirectMessage('group','${escA(g.name)}')">Copy</button><button class="btn btn-soft btn-sm" onclick="openDirectGroupByName('${escA(g.name)}')">Open</button></div></div>`;
+          })
+          .join("");
   }
 
   if (cList) {
-    const filtered = waCache.links.contacts.filter((c) => !q || c.name.toLowerCase().includes(q) || (c.phone || "").includes(q));
-    if (!filtered.length) {
-      cList.innerHTML = '<p class="hint">No contacts match.</p>';
-    } else {
-      cList.innerHTML = filtered
-        .map((c) => {
-          const preview = esc((c.message || "").slice(0, 80)) + ((c.message || "").length > 80 ? "…" : "");
-          return `<div class="wa-row wa-row-rich">
-            <div class="nm">${esc(c.name)}<div class="sub">+${esc(c.phone || "")}</div>
-              <div class="preview">${preview || "<em>No message</em>"}</div>
-            </div>
-            <div class="wa-row-actions">
-              <button class="btn btn-ghost btn-sm" onclick="copyDirectMessage('contact','${escA(c.name)}')">Copy</button>
-              <button class="btn btn-soft btn-sm" data-name="${escA(c.name)}" onclick="openDirectContactByName(this.dataset.name)">Open</button>
-            </div>
-          </div>`;
-        })
-        .join("");
-    }
+    const filtered = waCache.links.contacts.filter(
+      (c) => !q || c.name.toLowerCase().includes(q) || (c.phone || "").includes(q)
+    );
+    cList.innerHTML = !filtered.length
+      ? '<p class="hint">No contacts match.</p>'
+      : filtered
+          .map((c) => {
+            const preview = esc((c.message || "").slice(0, 80)) + ((c.message || "").length > 80 ? "…" : "");
+            return `<div class="wa-row"><div class="nm">${esc(c.name)}<div class="sub">+${esc(c.phone || "")}</div><div class="preview">${preview || "<em>No message</em>"}</div></div><div class="wa-row-actions"><button class="btn btn-ghost btn-sm" onclick="copyDirectMessage('contact','${escA(c.name)}')">Copy</button><button class="btn btn-soft btn-sm" onclick="openDirectContactByName('${escA(c.name)}')">Open</button></div></div>`;
+          })
+          .join("");
   }
 }
 

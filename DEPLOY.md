@@ -59,7 +59,7 @@ Ensure your superadmin exists in **Supabase → Authentication → Users** with 
 2. Create an **Ampere A1** instance:
    - Image: **Ubuntu 22.04 or 24.04**
    - Shape: **VM.Standard.A1.Flex** — recommend **2 OCPU**, **12 GB RAM**
-   - **ARM64 note:** use `devlikeapro/waha:noweb-arm-2026.6.1` (NOWEB engine; WEBJS/Chromium is unstable on Ampere).
+   - **ARM64 note:** use `devlikeapro/waha:noweb-arm-2026.7.2` (NOWEB engine; WEBJS/Chromium is unstable on Ampere).
 3. **Networking → Public IP** → reserve/assign a **public IPv4** to the instance.
 4. **Security List** (VCN ingress rules): allow TCP **22**, **80**, **443** from `0.0.0.0/0`.
 5. SSH in:
@@ -105,6 +105,28 @@ chmod +x docker/duckdns-update.sh
 crontab -e
 # */5 * * * * cd /home/ubuntu/ssies && ./docker/duckdns-update.sh >> /var/log/duckdns.log 2>&1
 ```
+
+### Optional — Cloudflare Free in front (DNS / proxy / CDN only)
+
+Use **Cloudflare Free** only as DNS + orange-cloud proxy in front of your DuckDNS origin. Do **not** host the Flask app or WAHA on Cloudflare Pages/Workers (WAHA needs a long-lived container on the VM).
+
+1. Add your DuckDNS hostname (or a custom domain CNAME → `YOUR_SUBDOMAIN.duckdns.org`) in Cloudflare DNS.
+2. Enable **Proxied** (orange cloud) if you want CDN/DDoS filtering; or DNS-only (grey cloud) if you only need DNS.
+3. SSL/TLS mode: **Full** or **Full (strict)** so Cloudflare talks HTTPS to Caddy (Let’s Encrypt on the origin). Avoid Flexible (breaks cookies / mixed schemes).
+4. Keep WebSockets allowed (default) — required for WAHA/session SSE where used.
+5. Do **not** put the WAHA dashboard behind auth-breaking transforms; proxy the same origin Caddy already serves.
+
+Cost remains **$0** within free-tier limits (Oracle Always Free + DuckDNS + Supabase free + Cloudflare Free).
+
+### WAHA regression checklist (after UI / deploy changes)
+
+- [ ] `/` health / login works over HTTPS
+- [ ] Link WAHA session (QR) for a test user
+- [ ] Preflight → Automated Send one **group**
+- [ ] Automated Send one **contact**
+- [ ] History shows success; retry a failed row if available
+- [ ] Password-reset approval + notifications smoke (admin)
+- [ ] Scheduler notes persist after refresh
 
 ---
 
@@ -262,7 +284,8 @@ sudo systemctl enable docker
 | WAHA unauthorized | `WAHA_API_KEY` in `.env` must match superadmin settings |
 | All accounts share one WhatsApp | Deploy latest app + multi-`wahaN` compose; each user must scan QR on **their** Automated Send page |
 | “All WhatsApp slots are in use” | Raise `WAHA_SLOTS` and add `wahaN` services (still free Core image) |
-| `no matching manifest for linux/arm64` | Use `devlikeapro/waha:noweb-arm-2026.6.1` in compose (NOWEB on Ampere; avoid WEBJS Chromium crashes) |
+| `no matching manifest for linux/arm64` | Use `devlikeapro/waha:noweb-arm-2026.7.2` in compose (NOWEB on Ampere; avoid WEBJS Chromium crashes) |
+| QR never appears / session FAILED | Upgrade WAHA image; tap **Reset & new QR**; WhatsApp protocol breaks older NOWEB builds |
 | All groups “Not found in WhatsApp” but WAHA connected | NOWEB returns groups as a dict — ensure latest `waha_client.py` is deployed; click **Fetch WA** |
 | `ERR_TOO_MANY_REDIRECTS` / `/health` loops | Rebuild app after fix: Talisman must not force HTTPS behind Caddy (`DOCKER=1`) |
 | Login page unstyled (plain HTML) | Rebuild app: Talisman default CSP blocks inline CSS (`content_security_policy=False`) |

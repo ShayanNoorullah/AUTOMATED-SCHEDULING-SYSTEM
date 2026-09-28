@@ -52,7 +52,7 @@ function SegOption<T extends string>({
         borderColor: active ? colors.accent : colors.border,
       }}
     >
-      <Text style={{ fontSize: 12, fontWeight: "600", color: active ? "#fff" : colors.textSoft }}>{label}</Text>
+      <Text style={{ fontSize: 12, fontWeight: "600", color: active ? colors.text : colors.textSoft }}>{label}</Text>
     </Pressable>
   );
 }
@@ -83,7 +83,7 @@ function ModeOption({
       }}
     >
       <Ionicons name={icon} size={20} color={active ? "#fff" : colors.muted} />
-      <Text style={{ fontSize: 12.5, fontWeight: "600", color: active ? "#fff" : colors.textSoft }}>{label}</Text>
+      <Text style={{ fontSize: 12.5, fontWeight: "600", color: active ? colors.text : colors.textSoft }}>{label}</Text>
     </Pressable>
   );
 }

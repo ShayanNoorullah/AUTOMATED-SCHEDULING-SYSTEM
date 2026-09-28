@@ -1,0 +1,65 @@
+/* finput = legacy alias for POC .field */
+.finput{
+  width:100%;font-family:inherit;font-size:.95rem;color:var(--text);
+  background:var(--surface-2);border:1px solid var(--border);border-radius:var(--r-sm);
+  padding:12px 14px;outline:none;
+}
+.finput:focus{border-color:var(--accent);background:var(--surface);box-shadow:0 0 0 4px var(--accent-ring);}
+.status.status-log,.status-log{/* status panel */}
+
+
+:root{ --muted:var(--text-muted); }
+
+/* Shell id aliases used by production JS */
+.app.shell,.shell.app{ /* same element */ }
+
+.app.rail-open .scrim,
+.app.rail-open .rail-scrim,
+.shell.rail-open .scrim,
+.shell.rail-open .rail-scrim{opacity:1;pointer-events:auto;}
+
+.app.rail-collapsed .rail,
+.shell.rail-collapsed .rail{width:72px;}
+.app.rail-collapsed .rail .bt,
+.app.rail-collapsed .rail .lbl,
+.shell.rail-collapsed .rail .bt,
+.shell.rail-collapsed .rail .lbl,
+.app.rail-collapsed .rail .rl,
+.shell.rail-collapsed .rail .rl{display:none;}
+.app.rail-collapsed .rail-brand,
+.shell.rail-collapsed .rail-brand{justify-content:center;padding-left:0;padding-right:0;}
+.app.rail-collapsed .nav-item,
+.shell.rail-collapsed .nav-item{justify-content:center;}
+
+/* Portal chrome mapped onto POC tokens */
+.portal-app{display:flex;min-height:100vh;min-height:100dvh;background:transparent;}
+.portal-sidebar{
+  width:var(--rail-w);background:var(--glass);backdrop-filter:blur(18px);
+  border-right:1px solid var(--glass-brd,var(--border));display:flex;flex-direction:column;flex-shrink:0;
+}
+.portal-main{flex:1;min-width:0;display:flex;flex-direction:column;}
+.portal-brand{display:flex;align-items:center;gap:12px;padding:20px 18px;border-bottom:1px solid var(--border);}
+.portal-nav{flex:1;overflow:auto;padding:16px 12px;display:flex;flex-direction:column;gap:4px;}
+.portal-nav-link,.portal-nav a{
+  display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:var(--r-sm);
+  color:var(--text-muted);text-decoration:none;font-weight:600;font-size:.9rem;
+  transition:background .18s var(--ease),color .18s var(--ease),transform .18s var(--spring);
+}
+.portal-nav-link:hover,.portal-nav a:hover{
+  background:var(--surface-2);color:var(--text);transform:translateX(3px);
+}
+.portal-nav-link.active,.portal-nav a.active{
+  background:var(--accent-soft);color:var(--accent-hover);font-weight:700;
+}
+.portal-topbar{
+  display:flex;align-items:center;gap:12px;padding:14px 20px;border-bottom:1px solid var(--border);
+  background:var(--glass);backdrop-filter:blur(14px);min-height:var(--topbar-h);
+}
+.portal-content{padding:20px;flex:1;}
+.portal-foot{padding:12px;border-top:1px solid var(--border);}
+
+/* Toast show helper used by chrome.js */
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(20px);opacity:0;pointer-events:none;
+  background:#0b1220;color:#fff;padding:12px 18px;border-radius:var(--r-md);font-weight:600;z-index:1000;
+  transition:opacity .25s var(--ease),transform .25s var(--ease);box-shadow:var(--shadow-lg);}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0);}

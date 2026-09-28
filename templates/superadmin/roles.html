@@ -1,16 +1,102 @@
 {% extends "portal/base.html" %}
 {% block title %}Roles{% endblock %}
 {% block portal_title %}Superadmin{% endblock %}
-{% block page_heading %}Role definitions{% endblock %}
+{% block page_heading %}Roles &amp; access{% endblock %}
+{% block page_sub %}Built-in and custom role definitions{% endblock %}
 {% block nav %}{% include "portal/superadmin_nav.html" %}{% endblock %}
 {% block content %}
-<table>
-  <thead><tr><th>Role</th><th>Description</th><th>Assignable</th></tr></thead>
-  <tbody>
-    <tr><td><strong>user</strong></td><td>Manage schedules, groups, contacts, templates, and release messages.</td><td>Yes (default)</td></tr>
-    <tr><td><strong>admin</strong></td><td>Manage user accounts only. Cannot modify other admins or system settings.</td><td>By superadmin</td></tr>
-    <tr><td><strong>superadmin</strong></td><td>Full system control. Bootstrap via SUPERADMIN_EMAIL.</td><td>No</td></tr>
-  </tbody>
-</table>
+<div class="toolbar list-toolbar pt-toolbar">
+  <div class="search-wrap pt-search">
+    <svg class="search-ico" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+    <input class="field search" id="roleSearch" type="search" placeholder="Search roles…" oninput="filterRoles(this.value)" autocomplete="off"/>
+  </div>
+  <select class="field pt-filter" id="roleTypeFilter" onchange="filterRoles()">
+    <option value="">All roles</option>
+    <option value="builtin">Built-in</option>
+    <option value="custom">Custom</option>
+  </select>
+</div>
+<div class="table-wrap">
+  <table class="data grid-table">
+    <thead><tr><th>Role</th><th>Description</th><th>Type</th><th>Assignable</th></tr></thead>
+    <tbody id="roleRows"><tr class="empty-row"><td colspan="4" class="loading">Loading…</td></tr></tbody>
+  </table>
+</div>
 <p style="margin-top:20px;color:var(--muted);font-size:14px">Assign roles from <a href="/superadmin/users">All users</a> or <a href="/superadmin/admins">Admins</a>.</p>
+{% endblock %}
+{% block scripts %}
+<script>
+const BUILTIN_ROLES = [
+  { key: "user", label: "User", description: "Manage schedules, groups, contacts, templates, and release messages.", assignable: true, builtin: true },
+  { key: "admin", label: "Admin", description: "Manage user accounts only. Cannot modify other admins or system settings.", assignable: true, builtin: true },
+  { key: "superadmin", label: "Superadmin", description: "Full system control. Bootstrap via SUPERADMIN_EMAIL.", assignable: false, builtin: true },
+];
+let _roles = [];
+let _roleQ = "";
+let _roleType = "";
+
+function normalizeRole(r) {
+  return {
+    key: r.key || r.id || "",
+    label: r.label || r.name || r.key || "",
+    description: r.description || r.desc || "",
+    assignable: r.assignable !== false,
+    builtin: !!(r.builtin || r.is_builtin),
+  };
+}
+
+async function fetchRoles() {
+  const urls = ["/api/roles", "/superadmin/api/roles"];
+  for (const url of urls) {
+    try {
+      const data = await api(url);
+      const list = Array.isArray(data) ? data : (data.roles || data.items || []);
+      if (list.length) return list.map(normalizeRole);
+    } catch (_) { /* try next */ }
+  }
+  return BUILTIN_ROLES.slice();
+}
+
+function filterRoles(q) {
+  if (typeof q === "string") _roleQ = q;
+  _roleType = document.getElementById("roleTypeFilter")?.value || "";
+  renderRoles();
+}
+
+function renderRoles() {
+  const tbody = document.getElementById("roleRows");
+  if (!tbody) return;
+  let rows = _roles.slice();
+  if (_roleType === "builtin") rows = rows.filter((r) => r.builtin);
+  else if (_roleType === "custom") rows = rows.filter((r) => !r.builtin);
+  const q = (_roleQ || "").trim().toLowerCase();
+  if (q) {
+    rows = rows.filter(
+      (r) =>
+        String(r.key).toLowerCase().includes(q) ||
+        String(r.label).toLowerCase().includes(q) ||
+        String(r.description).toLowerCase().includes(q)
+    );
+  }
+  if (!rows.length) {
+    tbody.innerHTML = '<tr class="empty-row"><td colspan="4">No roles match</td></tr>';
+    return;
+  }
+  tbody.innerHTML = rows.map((r) => `<tr>
+    <td><strong>${esc(r.label || r.key)}</strong><div class="hint" style="margin:2px 0 0;font-size:12px;color:var(--muted)">${esc(r.key)}</div></td>
+    <td>${esc(r.description || "—")}</td>
+    <td><span class="role-chip${r.builtin ? " builtin" : ""}">${r.builtin ? "Built-in" : "Custom"}</span></td>
+    <td>${r.assignable ? "Yes" : "No"}</td>
+  </tr>`).join("");
+}
+
+(async function loadRoles() {
+  _roles = await fetchRoles();
+  BUILTIN_ROLES.forEach((b) => {
+    if (!_roles.some((r) => r.key === b.key)) _roles.push(b);
+  });
+  _roles.sort((a, b) => Number(b.builtin) - Number(a.builtin) || String(a.label).localeCompare(String(b.label)));
+  renderRoles();
+})();
+</script>
 {% endblock %}

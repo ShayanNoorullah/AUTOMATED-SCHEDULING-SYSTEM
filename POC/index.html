@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>SSIES Schedule Sender</title>
+<link rel="icon" href="assets/img/favicon-32.png"/>
+<script src="assets/js/store.js?v=18"></script>
+<script>
+(function(){
+  var s = getSession();
+  if(!s){ location.replace("login.html"); return; }
+  if(s.role === "superadmin") location.replace("superadmin-dashboard.html");
+  else if(s.role === "admin") location.replace("admin-dashboard.html");
+  else location.replace("dashboard.html");
+})();
+</script>
+</head>
+<body></body>
+</html>

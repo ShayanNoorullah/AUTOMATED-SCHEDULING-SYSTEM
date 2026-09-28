@@ -121,12 +121,20 @@ def authenticate_request():
     return profile
 
 
+def _wants_json():
+    return (
+        request.path.startswith("/api/")
+        or "/api/" in request.path
+        or request.accept_mimetypes.best == "application/json"
+    )
+
+
 def login_required(f):
     @wraps(f)
     def wrapped(*args, **kwargs):
         profile = authenticate_request()
         if not profile:
-            if request.path.startswith("/api/"):
+            if _wants_json():
                 return jsonify({"error": "unauthorized"}), 401
             return redirect("/login")
         g.profile = profile
@@ -140,7 +148,7 @@ def admin_required(f):
     @login_required
     def wrapped(*args, **kwargs):
         if not g.profile.is_admin():
-            if request.path.startswith("/api/"):
+            if _wants_json():
                 return jsonify({"error": "forbidden"}), 403
             return redirect("/")
         return f(*args, **kwargs)
@@ -152,7 +160,7 @@ def superadmin_required(f):
     @login_required
     def wrapped(*args, **kwargs):
         if not g.profile.is_superadmin():
-            if request.path.startswith("/api/"):
+            if _wants_json():
                 return jsonify({"error": "forbidden"}), 403
             return redirect("/")
         return f(*args, **kwargs)

@@ -27,7 +27,7 @@ export default function DrawerLayout() {
       }}
     >
       <Drawer.Screen name="groups" options={{ title: "Groups", drawerLabel: "Groups" }} />
-      <Drawer.Screen name="schedule" options={{ title: "Schedule Table", drawerLabel: "Schedule" }} />
+      <Drawer.Screen name="schedule" options={{ title: "Scheduler", drawerLabel: "Scheduler" }} />
       <Drawer.Screen name="open-wa" options={{ title: "Open in WhatsApp", drawerLabel: "Open WA" }} />
       <Drawer.Screen name="send" options={{ title: "Automated Send", drawerLabel: "Send" }} />
       <Drawer.Screen name="history" options={{ title: "Send History", drawerLabel: "History" }} />

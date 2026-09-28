@@ -1,35 +1,149 @@
 {% extends "portal/base.html" %}
 {% block title %}Superadmin{% endblock %}
 {% block portal_title %}Superadmin{% endblock %}
-{% block page_heading %}{{ site_name }}{% endblock %}
-{% block page_sub %}<p>System overview</p>{% endblock %}
+{% block page_heading %}{{ site_name|default('System overview') }}{% endblock %}
+{% block page_sub %}System overview{% endblock %}
 {% block top_actions %}<span class="badge">Superadmin</span>{% endblock %}
 {% block nav %}{% include "portal/superadmin_nav.html" %}{% endblock %}
 {% block content %}
-<div class="cards">
-  <div class="card"><div class="n">{{ total_users }}</div><div class="l">Users</div></div>
-  <div class="card"><div class="n">{{ total_admins }}</div><div class="l">Admins</div></div>
-  <div class="card"><div class="n">{{ active }}</div><div class="l">Active accounts</div></div>
-  <div class="card"><div class="n">{{ disabled }}</div><div class="l">Disabled</div></div>
-  <div class="card"><div class="n">{{ releases_today }}</div><div class="l">Releases today</div></div>
-  <div class="card"><div class="n" id="statGroups">—</div><div class="l">Total groups</div></div>
-  <div class="card"><div class="n" id="statContacts">—</div><div class="l">Total contacts</div></div>
+<div class="dash-hero">
+  <div>
+    <h2>{{ site_name|default('System overview') }}</h2>
+    <p>Full control over users, admins, WhatsApp automation and audit.</p>
+  </div>
+  <a class="btn btn-primary" href="/superadmin/settings">System settings</a>
 </div>
-<h3 class="section-title">Recent activity</h3>
-<table>
-  <thead><tr><th>Time</th><th>Action</th><th>Detail</th></tr></thead>
-  <tbody>
-    {% for r in recent_audit %}
-    <tr><td>{{ r.created_at.strftime('%Y-%m-%d %H:%M') if r.created_at else '—' }}</td><td>{{ r.action }}</td><td>{{ r.detail }}</td></tr>
-    {% else %}<tr class="empty-row"><td colspan="3">No activity yet</td></tr>{% endfor %}
-  </tbody>
-</table>
+
+<div class="cards" style="margin-top:18px">
+  <div class="stat"><div class="n">{{ total_users }}</div><div class="l">Users</div></div>
+  <div class="stat"><div class="n">{{ total_admins }}</div><div class="l">Admins</div></div>
+  <div class="stat"><div class="n">{{ active }}</div><div class="l">Active accounts</div></div>
+  <div class="stat"><div class="n">{{ disabled }}</div><div class="l">Disabled</div></div>
+  <div class="stat"><div class="n">{{ releases_today }}</div><div class="l">Releases today</div></div>
+  <div class="stat"><div class="n" id="statGroups">—</div><div class="l">Total groups</div></div>
+  <div class="stat"><div class="n" id="statContacts">—</div><div class="l">Total contacts</div></div>
+</div>
+
+<div class="dash-grid" style="margin-top:16px">
+  <div class="sec">
+    <div class="sec-h">Quick actions</div>
+    <div class="sec-b dash-actions">
+      <a class="dash-action" href="/superadmin/users?tab=users"><span class="da-ico"><svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg></span><span class="da-body"><b>Users</b><i>Status · roles · reset</i></span></a>
+      <a class="dash-action" href="/superadmin/users?tab=admins"><span class="da-ico"><svg viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></span><span class="da-body"><b>Admins</b><i>Create &amp; manage admins</i></span></a>
+      <a class="dash-action" href="/superadmin/users?tab=roles"><span class="da-ico"><svg viewBox="0 0 24 24"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/></svg></span><span class="da-body"><b>Roles &amp; access</b><i>Define roles &amp; permissions</i></span></a>
+      <a class="dash-action" href="/superadmin/settings"><span class="da-ico"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg></span><span class="da-body"><b>System settings</b><i>WAHA · access · site</i></span></a>
+    </div>
+  </div>
+  <div class="sec">
+    <div class="sec-h">Pending requests</div>
+    <div class="sec-b" id="pendReqs"><p class="hint">Loading…</p></div>
+  </div>
+</div>
+
+<div class="dash-grid dash-grid-2" style="margin-top:16px">
+  <div class="sec">
+    <div class="sec-h">Role distribution</div>
+    <div class="sec-b" id="roleDist">
+      <div class="dist-bar">
+        <span class="dist-a" id="distUsers" style="width:0%"></span>
+        <span class="dist-b" id="distAdmins" style="width:0%"></span>
+        <span class="dist-c" id="distSuper" style="width:0%"></span>
+      </div>
+      <div class="dist-legend">
+        <span><i class="dot-a"></i>Users · {{ total_users }}</span>
+        <span><i class="dot-b"></i>Admins · {{ total_admins }}</span>
+        <span><i class="dot-c"></i>Active · {{ active }}</span>
+      </div>
+    </div>
+  </div>
+  <div class="sec">
+    <div class="sec-h">System health</div>
+    <div class="sec-b" id="sysHealth">
+      <div class="dash-status-row"><span class="dot-live on"></span><span>All systems operational</span></div>
+      <div class="dash-status-row"><span>Releases today</span><span style="margin-left:auto;font-weight:700">{{ releases_today }}</span></div>
+    </div>
+  </div>
+</div>
+
+<div class="sec" style="margin-top:16px">
+  <div class="sec-h">Recent activity<a class="btn btn-soft btn-sm" style="margin-left:auto" href="/superadmin/audit">Full audit log</a></div>
+  <div class="sec-b"><div id="recentTable"></div></div>
+</div>
 {% endblock %}
 {% block scripts %}
 <script>
-api("/superadmin/api/stats").then(s=>{
-  document.getElementById("statGroups").textContent=s.groups;
-  document.getElementById("statContacts").textContent=s.contacts;
-});
+const SA_ACT = {
+  login:"Signed in", login_failed:"Failed login", logout:"Signed out",
+  user_create:"Created user", user_created:"Created user", user_update:"Updated user", user_delete:"Deleted user",
+  role_change:"Changed role", role_add:"Added role", role_update:"Updated role", role_delete:"Deleted role",
+  release:"Released messages", direct_whatsapp:"Opened WhatsApp", settings_update:"Updated settings",
+  config_restore:"Restored config"
+};
+let _recent = [];
+/* Fetch audit for paginated recent activity (POC portalTable, 5/page) */
+(async function () {
+  try {
+    const s = await api("/superadmin/api/stats");
+    const g = document.getElementById("statGroups");
+    const c = document.getElementById("statContacts");
+    if (g) g.textContent = s.groups ?? s.total_groups ?? "—";
+    if (c) c.textContent = s.contacts ?? s.total_contacts ?? "—";
+    const supers = s.superadmins || 0;
+    const total = Math.max(1, ({{ total_users }} + {{ total_admins }} + supers));
+    const uPct = Math.round(({{ total_users }} / total) * 100);
+    const aPct = Math.round(({{ total_admins }} / total) * 100);
+    const sPct = Math.round((supers / total) * 100);
+    const du = document.getElementById("distUsers");
+    const da = document.getElementById("distAdmins");
+    const ds = document.getElementById("distSuper");
+    if (du) du.style.width = uPct + "%";
+    if (da) da.style.width = aPct + "%";
+    if (ds) ds.style.width = sPct + "%";
+    const legend = document.querySelector("#roleDist .dist-legend");
+    if (legend) legend.innerHTML = `
+      <span><i class="dot-a"></i>Users · {{ total_users }}</span>
+      <span><i class="dot-b"></i>Admins · {{ total_admins }}</span>
+      <span><i class="dot-c"></i>Superadmins · ${supers}</span>`;
+  } catch (e) {}
+  try {
+    const d = await api("/api/notifications");
+    const pend = d.pending || [];
+    const el = document.getElementById("pendReqs");
+    if (el) {
+      if (!pend.length) el.innerHTML = '<p class="hint">No pending requests 🎉</p>';
+      else el.innerHTML = pend.map((r) => {
+        const id = r.id;
+        const email = esc(r.user_email || r.userEmail || r.email || "");
+        const role = esc(r.user_role || r.userRole || r.role || "user");
+        const when = typeof relTime === "function" ? relTime(r.requested_at || r.requestedAt || r.created_at) : "";
+        return `<div class="dash-status-row" style="flex-wrap:wrap;gap:8px"><div style="min-width:0"><b>${email}</b><div class="hint" style="margin:0">${role} · ${when}</div></div><div style="margin-left:auto;display:flex;gap:8px"><button class="btn btn-primary btn-sm" onclick="approveReq('${id}')">Approve</button><button class="btn btn-soft btn-sm" onclick="rejectReq('${id}')">Reject</button></div></div>`;
+      }).join("");
+    }
+  } catch (e) {
+    const el = document.getElementById("pendReqs");
+    if (el) el.innerHTML = '<p class="hint">No pending requests</p>';
+  }
+  try {
+    let rows = await api("/superadmin/api/audit");
+    if (!Array.isArray(rows)) rows = rows.items || rows.rows || [];
+    _recent = rows;
+  } catch (e) {
+    _recent = [];
+  }
+  portalTable({
+    id: "saRecent",
+    mount: "recentTable",
+    bare: true,
+    perPage: 5,
+    emptyText: "No activity yet",
+    getRows: () => _recent,
+    columns: [
+      { label: "Time", render: (r) => fmtDate(r.at || r.created_at) },
+      { label: "Action", render: (r) => `<span class="chip">${esc(SA_ACT[r.action] || r.action)}</span>` },
+      { label: "Detail", render: (r) => esc(r.detail || "—") },
+      { label: "Actor", render: (r) => esc(r.actorEmail || r.actor_email || r.actorId || "—") },
+    ],
+  });
+})();
 </script>
 {% endblock %}

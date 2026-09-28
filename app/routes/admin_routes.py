@@ -21,6 +21,7 @@ def _uid(s):
 
 
 @bp.route("/")
+@bp.route("", strict_slashes=False)
 @admin_required
 def dashboard():
     users = Profile.query.filter_by(role="user").all()
@@ -68,7 +69,7 @@ def admin_profile_page():
         back_label="Admin portal",
         use_portal=True,
         portal_kind="admin",
-        portal_title="Admin",
+        portal_title="Admin Portal",
     )
 
 
@@ -182,4 +183,13 @@ def admin_stats():
         "activeUsers": sum(1 for u in users if u.is_active),
         "disabledUsers": sum(1 for u in users if not u.is_active),
         "createdToday": created_today,
+    })
+
+
+@bp.route("/api/insights", methods=["GET"])
+@admin_required
+def admin_insights():
+    return jsonify({
+        "waProvider": get_system_setting("wa_provider", "waha"),
+        "maintenanceMode": bool(get_system_setting("maintenance_mode", False)),
     })

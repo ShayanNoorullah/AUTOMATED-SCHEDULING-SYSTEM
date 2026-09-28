@@ -1,0 +1,637 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Dashboard · SSIES Schedule Sender</title>
+<link rel="icon" href="assets/img/favicon-32.png"/>
+<script>(function(){var m=localStorage.getItem("theme-mode")||"system";var d=m==="dark"||(m==="system"&&matchMedia("(prefers-color-scheme: dark)").matches);document.documentElement.setAttribute("data-theme",d?"dark":"light");var a=localStorage.getItem("accent")||(d?"#2dd4bf":"#0d9488");if(a.toLowerCase()==="#0000ee")a=(d?"#2dd4bf":"#0d9488");document.documentElement.style.setProperty("--accent",a);document.documentElement.setAttribute("data-nav",localStorage.getItem("nav-layout")||"sidebar");})();</script>
+<link rel="preconnect" href="https://api.fontshare.com">
+<link href="https://api.fontshare.com/v2/css?f[]=satoshi@400,500,700,900&display=swap" rel="stylesheet">
+<link href="assets/css/app.css?v=18" rel="stylesheet"/>
+</head>
+<body>
+<div class="shell" id="shell">
+  <div class="scrim" onclick="toggleRail()"></div>
+
+  <!-- ── Sidebar ── -->
+  <aside class="rail">
+    <div class="rail-brand">
+      <div class="mark"><img src="assets/img/ssies-mark.png" alt="SSIES"/></div>
+      <div class="bt"><h1>Schedule Sender</h1><p>SSIES Automation</p></div>
+    </div>
+    <nav class="rail-nav">
+      <button class="nav-item" data-view="dashboard" onclick="showView('dashboard')"><span class="ico"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg></span><span class="lbl">Dashboard</span></button>
+      <div class="nav-group" id="navSchedGroup">
+        <button class="nav-item nav-group-btn" onclick="toggleNavGroup(this)" title="Scheduler">
+          <span class="ico"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg></span>
+          <span class="lbl">Scheduler</span>
+          <svg class="caret" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M6 9l6 6 6-6"/></svg>
+        </button>
+        <div class="nav-submenu">
+          <button class="nav-item nav-sub active" data-view="groups" onclick="navGo('groups')"><span class="ico"><svg viewBox="0 0 24 24"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1"/></svg></span><span class="lbl">Groups</span></button>
+          <button class="nav-item nav-sub" data-view="contacts" onclick="navGo('contacts')"><span class="ico"><svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></span><span class="lbl">Contacts</span></button>
+          <button class="nav-item nav-sub" data-view="lists" onclick="navGo('lists')"><span class="ico"><svg viewBox="0 0 24 24"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg></span><span class="lbl">Lists</span></button>
+          <button class="nav-item nav-sub" data-sched="table" onclick="navSched('table')"><span class="ico"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M3 15h18M9 3v18"/></svg></span><span class="lbl">Table view</span></button>
+          <button class="nav-item nav-sub" data-sched="board" onclick="navSched('board')"><span class="ico"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="18" rx="1.5"/><rect x="14" y="3" width="7" height="18" rx="1.5"/></svg></span><span class="lbl">Board view</span></button>
+        </div>
+      </div>
+      <div class="nav-group" id="navMsgGroup">
+        <button class="nav-item nav-group-btn" onclick="toggleNavGroup(this)" title="Messaging">
+          <span class="ico"><svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></span>
+          <span class="lbl">Messaging</span>
+          <svg class="caret" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M6 9l6 6 6-6"/></svg>
+        </button>
+        <div class="nav-submenu">
+          <button class="nav-item nav-sub" data-view="wa-direct" onclick="navGo('wa-direct')"><span class="ico"><svg viewBox="0 0 24 24"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><path d="M15 3h6v6"/><path d="M10 14 21 3"/></svg></span><span class="lbl">Open in WhatsApp</span></button>
+          <button class="nav-item nav-sub" data-view="wa-auto" onclick="navGo('wa-auto')"><span class="ico"><svg viewBox="0 0 24 24"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg></span><span class="lbl">Automated Send</span></button>
+          <button class="nav-item nav-sub" data-view="templates" onclick="navGo('templates')"><span class="ico"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M16 13H8M16 17H8M10 9H8"/></svg></span><span class="lbl">Templates</span></button>
+          <button class="nav-item nav-sub" data-view="history" onclick="navGo('history')"><span class="ico"><svg viewBox="0 0 24 24"><path d="M3 3v5h5"/><path d="M3.05 13A9 9 0 1 0 6 5.3L3 8"/><path d="M12 7v5l3 3"/></svg></span><span class="lbl">Send History</span></button>
+        </div>
+      </div>
+      <div class="nav-group" id="navAccountGroup">
+        <button class="nav-item nav-group-btn" onclick="toggleNavGroup(this)" title="Account">
+          <span class="ico"><svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></span>
+          <span class="lbl">Account</span>
+          <svg class="caret" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M6 9l6 6 6-6"/></svg>
+        </button>
+        <div class="nav-submenu">
+          <button class="nav-item nav-sub" data-view="settings" onclick="navGo('settings')"><span class="ico"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg></span><span class="lbl">Settings</span></button>
+          <a class="nav-item nav-sub" href="profile.html"><span class="ico"><svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></span><span class="lbl">Profile</span></a>
+        </div>
+      </div>
+      <div class="nav-group nav-more hidden" id="navMoreGroup">
+        <button class="nav-item nav-group-btn" onclick="toggleNavGroup(this)" title="More">
+          <span class="ico"><svg viewBox="0 0 24 24"><circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/></svg></span>
+          <span class="lbl">More</span>
+          <svg class="caret" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M6 9l6 6 6-6"/></svg>
+        </button>
+        <div class="nav-submenu" id="navMoreMenu"></div>
+      </div>
+    </nav>
+    <div class="rail-foot">
+      <div class="rail-user"><div class="av" id="userDot">?</div><div style="min-width:0"><div class="nm" id="userName">User</div><div class="rl" id="userRole">user</div></div></div>
+      <button class="nav-item" onclick="logout()"><span class="ico">⎋</span><span class="lbl">Log out</span></button>
+    </div>
+  </aside>
+
+  <!-- ── Main ── -->
+  <div class="main">
+    <div class="topbar">
+      <button class="menu-btn" onclick="toggleRail()" aria-label="Menu"><svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h16"/></svg></button>
+      <div class="tt"><h2 id="pageTitle">Groups</h2><p id="pageDesc">Manage your WhatsApp groups and weekly schedules</p></div>
+      <div class="topbar-actions">
+        <button class="icon-btn" id="quickTheme" onclick="quickToggleTheme()" title="Toggle theme">🌙</button>
+      </div>
+    </div>
+
+    <div class="content">
+      <!-- ════ DASHBOARD ════ -->
+      <section class="view" id="view-dashboard"><div id="dashHome"></div></section>
+
+      <!-- ════ GROUP DETAIL ════ -->
+      <section class="view" id="view-group-detail"><div id="groupDetail"></div></section>
+
+      <!-- ════ GROUPS ════ -->
+      <section class="view active" id="view-groups">
+        <div class="toolbar list-toolbar">
+          <button class="btn btn-primary btn-sm" onclick="newGroupDetail()">+ New group</button>
+          <div class="search-wrap" style="flex:1;max-width:320px">
+            <svg class="search-ico" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+            <input class="field search" id="groupTableSearch" placeholder="Search groups…" oninput="renderGroupTable()"/>
+          </div>
+          <div class="seg" id="groupsModeSeg"><button data-val="table" class="on" onclick="setGroupsMode('table')">Table</button><button data-val="cards" onclick="setGroupsMode('cards')">Cards</button></div>
+        </div>
+        <div id="groupTableWrap"></div>
+        <div id="groupCardsWrap" class="card-grid" style="display:none"></div>
+        <div class="split" id="groupsCards" style="display:none">
+          <div class="list-panel">
+            <div class="lp-head">
+              <div class="row1"><b>Groups</b><button class="btn btn-primary btn-sm" onclick="newGroup()">+ New</button></div>
+              <div class="search-wrap">
+                <svg class="search-ico" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+                <input class="field search" id="groupSearch" placeholder="Search groups…" oninput="renderGroupList()"/>
+              </div>
+            </div>
+            <div class="scroll-list" id="groupList"></div>
+          </div>
+          <div class="edit-panel">
+            <div class="empty" id="gEmpty">
+              <div class="empty-ico"><svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg></div>
+              <p>Select a group or create a new one</p>
+              <button class="btn btn-primary btn-sm" onclick="newGroup()">+ New group</button>
+            </div>
+            <div class="edit-body hidden" id="gBody">
+              <div class="edit-left">
+                <div class="editor-id">
+                  <div class="editor-av-wrap">
+                    <div class="editor-av" id="gAvatar">G</div>
+                    <button class="editor-av-edit" type="button" onclick="document.getElementById('gImgInput').click()" title="Change photo"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg></button>
+                    <input type="file" id="gImgInput" accept="image/*" hidden onchange="gPickImage(this)"/>
+                  </div>
+                  <div class="editor-id-body">
+                    <div class="editor-id-title">Group photo</div>
+                    <div class="editor-id-actions">
+                      <button class="btn btn-soft btn-sm" type="button" onclick="document.getElementById('gImgInput').click()">Change</button>
+                      <button class="btn btn-ghost btn-sm" type="button" onclick="gRemoveImage()">Remove</button>
+                    </div>
+                    <div class="hint" id="gPicHint">Synced from WhatsApp when linked · click to replace.</div>
+                  </div>
+                </div>
+                <div class="g-field">
+                  <div class="flabel">WhatsApp group name <span class="flabel-soft">exact match</span></div>
+                  <div class="g-name-row">
+                    <input class="field" id="gName" placeholder="e.g. SSIES Batch 2025" oninput="gOnSchedule();updateGroupPreview();renderEditorAvatar('gAvatar',this.value,gPic)"/>
+                    <button class="btn btn-soft btn-sm" onclick="gFetchWaGroups()">Fetch WA</button>
+                  </div>
+                  <select class="field hidden" id="gWaPick" style="margin-top:8px" onchange="gPickWaGroup(this.value)"><option value="">Pick from WhatsApp…</option></select>
+                  <div id="gNameStatus" class="hint"></div>
+                </div>
+                <div class="g-field">
+                  <div class="flabel">Invite link <span class="flabel-soft">optional</span></div>
+                  <input class="field" id="gInviteLink" placeholder="https://chat.whatsapp.com/…"/>
+                  <div class="hint">Used for Open in WhatsApp. Message is copied when you open.</div>
+                </div>
+                <div class="g-field">
+                  <div class="flabel">Weekly schedule</div>
+                  <div class="g-days" id="gDays"></div>
+                </div>
+              </div>
+              <div class="edit-right">
+                <div class="msg-card">
+                  <div class="msg-h">
+                    <span>Message</span>
+                    <div class="ha">
+                      <select class="lk" id="gTplPick" onchange="gInsertTemplate(this.value)"><option value="">Insert template…</option></select>
+                      <button class="lk" onclick="copyBox('gMsg')">Copy</button>
+                      <button class="lk" onclick="gRegen()">Regenerate</button>
+                    </div>
+                  </div>
+                  <textarea class="msg-edit" id="gMsg" oninput="gMsgEdited=true;updateGroupPreview()" placeholder="Select days to auto-generate the message…"></textarea>
+                  <div class="msg-preview" id="gMsgPreview"></div>
+                  <div class="msg-hint">Wrap *text* for bold. Use {date} / {weekday} — replaced when sent.</div>
+                </div>
+              </div>
+            </div>
+            <div class="actionbar hidden" id="gActions">
+              <button class="btn btn-soft" onclick="saveGroup()">Save</button>
+              <button class="btn btn-primary" onclick="releaseCurrentGroup()">Send this</button>
+              <button class="btn btn-primary" id="relAllBtn" style="margin-left:auto" onclick="releaseAllGroups()"><span id="relAllTxt">Send all</span><div class="spinner hidden" id="relAllSpin"></div></button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ════ SCHEDULER TABLE / BOARD ════ -->
+      <section class="view" id="view-table">
+        <div class="toolbar sched-toolbar">
+          <div class="sched-toolbar-left">
+            <div class="seg" id="schedViewSeg">
+              <button data-val="table" class="on" onclick="setScheduleView('table')">Table</button>
+              <button data-val="board" onclick="setScheduleView('board')">Board</button>
+            </div>
+            <button class="btn btn-soft btn-sm" onclick="addColumn()">+ Add group</button>
+            <button class="btn btn-ghost btn-sm" onclick="selectAllCols(true)">Select all</button>
+            <button class="btn btn-ghost btn-sm" onclick="selectAllCols(false)">Clear</button>
+            <button class="btn btn-ghost btn-sm sched-cols-only" onclick="expandAllCols(true)" title="Show full group names">Expand</button>
+            <button class="btn btn-ghost btn-sm sched-cols-only" onclick="expandAllCols(false)" title="Show short names / nicknames">Collapse</button>
+            <button class="btn btn-ghost btn-sm clash-toggle" id="clashBtn" onclick="toggleClash()" title="Highlight overlapping class times"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><path d="M12 9v4M12 17h.01"/></svg><span>Clashes</span></button>
+          </div>
+          <div class="sched-toolbar-right">
+            <span class="hint" id="schedSelCount" style="margin:0"></span>
+            <button class="btn btn-soft btn-sm" onclick="saveTable()">Save</button>
+            <button class="btn btn-primary btn-sm" id="relTblBtn" onclick="releaseTable()"><span id="relTblTxt">Send selected</span><div class="spinner hidden" id="relTblSpin"></div></button>
+          </div>
+        </div>
+        <div id="clashBanner"></div>
+        <div id="tableWrap"></div>
+        <div class="sched-notes-bar">
+          <div class="notes-panel">
+            <div class="notes-head">
+              <button class="notes-toggle" onclick="toggleNotes()" aria-expanded="true"><svg class="notes-caret" viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M6 9l6 6 6-6"/></svg><span>Notes</span></button>
+              <div class="notes-toolbar" id="notesToolbar">
+                <div class="notes-tb-group">
+                  <button class="notes-tb-btn" type="button" title="Bold" onclick="notesWrap('*')"><b>B</b></button>
+                  <button class="notes-tb-btn" type="button" title="Italic" onclick="notesWrap('_')"><i>I</i></button>
+                  <button class="notes-tb-btn" type="button" title="Heading" onclick="notesLine('# ')">H</button>
+                </div>
+                <div class="notes-tb-group">
+                  <button class="notes-tb-btn" type="button" title="Bullet list" onclick="notesLine('• ')"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><circle cx="4" cy="7" r="1.4"/><circle cx="4" cy="17" r="1.4"/><path d="M9 7h11M9 17h11"/></svg></button>
+                  <button class="notes-tb-btn" type="button" title="Checklist item" onclick="notesLine('☐ ')"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="3"/><path d="M8 12l3 3 5-6"/></svg></button>
+                  <button class="notes-tb-btn" type="button" title="Insert date & time" onclick="notesInsertTimestamp()">🕒</button>
+                </div>
+                <div class="notes-tb-group">
+                  <button class="notes-tb-btn" type="button" title="Copy notes" onclick="notesCopy()"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button>
+                  <button class="notes-tb-btn danger" type="button" title="Clear all notes" onclick="notesClear()"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/></svg></button>
+                </div>
+              </div>
+            </div>
+            <div class="notes-body" id="notesBody">
+              <textarea id="tableNotes" class="notes-area" placeholder="Jot schedule notes, reminders and follow-ups… the box grows as you type." oninput="saveTableNotes();notesAutoGrow();notesUpdateMeta()"></textarea>
+              <div class="notes-foot"><span id="notesMeta">0 words · 0 characters</span><span id="notesSaved" class="notes-saved"></span></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ════ LISTS (WhatsApp label-based) ════ -->
+      <section class="view" id="view-lists">
+        <div class="wa-hero">
+          <h3>Lists</h3>
+          <p>Auto-discover contacts from your WhatsApp Business <strong>labels</strong>, curate each list, and send schedules to all or selected contacts.</p>
+        </div>
+        <div class="toolbar list-toolbar">
+          <button class="btn btn-primary btn-sm" onclick="newList()">+ New list</button>
+          <button class="btn btn-soft btn-sm" onclick="syncAllLists()" title="Rebuild every list from its WhatsApp labels"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-2px"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg> Sync from WhatsApp</button>
+          <div class="seg" id="listModeSeg" style="margin-left:auto">
+            <button data-val="tabs" onclick="setListMode('tabs')">Tabs</button>
+            <button data-val="table" onclick="setListMode('table')">Table</button>
+            <button data-val="board" onclick="setListMode('board')">Board</button>
+          </div>
+        </div>
+        <div id="listsWrap"></div>
+      </section>
+
+      <!-- ════ OPEN IN WHATSAPP ════ -->
+      <section class="view" id="view-wa-direct">
+        <div class="wa-hero">
+          <h3>Open in WhatsApp</h3>
+          <p>Opens WhatsApp with deep links. Messages are copied to clipboard — you paste and send manually. No automation session required.</p>
+        </div>
+        <input class="field wa-search" id="waDirectSearch" placeholder="Search groups or contacts…" oninput="renderDirectPanel()"/>
+        <div class="wa-grid">
+          <div class="wa-card"><h3>Groups</h3><p>Add invite links in the group editor for one-click open.</p><div class="wa-list" id="waDirectGroupList"><p class="hint">Loading…</p></div></div>
+          <div class="wa-card"><h3>Contacts</h3><p>Opens wa.me with pre-filled message text.</p><div class="wa-list" id="waDirectContactList"><p class="hint">Loading…</p></div></div>
+        </div>
+      </section>
+
+      <!-- ════ AUTOMATED SEND ════ -->
+      <section class="view" id="view-wa-auto">
+        <div class="wa-hero">
+          <h3>Automated Send</h3>
+          <p>Link <strong>your</strong> WhatsApp on this account (each user has a separate WAHA connection). Then send schedules automatically.</p>
+          <div class="wa-status-panel">
+            <div class="wa-flow" id="waFlow"></div>
+            <div class="wa-flow-foot"><span class="wa-flow-status" id="waFlowStatus">Checking…</span><span class="wa-flow-provider">Provider · <b id="autoProviderLabel">—</b></span></div>
+          </div>
+        </div>
+        <div class="wa-steps">
+          <div class="wa-step-card">
+            <h4>Connect session</h4>
+            <p class="hint" style="margin-bottom:12px">Scan within ~20 seconds (QR refreshes automatically). If your phone says "Couldn't link device", tap <strong>Reset &amp; new QR</strong>.</p>
+            <div style="display:flex;gap:8px;flex-wrap:wrap">
+              <button class="btn btn-primary btn-sm" id="btnStartSession" onclick="startWaSession()">Start / Show QR</button>
+              <button class="btn btn-soft btn-sm" onclick="resetWaSession()">Reset &amp; new QR</button>
+              <button class="btn btn-soft btn-sm" onclick="loadAutoSession()">Refresh status</button>
+              <button class="btn btn-soft btn-sm" onclick="stopWaSession()">Stop session</button>
+            </div>
+            <div class="wa-qr-wrap hidden" id="waQrWrap"><img id="waQrImg" alt="WhatsApp QR code"/></div>
+          </div>
+          <div class="wa-step-card"><h4>Select targets</h4><div id="autoTargetList"><p class="hint">Loading…</p></div></div>
+          <div class="wa-step-card">
+            <h4>Send</h4>
+            <p class="hint" style="margin-bottom:12px">Requires a connected session. Progress appears in the status log.</p>
+            <button class="btn btn-primary" id="autoBtn" onclick="runAutomatedFromPanel()"><span id="autoTxt">Send selected</span><div class="spinner hidden" id="autoSpin"></div></button>
+          </div>
+        </div>
+      </section>
+
+      <!-- ════ TEMPLATES ════ -->
+      <section class="view" id="view-templates">
+        <div class="toolbar">
+          <button class="btn btn-primary btn-sm" onclick="newTemplate()">+ New Template</button>
+          <div class="search-wrap" style="max-width:300px;margin-left:auto;flex:1">
+            <svg class="search-ico" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+            <input class="field search" id="tplSearch" placeholder="Search templates…" oninput="renderTemplates()"/>
+          </div>
+        </div>
+        <div class="grid" id="tplGrid"></div>
+      </section>
+
+      <!-- ════ CONTACTS ════ -->
+      <!-- ════ CONTACT DETAIL ════ -->
+      <section class="view" id="view-contact-detail"><div id="contactDetail"></div></section>
+
+      <section class="view" id="view-contacts">
+        <div class="toolbar list-toolbar">
+          <button class="btn btn-primary btn-sm" onclick="newContactDetail()">+ New contact</button>
+          <div class="search-wrap" style="flex:1;max-width:320px">
+            <svg class="search-ico" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+            <input class="field search" id="contactTableSearch" placeholder="Search contacts…" oninput="renderContactTable()"/>
+          </div>
+          <div class="seg" id="contactsModeSeg"><button data-val="table" class="on" onclick="setContactsMode('table')">Table</button><button data-val="cards" onclick="setContactsMode('cards')">Cards</button></div>
+        </div>
+        <div id="contactTableWrap"></div>
+        <div id="contactCardsWrap" class="card-grid" style="display:none"></div>
+        <div class="split" id="contactsCards" style="display:none">
+          <div class="list-panel">
+            <div class="lp-head">
+              <div class="row1"><b>Contacts</b><button class="btn btn-primary btn-sm" onclick="newContact()">+ New</button></div>
+              <div class="search-wrap">
+                <svg class="search-ico" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+                <input class="field search" id="contactSearch" placeholder="Search contacts…" oninput="renderContactList()"/>
+              </div>
+            </div>
+            <div class="scroll-list" id="contactList"></div>
+          </div>
+          <div class="edit-panel">
+            <div class="empty" id="cEmpty"><div class="empty-ico"><svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></div><p>Select a contact or add a new one</p><button class="btn btn-primary btn-sm" onclick="newContact()">+ New contact</button></div>
+            <div class="edit-body hidden" id="cBody">
+              <div class="edit-left">
+                <div class="editor-id">
+                  <div class="editor-av-wrap">
+                    <div class="editor-av" id="cAvatar">C</div>
+                    <button class="editor-av-edit" type="button" onclick="document.getElementById('cImgInput').click()" title="Change photo"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg></button>
+                    <input type="file" id="cImgInput" accept="image/*" hidden onchange="cPickImage(this)"/>
+                  </div>
+                  <div class="editor-id-body">
+                    <div class="editor-id-title">Contact photo</div>
+                    <div class="editor-id-actions">
+                      <button class="btn btn-soft btn-sm" type="button" onclick="document.getElementById('cImgInput').click()">Change</button>
+                      <button class="btn btn-ghost btn-sm" type="button" onclick="cRemoveImage()">Remove</button>
+                    </div>
+                    <div class="hint">Synced from WhatsApp when available · click to replace.</div>
+                  </div>
+                </div>
+                <div class="g-field"><div class="flabel">Contact name</div><input class="field" id="cName" placeholder="e.g. Ali Khan" oninput="renderEditorAvatar('cAvatar',this.value,cPic)"/></div>
+                <div class="g-field">
+                  <div class="flabel">Phone number <span class="flabel-soft">country code, digits only</span></div>
+                  <input class="field" id="cPhone" placeholder="e.g. 923001234567"/>
+                  <div class="hint">No "+", spaces or dashes. Pakistan example: 92 then the number without the leading 0.</div>
+                </div>
+              </div>
+              <div class="edit-right">
+                <div class="msg-card">
+                  <div class="msg-h">
+                    <span>Message</span>
+                    <div class="ha">
+                      <select class="lk" id="cGroupPick" onchange="cLoadGroup(this.value)"><option value="">Load group…</option></select>
+                      <select class="lk" id="cTplPick" onchange="cInsertTemplate(this.value)"><option value="">Template…</option></select>
+                      <button class="lk" onclick="copyBox('cMsg')">Copy</button>
+                    </div>
+                  </div>
+                  <textarea class="msg-edit" id="cMsg" oninput="updateContactPreview()" placeholder="Type a message, or load a group's message / template above…"></textarea>
+                  <div class="msg-preview" id="cMsgPreview"></div>
+                  <div class="msg-hint">Wrap *text* for bold. Use {date} / {weekday} tokens — replaced when sent.</div>
+                </div>
+              </div>
+            </div>
+            <div class="actionbar hidden" id="cActions">
+              <button class="btn btn-soft" onclick="saveContact()">Save</button>
+              <button class="btn btn-primary" onclick="releaseCurrentContact()">Automated Send</button>
+              <button class="btn btn-primary" id="relCAllBtn" style="margin-left:auto" onclick="releaseAllContacts()"><span id="relCAllTxt">Automated All</span><div class="spinner hidden" id="relCAllSpin"></div></button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ════ SEND HISTORY ════ -->
+      <section class="view" id="view-history">
+        <div class="cards" id="historyStats" style="margin-bottom:16px"></div>
+        <div class="toolbar list-toolbar">
+          <div class="search-wrap" style="flex:1;max-width:300px">
+            <svg class="search-ico" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+            <input class="field search" id="historySearch" placeholder="Search sends…" oninput="historyPage=1;loadReleaseHistory()"/>
+          </div>
+          <div class="seg" id="historyFilterSeg"><button data-val="all" class="on" onclick="setHistoryFilter('all')">All</button><button data-val="success" onclick="setHistoryFilter('success')">Delivered</button><button data-val="failed" onclick="setHistoryFilter('failed')">Failed</button></div>
+          <div class="seg" id="historyModeSeg" style="margin-left:auto"><button data-val="table" class="on" onclick="setHistoryMode('table')">Table</button><button data-val="board" onclick="setHistoryMode('board')">Board</button></div>
+          <button class="btn btn-soft btn-sm" onclick="loadReleaseHistory()">Refresh</button>
+        </div>
+        <div id="historyWrap"></div>
+        <div class="pager" id="historyPager"></div>
+      </section>
+
+      <!-- ════ SETTINGS ════ -->
+      <section class="view" id="view-settings">
+        <div class="settings-tabs">
+          <button class="stab on" data-tab="appearance" onclick="showSettingsTab('appearance')">Appearance</button>
+          <button class="stab" data-tab="layout" onclick="showSettingsTab('layout')">Layout</button>
+          <button class="stab" data-tab="whatsapp" onclick="showSettingsTab('whatsapp')">WhatsApp</button>
+          <button class="stab" data-tab="automation" onclick="showSettingsTab('automation')">Automation</button>
+          <button class="stab" data-tab="security" onclick="showSettingsTab('security')">Security</button>
+          <button class="stab" data-tab="data" onclick="showSettingsTab('data')">Data</button>
+        </div>
+
+        <div class="stab-panel on" id="stab-appearance">
+          <div class="sec"><div class="sec-h">Appearance</div><div class="sec-b">
+            <div class="srow"><div><div class="st">Theme mode</div><div class="sd">Light, dark, or follow your operating system.</div></div>
+              <div class="seg" id="modeSeg"><button data-mode="light" onclick="setMode('light')">Light</button><button data-mode="dark" onclick="setMode('dark')">Dark</button><button data-mode="system" onclick="setMode('system')">System</button></div></div>
+            <div class="srow"><div><div class="st">Accent color</div><div class="sd">Brand gold by default. Used for buttons, highlights and active states.</div></div>
+              <div class="accent-row"><button class="accent-default" id="accentDefaultBtn" onclick="resetAccent()">Default</button><div class="swatches" id="swatches"></div></div></div>
+            <div class="srow"><div><div class="st">Custom accent</div><div class="sd">Pick any color, or reset to the default theme accent.</div></div>
+              <div style="display:flex;align-items:center;gap:10px"><input type="color" id="accentPicker" value="#0d9488" onchange="setAccent(this.value)" style="width:46px;height:38px;border:none;background:none;cursor:pointer"/><button class="btn btn-ghost btn-sm" onclick="resetAccent()">Reset default</button></div></div>
+            <div class="srow"><div><div class="st">Font size</div><div class="sd">Base text size across the dashboard.</div></div>
+              <div class="seg" id="fontSeg"><button data-val="small" onclick="setPref('font-size','small')">Small</button><button data-val="medium" onclick="setPref('font-size','medium')">Medium</button><button data-val="large" onclick="setPref('font-size','large')">Large</button></div></div>
+            <div class="srow"><div><div class="st">Corner radius</div><div class="sd">Sharp, rounded, or pill-shaped corners.</div></div>
+              <div class="seg" id="radiusSeg"><button data-val="sharp" onclick="setPref('corner-radius','sharp')">Sharp</button><button data-val="rounded" onclick="setPref('corner-radius','rounded')">Rounded</button><button data-val="pill" onclick="setPref('corner-radius','pill')">Pill</button></div></div>
+            <div class="srow"><div><div class="st">Animated transitions</div><div class="sd">Smooth fade/slide when switching pages.</div></div>
+              <label class="toggle"><input type="checkbox" id="animToggle" onchange="setAnim(this.checked)"/><span class="tk"></span></label></div>
+          </div></div>
+        </div>
+
+        <div class="stab-panel" id="stab-layout">
+          <div class="sec"><div class="sec-h">Layout</div><div class="sec-b">
+            <div class="srow"><div><div class="st">Navigation style</div><div class="sd">Vertical sidebar (scaffolding) or a horizontal top navbar. Applies across all portals on this device.</div></div>
+              <div class="seg" id="navLayoutSeg"><button data-val="sidebar" onclick="setPref('nav-layout','sidebar')">Sidebar</button><button data-val="navbar" onclick="setPref('nav-layout','navbar')">Navbar</button></div></div>
+            <div class="srow"><div><div class="st">UI density</div><div class="sd">Comfortable, compact, or spacious spacing.</div></div>
+              <div class="seg" id="densitySeg"><button data-val="comfortable" onclick="setPref('ui-density','comfortable')">Comfortable</button><button data-val="compact" onclick="setPref('ui-density','compact')">Compact</button><button data-val="spacious" onclick="setPref('ui-density','spacious')">Spacious</button></div></div>
+            <div class="srow"><div><div class="st">Sidebar width</div><div class="sd">Narrow, default, or wide navigation rail.</div></div>
+              <div class="seg" id="railSeg"><button data-val="narrow" onclick="setPref('sidebar-width','narrow')">Narrow</button><button data-val="default" onclick="setPref('sidebar-width','default')">Default</button><button data-val="wide" onclick="setPref('sidebar-width','wide')">Wide</button></div></div>
+            <div class="srow"><div><div class="st">Default landing page</div><div class="sd">Page shown when you open the dashboard.</div></div>
+              <div class="seg" id="pageSeg"><button data-val="groups" onclick="setPref('default-page','groups')">Groups</button><button data-val="table" onclick="setPref('default-page','table')">Scheduler</button><button data-val="wa-direct" onclick="setPref('default-page','wa-direct')">Open WA</button><button data-val="wa-auto" onclick="setPref('default-page','wa-auto')">Automated</button><button data-val="contacts" onclick="setPref('default-page','contacts')">Contacts</button></div></div>
+            <div class="srow"><div><div class="st">Scheduler zebra stripes</div><div class="sd">Alternate row shading in table view.</div></div>
+              <div class="seg" id="zebraSeg"><button data-val="off" onclick="setPref('table-zebra','off')">Off</button><button data-val="on" onclick="setPref('table-zebra','on')">On</button></div></div>
+          </div></div>
+        </div>
+
+        <div class="stab-panel" id="stab-whatsapp">
+          <div class="sec"><div class="sec-h">WhatsApp</div><div class="sec-b">
+            <div class="srow"><div><div class="st">Default send method</div><div class="sd">Direct opens wa.me / invite links; Automated uses WAHA/Selenium.</div></div>
+              <div class="seg" id="sendSeg"><button data-val="ask" onclick="setPref('default-send-mode','ask')">Ask</button><button data-val="direct" onclick="setPref('default-send-mode','direct')">Direct</button><button data-val="automated" onclick="setPref('default-send-mode','automated')">Automated</button></div></div>
+            <div class="srow"><div><div class="st">Status log</div><div class="sd">When to show the automation status panel.</div></div>
+              <div class="seg" id="logSeg"><button data-val="auto" onclick="setPref('status-log','auto')">On send</button><button data-val="always" onclick="setPref('status-log','always')">Always</button><button data-val="never" onclick="setPref('status-log','never')">Never</button></div></div>
+          </div></div>
+        </div>
+
+        <div class="stab-panel" id="stab-automation">
+          <div class="sec"><div class="sec-h">Automation</div><div class="sec-b">
+            <div class="srow"><div><div class="st">Headless mode</div><div class="sd">Run Chrome hidden. Enable only after logging in once via a visible browser.</div></div>
+              <label class="toggle"><input type="checkbox" id="setHeadless" onchange="saveAutomation()"/><span class="tk"></span></label></div>
+            <div class="srow"><div><div class="st">Delay between sends</div><div class="sd">Seconds between recipients during bulk automated release.</div></div>
+              <input class="field num" type="number" id="setDelay" min="0" max="300" onchange="saveAutomation()"/></div>
+            <div class="srow srow-stack">
+              <div class="srow-head"><div><div class="st">Scheduled weekly send</div><div class="sd">Automatically send all groups on the chosen day and time (UTC server clock).</div></div>
+                <label class="toggle"><input type="checkbox" id="schedEnabled"/><span class="tk"></span></label></div>
+              <div class="sched-controls">
+                <label class="sched-field"><span class="sched-lbl">Day</span>
+                  <select class="field" id="schedDow"><option value="0">Sunday</option><option value="1">Monday</option><option value="2">Tuesday</option><option value="3">Wednesday</option><option value="4">Thursday</option><option value="5">Friday</option><option value="6">Saturday</option></select></label>
+                <label class="sched-field"><span class="sched-lbl">Hour (UTC)</span><input class="field" id="schedHour" type="number" min="0" max="23" placeholder="9"/></label>
+                <label class="sched-field"><span class="sched-lbl">Minute</span><input class="field" id="schedMinute" type="number" min="0" max="59" placeholder="0"/></label>
+              </div>
+              <p class="hint" id="schedLastRun">Not run yet</p>
+              <button class="btn btn-soft btn-sm" onclick="saveScheduledJob()" style="align-self:flex-start">Save schedule</button>
+            </div>
+          </div></div>
+        </div>
+
+        <div class="stab-panel" id="stab-security">
+          <div class="sec"><div class="sec-h">Security</div><div class="sec-b">
+            <div class="srow srow-stack" style="gap:12px">
+              <div><div class="st">Password reset</div><div class="sd">Submit a request to reset your password — an admin or superadmin reviews and approves it. You'll be notified of the outcome.</div></div>
+              <input class="field" id="curPw" type="password" placeholder="Current password"/>
+              <input class="field" id="newPw" type="password" placeholder="New password (min 8 chars)"/>
+              <button class="btn btn-soft" style="align-self:flex-start" onclick="changePassword()">Request password reset</button>
+            </div>
+          </div></div>
+          <div class="sec" style="margin-top:16px"><div class="sec-h">Activity log <button class="btn btn-soft btn-sm" style="margin-left:auto" onclick="loadAudit()">Refresh</button></div>
+            <div class="sec-b"><div id="auditList" class="hint">Loading…</div></div></div>
+        </div>
+
+        <div class="stab-panel" id="stab-data">
+          <div class="sec"><div class="sec-h">Data</div><div class="sec-b">
+            <div class="srow"><div><div class="st">Backup configuration</div><div class="sd">Download all groups, contacts, templates and settings as JSON.</div></div>
+              <button class="btn btn-soft" onclick="exportConfig()">Download backup</button></div>
+            <div class="srow"><div><div class="st">Restore configuration</div><div class="sd">Replace everything from a backup file (credentials are kept).</div></div>
+              <button class="btn btn-soft" onclick="document.getElementById('importFile').click()">Restore from file</button>
+              <input type="file" id="importFile" accept="application/json" style="display:none" onchange="importConfig(this)"/></div>
+            <div class="srow"><div><div class="st">Reset POC demo data</div><div class="sd">Restore the original demo groups, contacts and templates for this device.</div></div>
+              <button class="btn btn-danger" onclick="resetDemo()">Reset demo</button></div>
+          </div></div>
+        </div>
+      </section>
+
+      <!-- Status log -->
+      <div class="status-log hidden" id="statusPanel">
+        <div class="lh">
+          <span class="lh-title"><span class="dot-live on"></span>Status Log</span>
+          <div class="lh-actions">
+            <button class="log-btn" id="logCollapseBtn" onclick="toggleStatusLog()" title="Collapse log"><svg class="log-caret" viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M6 9l6 6 6-6"/></svg></button>
+            <button class="log-btn" onclick="clearStatusLog()" title="Clear log"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/></svg></button>
+          </div>
+        </div>
+        <div id="logLines"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Mobile bottom tab bar -->
+<nav class="tabbar" id="tabbar">
+  <button class="nav-item" data-view="groups" onclick="showView('groups')"><span class="ico"><svg viewBox="0 0 24 24"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1"/></svg></span><span class="lbl">Groups</span></button>
+  <button class="nav-item" data-view="table" onclick="showView('table')"><span class="ico"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M3 15h18M9 3v18"/></svg></span><span class="lbl">Scheduler</span></button>
+  <button class="nav-item" data-view="wa-auto" onclick="showView('wa-auto')"><span class="ico"><svg viewBox="0 0 24 24"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg></span><span class="lbl">Send</span></button>
+  <button class="nav-item" data-view="contacts" onclick="showView('contacts')"><span class="ico"><svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></span><span class="lbl">Contacts</span></button>
+  <button class="nav-item" data-view="settings" onclick="showView('settings')"><span class="ico"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg></span><span class="lbl">Settings</span></button>
+</nav>
+
+<!-- Template editor modal -->
+<div class="modal-scrim" id="tplModal">
+  <div class="modal modal-lg">
+    <div class="modal-h"><span id="tplModalTitle">New Template</span><button class="modal-x" onclick="closeTpl()">✕</button></div>
+    <div class="modal-b">
+      <div><div class="flabel">Template name</div><input class="field" id="tplName" placeholder="e.g. Weekly schedule"/></div>
+      <div class="tpl-editor">
+        <div class="tpl-editor-main">
+          <div class="flabel">Message content <span class="flabel-soft">tokens replaced when sent</span></div>
+          <div class="tpl-toolbar" role="toolbar" aria-label="Formatting">
+            <div class="tpl-tb-group">
+              <button class="tpl-tb-btn" type="button" title="Bold (*text*)" onclick="tplWrap('*')"><b>B</b></button>
+              <button class="tpl-tb-btn" type="button" title="Italic (_text_)" onclick="tplWrap('_')"><i>I</i></button>
+              <button class="tpl-tb-btn" type="button" title="Strikethrough (~text~)" onclick="tplWrap('~')"><s>S</s></button>
+              <button class="tpl-tb-btn" type="button" title="Monospace (```text```)" onclick="tplWrap('```')"><span style="font-family:ui-monospace,monospace">M</span></button>
+              <button class="tpl-tb-btn" type="button" title="Bullet list" onclick="tplBullet()"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="4" cy="7" r="1.4"/><circle cx="4" cy="17" r="1.4"/><path d="M9 7h11M9 17h11"/></svg></button>
+            </div>
+            <div class="tpl-tb-group">
+              <button class="chip-btn" type="button" onclick="tplInsert('{date}')">{date}</button>
+              <button class="chip-btn" type="button" onclick="tplInsert('{weekday}')">{weekday}</button>
+              <button class="chip-btn" type="button" onclick="tplInsertSchedule()">＋ schedule</button>
+            </div>
+            <div class="tpl-tb-group tpl-emojis">
+              <button class="tpl-tb-btn" type="button" onclick="tplEmoji('📅')">📅</button>
+              <button class="tpl-tb-btn" type="button" onclick="tplEmoji('⏰')">⏰</button>
+              <button class="tpl-tb-btn" type="button" onclick="tplEmoji('✅')">✅</button>
+              <button class="tpl-tb-btn" type="button" onclick="tplEmoji('📌')">📌</button>
+              <button class="tpl-tb-btn" type="button" onclick="tplEmoji('🙏')">🙏</button>
+              <button class="tpl-tb-btn" type="button" onclick="tplEmoji('🎓')">🎓</button>
+            </div>
+          </div>
+          <textarea class="field" id="tplContent" style="min-height:240px" placeholder="Type your template…" oninput="tplPreview()"></textarea>
+          <div class="tpl-editor-foot"><span class="hint" id="tplCharCount">0 chars</span><span class="hint">Formatting: *bold* _italic_ ~strike~ ```mono```</span></div>
+        </div>
+        <div class="tpl-editor-side">
+          <div class="flabel">Live preview</div>
+          <div class="msg-preview"><div class="preview-b" id="tplPreviewBody"><i>Nothing to preview yet</i></div></div>
+        </div>
+      </div>
+    </div>
+    <div class="modal-f"><button class="btn btn-soft" onclick="closeTpl()">Cancel</button><button class="btn btn-primary" onclick="saveTpl()">Save Template</button></div>
+  </div>
+</div>
+
+<!-- Automated Send status form -->
+<div class="modal-scrim" id="sendStatusModal">
+  <div class="modal modal-lg send-status">
+    <div class="modal-h"><span>Automated Send</span><button class="modal-x" onclick="closeSendStatus()">✕</button></div>
+    <div class="modal-b">
+      <div class="ss-meta">
+        <div class="ss-meta-item">Provider · <b id="ssProviderLabel">—</b></div>
+        <div class="ss-meta-item"><span class="ss-session" id="ssSession">—</span></div>
+      </div>
+      <div class="ss-preflight" id="ssPreflight"></div>
+      <div class="ss-progress-wrap"><div class="ss-progress" id="ssProgress"></div></div>
+      <div class="ss-counts" id="ssCounts"></div>
+      <div class="ss-list" id="ssList"></div>
+    </div>
+    <div class="modal-f" id="ssFooter"></div>
+  </div>
+</div>
+
+<!-- Column name / nickname editor -->
+<div class="modal-scrim" id="colMetaModal">
+  <div class="modal">
+    <div class="modal-h"><span>Group name &amp; nickname</span><button class="modal-x" onclick="closeColMeta()">✕</button></div>
+    <div class="modal-b">
+      <div class="profile-field"><label>WhatsApp group name</label><input id="cmName" placeholder="Full group name" onkeydown="if(event.key==='Enter')saveColMeta()"/></div>
+      <div class="profile-field"><label>Nickname <span class="field-hint" style="display:inline">short label shown in tables</span></label><input id="cmNick" placeholder="e.g. Batch AM" onkeydown="if(event.key==='Enter')saveColMeta()"/></div>
+    </div>
+    <div class="modal-f"><button class="btn btn-soft" onclick="closeColMeta()">Cancel</button><button class="btn btn-primary" onclick="saveColMeta()">Save</button></div>
+  </div>
+</div>
+
+<!-- List create / edit -->
+<div class="modal-scrim" id="listModal">
+  <div class="modal">
+    <div class="modal-h"><span id="listModalTitle">New list</span><button class="modal-x" onclick="closeListModal()">✕</button></div>
+    <div class="modal-b">
+      <div class="profile-field"><label>List name</label><input id="lmName" placeholder="e.g. Physics Batch 2025"/></div>
+      <div class="profile-field"><label>Accent color</label><input id="lmColor" type="color" value="#0d9488" style="width:56px;height:38px;padding:2px;border:1px solid var(--border);border-radius:var(--r-sm);background:none;cursor:pointer"/></div>
+      <div class="profile-field"><label>WhatsApp labels <span class="field-hint" style="display:inline">contacts with these labels are auto-discovered</span></label><div class="perm-grid" id="lmLabels"></div></div>
+      <div class="profile-field"><label>Default message <span class="field-hint" style="display:inline">sent to contacts without their own message · supports {date} {weekday}</span></label><textarea class="field" id="lmMessage" style="min-height:96px" placeholder="*Reminder*&#10;Dear parent, please note the updated schedule.&#10;*Kindly acknowledge.*"></textarea></div>
+    </div>
+    <div class="modal-f"><button class="btn btn-soft" onclick="closeListModal()">Cancel</button><button class="btn btn-primary" id="lmSaveBtn" onclick="saveList()">Create list</button></div>
+  </div>
+</div>
+
+<!-- Manage list members -->
+<div class="modal-scrim" id="listMembersModal">
+  <div class="modal modal-lg">
+    <div class="modal-h"><span id="lmemTitle">Manage contacts</span><button class="modal-x" onclick="closeListMembers()">✕</button></div>
+    <div class="modal-b">
+      <div class="search-wrap" style="margin-bottom:12px">
+        <svg class="search-ico" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+        <input class="field search" id="lmemSearch" placeholder="Search contacts…" oninput="renderListMembers()"/>
+      </div>
+      <div id="lmemList" class="lmem-list"></div>
+    </div>
+    <div class="modal-f"><button class="btn btn-soft" onclick="closeListMembers()">Done</button></div>
+  </div>
+</div>
+
+<datalist id="timeOptions"></datalist>
+<div class="toast" id="toast"></div>
+
+<script src="assets/js/store.js?v=18"></script>
+<script src="assets/js/theme.js?v=18"></script>
+<script src="assets/js/dashboard.js?v=18"></script>
+</body>
+</html>

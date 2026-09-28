@@ -5,123 +5,70 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <title>Sign in · SSIES Schedule Sender</title>
 {% include "_favicon.html" %}
+<script>
+(function () {
+  var mode = localStorage.getItem("theme-mode") || "system";
+  var dark = mode === "dark" || (mode === "system" && matchMedia("(prefers-color-scheme: dark)").matches);
+  document.documentElement.setAttribute("data-theme", dark ? "dark" : "light");
+  var a = (localStorage.getItem("accent") || "").toLowerCase();
+  /* Migrate old accents (blue / gold) to POC teal */
+  if (!a || a === "#0000ee" || a === "#c8a956" || a === "#b8943a" || a === "#d4b76a") {
+    localStorage.removeItem("accent");
+    a = "";
+  }
+  var accent = a || (dark ? "#2dd4bf" : "#0d9488");
+  document.documentElement.style.setProperty("--accent", accent);
+  document.documentElement.setAttribute("data-nav", localStorage.getItem("nav-layout") || "sidebar");
+})();
+</script>
 <link rel="preconnect" href="https://api.fontshare.com">
 <link href="https://api.fontshare.com/v2/css?f[]=satoshi@400,500,700,900&display=swap" rel="stylesheet">
-<style>
-  :root{
-    --accent:#0000EE;--accent-hover:#0000c4;--surface:#fff;--ink:#111827;
-    --muted:#6B7280;--border:rgba(17,24,39,.12);--error:#DC2626;
-    --r-md:12px;--r-xl:24px;--shadow:0 16px 48px rgba(15,23,42,.14);
-  }
-  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
-  body{
-    font-family:'Satoshi','Segoe UI',system-ui,sans-serif;color:var(--ink);min-height:100vh;min-height:100dvh;
-    -webkit-font-smoothing:antialiased;letter-spacing:-.01em;
-  }
-  .shell{min-height:100vh;min-height:100dvh;display:grid;grid-template-columns:1fr;}
-  .hero{
-    display:none;padding:48px 40px;color:#fff;
-    background:linear-gradient(135deg,#0B1220 0%,#111827 48%,#1E3A8A 100%);
-    position:relative;overflow:hidden;
-  }
-  .hero::after{
-    content:"";position:absolute;inset:auto -20% -30% 20%;height:70%;
-    background:radial-gradient(circle at center,rgba(0,0,238,.35),transparent 65%);pointer-events:none;
-  }
-  .hero-inner{position:relative;z-index:1;max-width:440px;margin:auto 0;}
-  .hero-logo-wrap{
-    display:inline-flex;align-items:center;justify-content:center;
-    background:#fff;border-radius:14px;padding:10px 14px;margin-bottom:28px;
-    box-shadow:0 8px 24px rgba(0,0,0,.18);
-  }
-  .hero-logo{height:40px;width:auto;display:block;filter:none;}
-  .hero h1{font-size:clamp(28px,4vw,40px);font-weight:800;line-height:1.15;letter-spacing:-.04em;margin-bottom:14px;}
-  .hero h1 span{color:#93C5FD;}
-  .hero p{font-size:15px;line-height:1.6;color:rgba(255,255,255,.78);margin-bottom:28px;}
-  .hero-list{list-style:none;display:flex;flex-direction:column;gap:12px;}
-  .hero-list li{display:flex;align-items:flex-start;gap:10px;font-size:14px;color:rgba(255,255,255,.9);}
-  .hero-list li::before{content:"";width:8px;height:8px;border-radius:50%;background:#60A5FA;margin-top:6px;flex-shrink:0;}
-  .panel{
-    display:flex;align-items:center;justify-content:center;padding:24px 16px;
-    background:#F5F6F8;
-  }
-  .card{
-    width:100%;max-width:420px;background:var(--surface);border-radius:var(--r-xl);
-    box-shadow:var(--shadow);border:1px solid var(--border);padding:28px 24px;
-  }
-  .brand{display:flex;align-items:center;gap:12px;margin-bottom:22px;}
-  .brand img{height:40px;width:auto;display:block;}
-  .brand h1{font-size:16px;font-weight:700;letter-spacing:-.02em;}
-  .brand p{font-size:12px;color:var(--muted);}
-  .eyebrow{font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--accent);margin-bottom:8px;}
-  h2{font-size:24px;font-weight:800;letter-spacing:-.03em;margin-bottom:6px;}
-  .sub{font-size:14px;color:var(--muted);margin-bottom:22px;line-height:1.5;}
-  label{display:block;font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--muted);margin-bottom:7px;}
-  .btn{
-    width:100%;background:var(--accent);color:#fff;border:none;border-radius:var(--r-md);
-    padding:14px;font-family:inherit;font-size:15px;font-weight:700;cursor:pointer;margin-top:4px;
-    transition:background .18s ease,transform .12s ease,box-shadow .18s ease;
-  }
-  .btn:hover{background:var(--accent-hover);transform:translateY(-1px);box-shadow:0 8px 20px rgba(0,0,238,.25);}
-  .btn:active{transform:translateY(0);}
-  .btn:disabled{opacity:.6;cursor:not-allowed;transform:none;box-shadow:none;}
-  .field{
-    width:100%;background:#F8F9FB;border:1px solid var(--border);border-radius:var(--r-md);
-    padding:13px 14px;color:var(--ink);font-family:inherit;font-size:16px;outline:none;margin-bottom:14px;
-    transition:border-color .18s ease,box-shadow .18s ease,background .18s ease;
-  }
-  .field:focus{border-color:var(--accent);background:#fff;box-shadow:0 0 0 3px rgba(0,0,238,.12);}
-  .err{color:var(--error);font-size:13px;margin-bottom:12px;min-height:18px;}
-  .foot{margin-top:18px;font-size:12px;color:var(--muted);text-align:center;}
-  .foot a{color:var(--accent);font-weight:600;text-decoration:none;}
-  @media (min-width:900px){
-    .shell{grid-template-columns:1.05fr .95fr;}
-    .hero{display:flex;}
-    .panel{padding:40px;}
-    .card{padding:36px 32px;}
-  }
-</style>
+<link href="{{ url_for('static', filename='css/app.css') }}?v=poc31" rel="stylesheet"/>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
-  <div class="shell">
-    <section class="hero" aria-hidden="true">
-      <div class="hero-inner">
-        <div class="hero-logo-wrap">
-          <img class="hero-logo" src="{{ url_for('static', filename='img/ssies-logo.png') }}" alt="SSIES"/>
-        </div>
-        <h1>Schedule smarter.<br/><span>Send with confidence.</span></h1>
-        <p>SSIES Schedule Sender helps coaching teams manage group schedules and deliver weekly WhatsApp updates reliably.</p>
-        <ul class="hero-list">
-          <li>Weekly group schedules in one place</li>
-          <li>Automated WhatsApp send via WAHA</li>
-          <li>Role-based admin &amp; superadmin portals</li>
-          <li>Works on web and Android</li>
-        </ul>
+<div class="auth-shell">
+  <section class="auth-hero" aria-hidden="true">
+    <div class="auth-hero-inner">
+      <div class="auth-logo"><img src="{{ url_for('static', filename='img/ssies-logo.png') }}" alt="SSIES"/></div>
+      <h1>Schedule smarter.<br/><span>Send with confidence.</span></h1>
+      <p>SSIES Schedule Sender helps coaching teams manage weekly group schedules and deliver WhatsApp updates reliably.</p>
+      <ul class="auth-list">
+        <li>Weekly group schedules in one place</li>
+        <li>Automated WhatsApp send via WAHA</li>
+        <li>Role-based admin &amp; superadmin portals</li>
+        <li>Works on web and Android</li>
+      </ul>
+    </div>
+  </section>
+  <section class="auth-panel">
+    <div class="auth-card">
+      <div class="auth-brand">
+        <img src="{{ url_for('static', filename='img/ssies-logo.png') }}" alt="SSIES"/>
+        <div><h1>Schedule Sender</h1><p>SSIES Automation</p></div>
       </div>
-    </section>
-    <section class="panel">
-      <div class="card">
-        <div class="brand">
-          <img src="{{ url_for('static', filename='img/ssies-logo.png') }}" alt="SSIES" width="120" height="40"/>
-          <div>
-            <h1>Schedule Sender</h1>
-            <p>SSIES Automation</p>
-          </div>
-        </div>
-        <div class="eyebrow">Sign in</div>
-        <h2>Welcome back</h2>
-        <p class="sub">Use your SSIES email. Accounts are created by an administrator.</p>
-        <div class="err" id="err"></div>
+      <div class="eyebrow">Sign in</div>
+      <h2>Welcome back</h2>
+      <p class="auth-sub">Use your SSIES email. Accounts are created by an administrator.</p>
+      <div class="auth-err" id="err"></div>
+      <div class="auth-field">
         <label for="email">Email</label>
-        <input class="field" id="email" type="email" placeholder="you@example.com" autocomplete="username" autofocus/>
+        <input class="field" id="email" type="email" placeholder="you@ssies.edu.pk" autocomplete="username" autofocus/>
+      </div>
+      <div class="auth-field">
         <label for="pw">Password</label>
         <input class="field" id="pw" type="password" placeholder="Your password" autocomplete="current-password" onkeydown="if(event.key==='Enter')submitForm()"/>
-        <button class="btn" id="go" onclick="submitForm()">Sign in</button>
-        <div class="foot"><a href="/auth/forgot-password">Forgot password?</a> · Secured with Supabase Auth</div>
       </div>
-    </section>
-  </div>
+      <button class="btn btn-primary btn-block btn-lg" id="go" onclick="submitForm()">Sign in</button>
+      <div class="auth-or"><span>or</span></div>
+      <button class="btn btn-soft btn-block btn-lg btn-passkey" id="pkBtn" type="button" onclick="passkeySignIn()">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="8" r="4"/><path d="M2 21v-1a6 6 0 0 1 6-6"/><circle cx="17" cy="15" r="3"/><path d="M17 18v3l1.5-1 1.5 1v-3"/></svg>
+        <span id="pkTxt">Sign in with a passkey</span>
+      </button>
+      <div class="auth-foot"><a href="/auth/forgot-password">Forgot password?</a> · Secured with Supabase Auth</div>
+    </div>
+  </section>
+</div>
 <script>
 const SUPABASE_URL = {{ supabase_url|tojson }};
 const SUPABASE_ANON_KEY = {{ supabase_anon_key|tojson }};
@@ -154,6 +101,73 @@ async function submitForm(){
     setErr("Connection error. Try again.");
   } finally {
     btn.disabled = false;
+  }
+}
+
+function _b64urlToBuf(s) {
+  const str = String(s || "").replace(/-/g, "+").replace(/_/g, "/");
+  const pad = "=".repeat((4 - (str.length % 4)) % 4);
+  const raw = atob(str + pad);
+  const out = new Uint8Array(raw.length);
+  for (let i = 0; i < raw.length; i++) out[i] = raw.charCodeAt(i);
+  return out.buffer;
+}
+function _bufToB64url(buf) {
+  const bytes = new Uint8Array(buf);
+  let s = "";
+  bytes.forEach((b) => { s += String.fromCharCode(b); });
+  return btoa(s).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+}
+async function passkeySignIn(){
+  setErr("");
+  const btn = document.getElementById("pkBtn"), txt = document.getElementById("pkTxt");
+  const email = document.getElementById("email").value.trim();
+  if (!window.PublicKeyCredential) {
+    return setErr("Passkeys are not supported in this browser.");
+  }
+  btn.disabled = true; txt.textContent = "Verifying passkey…";
+  try {
+    const optRes = await fetch("/api/passkeys/login/options", {
+      method: "POST",
+      headers: {"Content-Type":"application/json"},
+      body: JSON.stringify({ email }),
+    });
+    const optBody = await optRes.json();
+    if (!optRes.ok) { setErr(optBody.error || "Passkey login unavailable"); return; }
+    const publicKey = optBody.publicKey || optBody;
+    publicKey.challenge = _b64urlToBuf(publicKey.challenge);
+    if (Array.isArray(publicKey.allowCredentials)) {
+      publicKey.allowCredentials = publicKey.allowCredentials.map((c) => ({
+        ...c,
+        id: typeof c.id === "string" ? _b64urlToBuf(c.id) : c.id,
+      }));
+    }
+    const cred = await navigator.credentials.get({ publicKey });
+    if (!cred) { setErr("Passkey cancelled"); return; }
+    const verifyRes = await fetch("/api/passkeys/login/verify", {
+      method: "POST",
+      headers: {"Content-Type":"application/json"},
+      body: JSON.stringify({
+        email,
+        challengeKey: optBody.challengeKey,
+        id: cred.id,
+        rawId: _bufToB64url(cred.rawId),
+        type: cred.type,
+        response: {
+          clientDataJSON: _bufToB64url(cred.response.clientDataJSON),
+          authenticatorData: _bufToB64url(cred.response.authenticatorData),
+          signature: _bufToB64url(cred.response.signature),
+          userHandle: cred.response.userHandle ? _bufToB64url(cred.response.userHandle) : null,
+        },
+      }),
+    });
+    const body = await verifyRes.json();
+    if (!verifyRes.ok) { setErr(body.error || "Passkey verification failed"); return; }
+    location.href = body.redirect || "/";
+  } catch (e) {
+    setErr(e.message || "Passkey sign-in failed");
+  } finally {
+    btn.disabled = false; txt.textContent = "Sign in with a passkey";
   }
 }
 </script>

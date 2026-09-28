@@ -44,16 +44,20 @@ def create_app():
     from app.routes.user_routes import bp as user_bp
     from app.routes.admin_routes import bp as admin_bp
     from app.routes.superadmin_routes import bp as superadmin_bp
+    from app.routes.poc_routes import bp as poc_bp
 
     app.register_blueprint(auth_bp)
     app.register_blueprint(user_bp)
     app.register_blueprint(admin_bp)
     app.register_blueprint(superadmin_bp)
+    app.register_blueprint(poc_bp)
 
     PUBLIC_ENDPOINTS = {
         "auth.login_page", "auth.forgot_password_page", "auth.auth_session",
         "auth.auth_refresh", "static", "user.health", "user.mobile_config",
         "user.mobile_download_page", "user.mobile_download_apk",
+        "poc.create_password_request",
+        "poc.passkey_login_options", "poc.passkey_login_verify",
     }
 
     @app.before_request
@@ -80,13 +84,13 @@ def create_app():
             g.profile = profile
             g.user_id = profile.id
             return
-        if request.path.startswith("/api/"):
+        if request.path.startswith("/api/") or "/api/" in request.path:
             return jsonify({"error": "unauthorized"}), 401
         if request.endpoint not in ("auth.login_page", "auth.forgot_password_page", "auth.auth_session"):
             return redirect("/login")
 
     csrf.exempt(auth_bp)
-    for bp in (user_bp, admin_bp, superadmin_bp):
+    for bp in (user_bp, admin_bp, superadmin_bp, poc_bp):
         csrf.exempt(bp)
 
     limiter.limit("10 per minute")(app.view_functions["auth.auth_session"])
@@ -99,6 +103,9 @@ def create_app():
             _seed_system_settings()
             _ensure_invite_link_column()
             _ensure_waha_slot_column()
+            _ensure_poc_parity_columns()
+            from app.routes.poc_routes import seed_builtin_roles
+            seed_builtin_roles()
             if os.environ.get("DOCKER") == "1":
                 _apply_docker_waha_settings()
             from app.services.waha_slots import bootstrap_primary_slot
@@ -109,6 +116,9 @@ def create_app():
                 _seed_system_settings()
                 _ensure_invite_link_column()
                 _ensure_waha_slot_column()
+                _ensure_poc_parity_columns()
+                from app.routes.poc_routes import seed_builtin_roles
+                seed_builtin_roles()
                 from app.services.waha_slots import bootstrap_primary_slot
                 bootstrap_primary_slot()
             except Exception as e:
@@ -187,5 +197,37 @@ def _ensure_invite_link_column():
         if "invite_link" not in cols:
             db.session.execute(text("ALTER TABLE groups ADD COLUMN invite_link TEXT DEFAULT ''"))
             db.session.commit()
+    except Exception:
+        db.session.rollback()
+
+
+def _ensure_poc_parity_columns():
+    """Add Phase 3 columns on existing DBs without requiring a full migration run."""
+    from sqlalchemy import inspect, text
+    try:
+        insp = inspect(db.engine)
+        tables = set(insp.get_table_names())
+
+        def add_cols(table, specs):
+            if table not in tables:
+                return
+            cols = {c["name"] for c in insp.get_columns(table)}
+            for name, ddl in specs:
+                if name not in cols:
+                    db.session.execute(text(f"ALTER TABLE {table} ADD COLUMN {ddl}"))
+
+        add_cols("profiles", [
+            ("photo_path", "photo_path TEXT"),
+            ("table_notes", "table_notes TEXT"),
+        ])
+        add_cols("groups", [
+            ("photo_path", "photo_path TEXT"),
+            ("wa_linked", "wa_linked BOOLEAN DEFAULT 0"),
+        ])
+        add_cols("contacts", [
+            ("photo_path", "photo_path TEXT"),
+            ("wa_linked", "wa_linked BOOLEAN DEFAULT 0"),
+        ])
+        db.session.commit()
     except Exception:
         db.session.rollback()

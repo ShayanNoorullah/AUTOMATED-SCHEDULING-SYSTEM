@@ -5,80 +5,117 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <title>Profile · {{ site_name|default('SSIES') }}</title>
 {% include "_favicon.html" %}
+<script>
+(function () {
+  var mode = localStorage.getItem("theme-mode") || "system";
+  var dark = mode === "dark" || (mode === "system" && matchMedia("(prefers-color-scheme: dark)").matches);
+  document.documentElement.setAttribute("data-theme", dark ? "dark" : "light");
+  var a = (localStorage.getItem("accent") || "").toLowerCase();
+  if (!a || a === "#0000ee" || a === "#c8a956" || a === "#b8943a" || a === "#d4b76a") {
+    localStorage.removeItem("accent");
+    a = "";
+  }
+  var accent = a || (dark ? "#2dd4bf" : "#0d9488");
+  document.documentElement.style.setProperty("--accent", accent);
+  document.documentElement.setAttribute("data-nav", localStorage.getItem("nav-layout") || "sidebar");
+})();
+</script>
+<script>
+window.SSIES_USER = {{ {
+  "email": profile.email,
+  "display_name": profile.display_name or profile.display_label(),
+  "role": profile.role,
+  "photo_url": profile.photo_url()
+} | tojson }};
+</script>
 <link rel="preconnect" href="https://api.fontshare.com">
 <link href="https://api.fontshare.com/v2/css?f[]=satoshi@400,500,700,900&display=swap" rel="stylesheet">
-<link href="{{ url_for('static', filename='css/dashboard.css') }}" rel="stylesheet"/>
-<link href="{{ url_for('static', filename='css/components.css') }}" rel="stylesheet"/>
-<link href="{{ url_for('static', filename='css/portal.css') }}" rel="stylesheet"/>
+<link href="{{ url_for('static', filename='css/app.css') }}?v=poc29" rel="stylesheet"/>
+<link href="{{ url_for('static', filename='css/compat.css') }}?v=poc29" rel="stylesheet"/>
+{% if not use_portal %}
+<link href="{{ url_for('static', filename='css/dashboard.css') }}?v=poc29" rel="stylesheet"/>
+<link href="{{ url_for('static', filename='css/components.css') }}?v=poc29" rel="stylesheet"/>
+{% endif %}
+<link href="{{ url_for('static', filename='css/portal.css') }}?v=poc29" rel="stylesheet"/>
 </head>
 <body class="profile-page{% if use_portal %} profile-portal{% endif %}">
 {% if use_portal %}
-<div class="portal-app" id="portalApp">
-  <div class="portal-scrim" onclick="togglePortalSidebar()"></div>
-  <aside class="portal-sidebar">
-    <div class="portal-brand">
-      <button type="button" class="portal-logo" onclick="togglePortalSidebar()" title="Toggle menu">
-        <img src="{{ url_for('static', filename='img/ssies-logo.png') }}" alt="SSIES" width="110" height="36"/>
-      </button>
-      <div class="portal-brand-text">
+<div class="shell" id="shell">
+  <div class="scrim" onclick="toggleRail()"></div>
+  <aside class="rail">
+    <div class="rail-brand">
+      <div class="mark"><img src="{{ url_for('static', filename='img/ssies-mark.png') }}" alt="SSIES"/></div>
+      <div class="bt">
         <h1>{{ portal_title|default('Portal') }}</h1>
-        <p class="sub">{{ profile.display_label() }}</p>
+        <p>{{ profile.display_label() }}</p>
       </div>
     </div>
-    <nav class="portal-nav">
+    <nav class="rail-nav">
       {% if portal_kind == 'admin' %}{% include "portal/admin_nav.html" %}
       {% elif portal_kind == 'superadmin' %}{% include "portal/superadmin_nav.html" %}
       {% endif %}
-    </nav>
-    <div class="portal-foot">
-      <a href="/logout" class="portal-nav-link">Log out</a>
-    </div>
-  </aside>
-  <div class="portal-main">
-    <header class="portal-topbar">
-      <button type="button" class="portal-menu-btn" onclick="togglePortalSidebar()" aria-label="Menu">
-        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
-      </button>
-      <div class="portal-topbar-title">
-        <h2>My profile</h2>
-        <p>Account details and security</p>
+      <div class="nav-group nav-more hidden" id="navMoreGroup">
+        <button class="nav-item nav-group-btn" onclick="toggleNavGroup(this)" title="More" type="button">
+          <span class="ico"><svg viewBox="0 0 24 24"><circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/></svg></span>
+          <span class="lbl">More</span>
+          <svg class="caret" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M6 9l6 6 6-6"/></svg>
+        </button>
+        <div class="nav-submenu" id="navMoreMenu"></div>
       </div>
-      <div class="portal-topbar-actions">
-        <a href="{{ back_url or '/' }}" class="btn btn-soft btn-sm">← {{ back_label or 'Back' }}</a>
-      </div>
-    </header>
-    <main class="portal-content profile-content-wrap">
-      {% include "user/_profile_panel.html" %}
-    </main>
-  </div>
-</div>
-{% else %}
-<div class="app profile-app" id="app">
-  <div class="rail-scrim" onclick="toggleRailMobile()"></div>
-  <aside class="rail">
-    <div class="brand">
-      <a href="{{ back_url or '/' }}" class="logo" title="{{ back_label or 'Dashboard' }}" style="text-decoration:none">
-        <img src="{{ url_for('static', filename='img/ssies-logo.png') }}" alt="SSIES" width="120" height="38"/>
-      </a>
-      <div class="bt"><h1>Schedule Sender</h1><p>SSIES Automation</p></div>
-    </div>
-    <nav class="nav">
-      <a class="nav-item" href="{{ back_url or '/' }}" style="text-decoration:none"><span class="ico">←</span><span class="lbl">{{ back_label or 'Dashboard' }}</span></a>
-      <span class="nav-item active" style="cursor:default"><span class="ico svg-ico"><svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></span><span class="lbl">Profile</span></span>
     </nav>
-    <div class="foot">
-      <div class="user"><div class="dot">{{ (profile.display_name or profile.email)[0]|upper }}</div><div class="lbl uname">{{ profile.display_label() }}</div></div>
-      {% if profile.role == 'admin' %}<a class="nav-item" href="/admin" style="text-decoration:none;display:flex"><span class="ico">🛡️</span><span class="lbl">Admin Portal</span></a>{% endif %}
-      {% if profile.role == 'superadmin' %}<a class="nav-item" href="/superadmin" style="text-decoration:none;display:flex"><span class="ico">⭐</span><span class="lbl">Superadmin</span></a>{% endif %}
-      <button class="nav-item" onclick="location.href='/logout'"><span class="ico">⎋</span><span class="lbl">Log out</span></button>
+    <div class="rail-foot">
+      <div class="rail-user">
+        <div class="av{% if profile.photo_url() %} has-img{% endif %}">{% if profile.photo_url() %}<img src="{{ profile.photo_url() }}" alt="" onerror="avatarImgFallback(this,'{{ profile.display_label()[0]|upper }}')"/>{% else %}{{ profile.display_label()[0]|upper }}{% endif %}</div>
+        <div style="min-width:0">
+          <div class="nm">{{ profile.display_label() }}</div>
+          <div class="rl">{{ profile.role }}</div>
+        </div>
+      </div>
+      <a class="nav-item" href="/logout"><span class="ico">⎋</span><span class="lbl">Log out</span></a>
     </div>
   </aside>
   <div class="main">
     <div class="topbar">
-      <button class="menu-btn" onclick="toggleRailMobile()" title="Menu"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 12h16M4 18h16"/></svg></button>
+      <button class="menu-btn" onclick="toggleRail()" aria-label="Menu">
+        <svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
+      </button>
+      <div class="tt">
+        <h2>My profile</h2>
+        <p>{% if portal_kind == 'superadmin' %}Superadmin account details and security{% elif portal_kind == 'admin' %}Admin account details and security{% else %}Account details and security{% endif %}</p>
+      </div>
+      <div class="topbar-actions">
+        <button class="icon-btn" id="quickTheme" onclick="quickToggleTheme()" title="Toggle theme" aria-label="Toggle theme"></button>
+      </div>
+    </div>
+    <div class="page-pad profile-content-wrap">
+      {% include "user/_profile_panel.html" %}
+    </div>
+  </div>
+</div>
+{% else %}
+<div class="app profile-app shell" id="shell">
+  <div class="rail-scrim scrim" onclick="toggleRail()"></div>
+  <aside class="rail">
+    <div class="brand rail-brand">
+      <div class="mark"><img src="{{ url_for('static', filename='img/ssies-mark.png') }}" alt="SSIES" width="36" height="36"/></div>
+      <div class="bt"><h1>Schedule Sender</h1><p>SSIES Automation</p></div>
+    </div>
+    <nav class="nav rail-nav">
+      {% set profile_mode = true %}
+      {% set active_view = 'profile' %}
+      {% include "user/_rail_nav.html" %}
+    </nav>
+    <div class="foot rail-foot">
+      <div class="user rail-user"><div class="dot av{% if profile.photo_url() %} has-img{% endif %}">{% if profile.photo_url() %}<img src="{{ profile.photo_url() }}" alt="" onerror="avatarImgFallback(this,'{{ (profile.display_name or profile.email)[0]|upper }}')"/>{% else %}{{ (profile.display_name or profile.email)[0]|upper }}{% endif %}</div><div style="min-width:0"><div class="nm">{{ profile.display_label() }}</div><div class="rl">{{ profile.role }}</div></div></div>
+      <a class="nav-item" href="/logout"><span class="ico">⎋</span><span class="lbl">Log out</span></a>
+    </div>
+  </aside>
+  <div class="main">
+    <div class="topbar">
+      <button class="menu-btn" onclick="toggleRail()" title="Menu" aria-label="Menu"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 12h16M4 18h16"/></svg></button>
       <div class="tt"><h2>My profile</h2><p>Account details and security</p></div>
       <div class="topbar-actions">
-        <button class="theme-toggle" id="quickTheme" onclick="quickToggleTheme()" title="Toggle theme">🌙</button>
+        <button class="icon-btn" id="quickTheme" onclick="quickToggleTheme()" title="Toggle theme" aria-label="Toggle theme"></button>
       </div>
     </div>
     <div class="content profile-content-wrap">
@@ -86,20 +123,48 @@
     </div>
   </div>
 </div>
+<nav class="tabbar" id="tabbar">
+  <a class="nav-item" href="/?view=groups"><span class="ico"><svg viewBox="0 0 24 24"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1"/></svg></span><span class="lbl">Groups</span></a>
+  <a class="nav-item" href="/?view=table"><span class="ico"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M3 15h18M9 3v18"/></svg></span><span class="lbl">Scheduler</span></a>
+  <a class="nav-item" href="/?view=wa-auto"><span class="ico"><svg viewBox="0 0 24 24"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg></span><span class="lbl">Send</span></a>
+  <a class="nav-item" href="/?view=contacts"><span class="ico"><svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></span><span class="lbl">Contacts</span></a>
+  <a class="nav-item" href="/?view=settings"><span class="ico"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg></span><span class="lbl">Settings</span></a>
+</nav>
 {% endif %}
 <div class="toast" id="toast"></div>
-<script src="{{ url_for('static', filename='js/api.js') }}"></script>
-{% if use_portal %}<script src="{{ url_for('static', filename='js/portal.js') }}"></script>{% else %}<script src="{{ url_for('static', filename='js/theme.js') }}"></script>{% endif %}
+<script src="{{ url_for('static', filename='js/api.js') }}?v=poc29"></script>
+<script src="{{ url_for('static', filename='js/chrome.js') }}?v=poc29"></script>
+<script src="{{ url_for('static', filename='js/theme.js') }}?v=poc29"></script>
+<script src="{{ url_for('static', filename='js/portal.js') }}?v=poc29"></script>
 <script>
-function toggleRailMobile(){
-  document.getElementById("app")?.classList.toggle("rail-open");
+async function loadPwPending(){
+  if((window.SSIES_USER&&window.SSIES_USER.role)==="superadmin") return;
+  try{
+    const d=await api("/api/profile/password-request");
+    const ban=document.getElementById("pwPendingBanner");
+    if(!ban) return;
+    if(d.pending){
+      const when=typeof relTime==="function"?relTime(d.pending.requested_at||d.pending.requestedAt):"";
+      ban.style.display="";
+      ban.textContent="⏳ A password reset request is pending approval"+(when?" · "+when:"");
+    }else{
+      ban.style.display="none";
+      ban.textContent="";
+    }
+  }catch(e){}
 }
 async function saveProfile(){
   const btn=document.getElementById("saveProfileBtn");
   if(btn)btn.disabled=true;
   try{
-    await api("/api/profile",{method:"PUT",body:JSON.stringify({displayName:document.getElementById("displayName").value.trim()})});
+    const name=document.getElementById("displayName").value.trim();
+    await api("/api/profile",{method:"PUT",body:JSON.stringify({displayName:name})});
+    const hero=document.getElementById("profileHeroName");
+    if(hero) hero.textContent=name||"{{ profile.email }}";
+    if(window.SSIES_USER) window.SSIES_USER.display_name=name;
     toast("Profile saved");
+    if(typeof applyTheme==="function") applyTheme();
+    if(typeof renderUserMenu==="function"){ document.querySelectorAll(".user-menu").forEach(el=>el.remove()); renderUserMenu(); renderRailAccount(); }
   }catch(e){toast(e.message||"Save failed",true);}
   finally{if(btn)btn.disabled=false;}
 }
@@ -111,9 +176,16 @@ async function changePw(){
   if(nw.length<8){toast("Password must be at least 8 characters",true);return;}
   if(nw!==nw2){toast("New passwords do not match",true);return;}
   if(btn)btn.disabled=true;
+  const isSuper=(window.SSIES_USER&&window.SSIES_USER.role)==="superadmin";
   try{
-    await api("/api/auth/change-password",{method:"POST",body:JSON.stringify({current:cur,new:nw})});
-    toast("Password updated");
+    if(isSuper){
+      await api("/api/auth/change-password",{method:"POST",body:JSON.stringify({current:cur,new:nw})});
+      toast("Password updated");
+    }else{
+      await api("/api/profile/password-request",{method:"POST",body:JSON.stringify({current:cur,password:nw})});
+      toast("Password reset requested — awaiting approval");
+      await loadPwPending();
+    }
     document.getElementById("curPw").value="";
     document.getElementById("newPw").value="";
     document.getElementById("newPw2").value="";
@@ -127,6 +199,44 @@ function togglePw(id,btn){
   el.type=show?"text":"password";
   if(btn)btn.textContent=show?"Hide":"Show";
 }
+async function pickProfileImage(input){
+  const f=input.files&&input.files[0]; input.value="";
+  if(!f) return;
+  if(!f.type.startsWith("image/")){ toast("Please choose an image file",true); return; }
+  if(f.size>3*1024*1024){ toast("Image too large (max 3 MB)",true); return; }
+  const fd=new FormData(); fd.append("file", f);
+  try{
+    const res=await fetch("/api/photos/profile",{method:"POST",body:fd,credentials:"same-origin"});
+    const data=await res.json().catch(()=>({}));
+    if(!res.ok) throw new Error(data.error||"Upload failed");
+    const url=data.photo_url||data.url||"/api/photos/file/profile";
+    const av=document.getElementById("profileAvatar");
+    if(av){ av.classList.add("has-img"); av.innerHTML=`<img src="${url}?t=${Date.now()}" alt=""/>`; }
+    const rm=document.getElementById("removePhotoBtn"); if(rm) rm.style.display="";
+    if(window.SSIES_USER) window.SSIES_USER.photo_url=url;
+    toast("Photo updated");
+    if(typeof applyTheme==="function") applyTheme();
+    document.querySelectorAll(".user-menu").forEach(el=>el.remove());
+    if(typeof renderUserMenu==="function"){ renderUserMenu(); renderRailAccount(); }
+  }catch(e){ toast(e.message||"Upload failed",true); }
+}
+async function removeProfileImage(){
+  try{
+    await api("/api/photos/profile",{method:"DELETE"});
+    const av=document.getElementById("profileAvatar");
+    const ch=(window.SSIES_USER&&(window.SSIES_USER.display_name||window.SSIES_USER.email)||"?").charAt(0).toUpperCase();
+    if(av){ av.classList.remove("has-img"); av.textContent=ch; }
+    const rm=document.getElementById("removePhotoBtn"); if(rm) rm.style.display="none";
+    if(window.SSIES_USER) window.SSIES_USER.photo_url=null;
+    toast("Photo removed");
+    document.querySelectorAll(".user-menu").forEach(el=>el.remove());
+    if(typeof renderUserMenu==="function"){ renderUserMenu(); renderRailAccount(); }
+  }catch(e){ toast(e.message||"Remove failed",true); }
+}
+document.addEventListener("DOMContentLoaded", function(){
+  if(typeof applyTheme==="function") applyTheme();
+  loadPwPending();
+});
 </script>
 </body>
 </html>

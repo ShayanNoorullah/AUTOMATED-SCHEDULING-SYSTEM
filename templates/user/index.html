@@ -3,40 +3,95 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>WhatsApp Schedule Sender</title>
+<title>Dashboard · SSIES Schedule Sender</title>
 {% include "_favicon.html" %}
+<script>
+(function () {
+  var mode = localStorage.getItem("theme-mode") || "system";
+  var dark = mode === "dark" || (mode === "system" && matchMedia("(prefers-color-scheme: dark)").matches);
+  document.documentElement.setAttribute("data-theme", dark ? "dark" : "light");
+  var a = (localStorage.getItem("accent") || "").toLowerCase();
+  /* Migrate old accents (blue / gold) to POC teal */
+  if (!a || a === "#0000ee" || a === "#c8a956" || a === "#b8943a" || a === "#d4b76a") {
+    localStorage.removeItem("accent");
+    a = "";
+  }
+  var accent = a || (dark ? "#2dd4bf" : "#0d9488");
+  document.documentElement.style.setProperty("--accent", accent);
+  document.documentElement.setAttribute("data-nav", localStorage.getItem("nav-layout") || "sidebar");
+})();
+</script>
 <link rel="preconnect" href="https://api.fontshare.com">
 <link href="https://api.fontshare.com/v2/css?f[]=satoshi@400,500,700,900&display=swap" rel="stylesheet">
-<link href="{{ url_for('static', filename='css/dashboard.css') }}" rel="stylesheet"/>
-<link href="{{ url_for('static', filename='css/components.css') }}" rel="stylesheet"/>
+<link href="{{ url_for('static', filename='css/app.css') }}?v=poc31" rel="stylesheet"/>
+<link href="{{ url_for('static', filename='css/compat.css') }}?v=poc31" rel="stylesheet"/>
+<link href="{{ url_for('static', filename='css/dashboard.css') }}?v=poc31" rel="stylesheet"/>
+<link href="{{ url_for('static', filename='css/components.css') }}?v=poc31" rel="stylesheet"/>
+<script>
+window.SSIES_USER = {{ {"email": email|default(username), "display_name": username, "role": role, "photo_url": photo_url|default(none)} | tojson }};
+</script>
 </head>
-<body class="anim-on">
-<div class="app" id="app">
-  <div class="rail-scrim" onclick="toggleRailMobile()"></div>
+<body>
+<div class="shell app" id="shell">
+  <div class="scrim rail-scrim" onclick="toggleRail()"></div>
   <!-- ── Left rail ── -->
   <aside class="rail">
-    <div class="brand">
-      <button type="button" class="logo" id="brandLogo" onclick="toggleRailFromLogo()" title="Collapse sidebar">
+    <div class="rail-brand brand">
+      <button type="button" class="mark logo" id="brandLogo" onclick="toggleRailFromLogo()" title="Collapse sidebar" aria-label="Toggle sidebar">
         <img src="{{ url_for('static', filename='img/ssies-mark.png') }}" alt="SSIES" width="36" height="36"/>
-        <span class="chev" id="logoChev"></span>
       </button>
       <div class="bt"><h1>Schedule Sender</h1><p>SSIES Automation</p></div>
     </div>
-    <nav class="nav">
-      <button class="nav-item active" data-view="groups" onclick="showView('groups')" title="Groups"><span class="ico svg-ico"><svg viewBox="0 0 24 24"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1"/></svg></span><span class="lbl">Groups</span></button>
-      <button class="nav-item" data-view="table" onclick="showView('table')" title="Schedule Table"><span class="ico svg-ico"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M3 15h18M9 3v18"/></svg></span><span class="lbl">Schedule Table</span></button>
-      <button class="nav-item" data-view="wa-direct" onclick="showView('wa-direct')" title="Open in WhatsApp"><span class="ico svg-ico"><svg viewBox="0 0 24 24"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><path d="M15 3h6v6"/><path d="M10 14 21 3"/></svg></span><span class="lbl">Open in WhatsApp</span></button>
-      <button class="nav-item" data-view="wa-auto" onclick="showView('wa-auto')" title="Automated Send"><span class="ico svg-ico"><svg viewBox="0 0 24 24"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg></span><span class="lbl">Automated Send</span></button>
-      <button class="nav-item" data-view="templates" onclick="showView('templates')" title="Templates"><span class="ico svg-ico"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M16 13H8M16 17H8M10 9H8"/></svg></span><span class="lbl">Templates</span></button>
-      <button class="nav-item" data-view="contacts" onclick="showView('contacts')" title="Contacts"><span class="ico svg-ico"><svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></span><span class="lbl">Contacts</span></button>
-      <button class="nav-item" data-view="history" onclick="showView('history')" title="Send History"><span class="ico svg-ico"><svg viewBox="0 0 24 24"><path d="M3 3v5h5"/><path d="M3.05 13A9 9 0 1 0 6 5.3L3 8"/><path d="M12 7v5l3 3"/></svg></span><span class="lbl">Send History</span></button>
-      <button class="nav-item" data-view="settings" onclick="showView('settings')" title="Settings"><span class="ico svg-ico"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg></span><span class="lbl">Settings</span></button>
-      <a class="nav-item" href="/profile" style="text-decoration:none" title="Profile"><span class="ico svg-ico"><svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></span><span class="lbl">Profile</span></a>
+    <nav class="rail-nav nav">
+      <button class="nav-item active" data-view="dashboard" onclick="navGo('dashboard')" title="Dashboard"><span class="ico"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg></span><span class="lbl">Dashboard</span></button>
+      <div class="nav-group open" id="navSchedGroup">
+        <button class="nav-item nav-group-btn" onclick="toggleNavGroup(this)" title="Scheduler">
+          <span class="ico"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg></span>
+          <span class="lbl">Scheduler</span>
+          <svg class="caret" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M6 9l6 6 6-6"/></svg>
+        </button>
+        <div class="nav-submenu">
+          <button class="nav-item nav-sub" data-view="groups" onclick="navGo('groups')"><span class="ico"><svg viewBox="0 0 24 24"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1"/></svg></span><span class="lbl">Groups</span></button>
+          <button class="nav-item nav-sub" data-view="contacts" onclick="navGo('contacts')"><span class="ico"><svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></span><span class="lbl">Contacts</span></button>
+          <button class="nav-item nav-sub" data-view="table" data-sched="table" onclick="navSched('table')"><span class="ico"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M3 15h18M9 3v18"/></svg></span><span class="lbl">Table view</span></button>
+          <button class="nav-item nav-sub" data-view="table" data-sched="board" onclick="navSched('board')"><span class="ico"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="18" rx="1.5"/><rect x="14" y="3" width="7" height="18" rx="1.5"/></svg></span><span class="lbl">Board view</span></button>
+        </div>
+      </div>
+      <div class="nav-group" id="navMsgGroup">
+        <button class="nav-item nav-group-btn" onclick="toggleNavGroup(this)" title="Messaging">
+          <span class="ico"><svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></span>
+          <span class="lbl">Messaging</span>
+          <svg class="caret" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M6 9l6 6 6-6"/></svg>
+        </button>
+        <div class="nav-submenu">
+          <button class="nav-item nav-sub" data-view="wa-direct" onclick="navGo('wa-direct')"><span class="ico"><svg viewBox="0 0 24 24"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><path d="M15 3h6v6"/><path d="M10 14 21 3"/></svg></span><span class="lbl">Open in WhatsApp</span></button>
+          <button class="nav-item nav-sub" data-view="wa-auto" onclick="navGo('wa-auto')"><span class="ico"><svg viewBox="0 0 24 24"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg></span><span class="lbl">Automated Send</span></button>
+          <button class="nav-item nav-sub" data-view="templates" onclick="navGo('templates')"><span class="ico"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M16 13H8M16 17H8M10 9H8"/></svg></span><span class="lbl">Templates</span></button>
+          <button class="nav-item nav-sub" data-view="history" onclick="navGo('history')"><span class="ico"><svg viewBox="0 0 24 24"><path d="M3 3v5h5"/><path d="M3.05 13A9 9 0 1 0 6 5.3L3 8"/><path d="M12 7v5l3 3"/></svg></span><span class="lbl">Send History</span></button>
+        </div>
+      </div>
+      <div class="nav-group" id="navAccountGroup">
+        <button class="nav-item nav-group-btn" onclick="toggleNavGroup(this)" title="Account">
+          <span class="ico"><svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></span>
+          <span class="lbl">Account</span>
+          <svg class="caret" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M6 9l6 6 6-6"/></svg>
+        </button>
+        <div class="nav-submenu">
+          <button class="nav-item nav-sub" data-view="settings" onclick="navGo('settings')"><span class="ico"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg></span><span class="lbl">Settings</span></button>
+          <a class="nav-item nav-sub" href="/profile"><span class="ico"><svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></span><span class="lbl">Profile</span></a>
+        </div>
+      </div>
+      <div class="nav-group nav-more hidden" id="navMoreGroup">
+        <button class="nav-item nav-group-btn" onclick="toggleNavGroup(this)" title="More">
+          <span class="ico"><svg viewBox="0 0 24 24"><circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/></svg></span>
+          <span class="lbl">More</span>
+          <svg class="caret" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M6 9l6 6 6-6"/></svg>
+        </button>
+        <div class="nav-submenu" id="navMoreMenu"></div>
+      </div>
     </nav>
-    <div class="foot">
-      <div class="user"><div class="dot" id="userDot">{{ username[0]|upper }}</div><div class="lbl uname">{{ username }}</div></div>
-      {% if role == 'admin' %}<a class="nav-item" href="/admin" style="text-decoration:none;display:flex"><span class="ico">🛡️</span><span class="lbl">Admin Portal</span></a>{% endif %}
-      {% if role == 'superadmin' %}<a class="nav-item" href="/superadmin" style="text-decoration:none;display:flex"><span class="ico">⭐</span><span class="lbl">Superadmin</span></a>{% endif %}
+    <div class="rail-foot foot">
+      <div class="rail-user user"><div class="av dot" id="userDot">{{ username[0]|upper }}</div><div style="min-width:0"><div class="nm uname">{{ username }}</div><div class="rl">{{ role }}</div></div></div>
       <button class="nav-item" onclick="location.href='/logout'" title="Log out"><span class="ico">⎋</span><span class="lbl">Log out</span></button>
     </div>
   </aside>
@@ -44,59 +99,80 @@
   <!-- ── Main ── -->
   <div class="main">
     <div class="topbar">
-      <button type="button" class="topbar-logo" id="topbarLogo" onclick="toggleRailFromLogo()" title="Open menu">
-        <img src="{{ url_for('static', filename='img/ssies-mark.png') }}" alt="SSIES" width="28" height="28"/>
-      </button>
-      <button class="menu-btn" onclick="toggleRailMobile()" title="Menu"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 12h16M4 18h16"/></svg></button>
-      <div class="tt"><h2 id="pageTitle">Groups</h2><p id="pageDesc">Manage your WhatsApp groups and weekly schedules</p></div>
+      <button class="menu-btn" onclick="toggleRail()" title="Menu" aria-label="Menu"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 12h16M4 18h16"/></svg></button>
+      <div class="tt"><h2 id="pageTitle">Dashboard</h2><p id="pageDesc">Overview of your groups, sends, and session</p></div>
       <div class="topbar-actions">
-        <button class="theme-toggle" id="quickTheme" onclick="quickToggleTheme()" title="Toggle light / dark">🌙</button>
+        <button class="icon-btn" id="quickTheme" onclick="quickToggleTheme()" title="Toggle light / dark"></button>
       </div>
     </div>
 
     <div class="content">
+      <!-- ════ DASHBOARD ════ -->
+      <section class="view active" id="view-dashboard"><div id="dashHome"></div></section>
+
+      <!-- ════ GROUP DETAIL ════ -->
+      <section class="view" id="view-group-detail"><div id="groupDetail"></div></section>
+
       <!-- ════ GROUPS ════ -->
-      <section class="view active" id="view-groups">
-        <div class="split">
+      <section class="view" id="view-groups">
+        <div class="toolbar list-toolbar">
+          <button class="btn btn-primary btn-sm" type="button" onclick="newGroupDetail()">+ New group</button>
+          <div class="search-wrap" style="flex:1;max-width:320px">
+            <svg class="search-ico" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+            <input class="field search" id="groupTableSearch" placeholder="Search groups…" oninput="renderGroupTable()"/>
+          </div>
+          <div class="seg" id="groupsModeSeg"><button type="button" data-val="table" class="on" onclick="setGroupsMode('table')">Table</button><button type="button" data-val="cards" onclick="setGroupsMode('cards')">Cards</button></div>
+        </div>
+        <div id="groupTableWrap"></div>
+        <div id="groupCardsWrap" class="card-grid" style="display:none"></div>
+        <div class="split groups-split" id="groupsCards" style="display:none">
           <div class="list-panel">
             <div class="lp-head">
-              <div class="row1"><b>Groups</b><button class="btn btn-primary btn-sm" onclick="newGroup()">+ New</button></div>
-              <input class="search" id="groupSearch" placeholder="🔍  Search groups…" oninput="renderGroupList()"/>
+              <div class="row1"><b>Groups</b><button class="btn btn-primary btn-sm" type="button" onclick="newGroup()">+ New</button></div>
+              <div class="search-wrap">
+                <svg class="search-ico" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+                <input class="field search" id="groupSearch" placeholder="Search groups…" oninput="renderGroupList()"/>
+              </div>
             </div>
             <div class="scroll-list" id="groupList"></div>
           </div>
           <div class="edit-panel">
-            <div class="empty" id="gEmpty"><div class="ic">📋</div><p>Select a group or create a new one</p></div>
+            <div class="empty g-empty" id="gEmpty">
+              <div class="empty-ico" aria-hidden="true">
+                <svg viewBox="0 0 24 24" width="40" height="40" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+              </div>
+              <p>Select a group or create a new one</p>
+              <button class="btn btn-primary btn-sm" type="button" onclick="newGroup()">+ New group</button>
+            </div>
             <div class="edit-body hidden" id="gBody">
               <div class="edit-left">
-                <div>
-                  <div class="flabel">WhatsApp Group Name (exact match)</div>
-                  <div style="display:flex;gap:8px;align-items:center;margin-bottom:6px">
-                    <input class="finput" id="gName" placeholder="e.g. SSIES Batch 2025" oninput="gOnSchedule();gValidateGroupName();updateGroupPreview()" style="flex:1;margin-bottom:0"/>
+                <div class="g-field">
+                  <div class="flabel">WhatsApp group name <span class="flabel-soft">exact match</span></div>
+                  <div class="g-name-row">
+                    <input class="field" id="gName" placeholder="e.g. SSIES Batch 2025" oninput="gOnSchedule();gValidateGroupName();updateGroupPreview()"/>
                     <button class="btn btn-soft btn-sm" type="button" onclick="gFetchWaGroups()">Fetch WA</button>
                   </div>
-                  <select class="finput hidden" id="gWaPick" onchange="gPickWaGroup(this.value)"><option value="">Pick from WhatsApp…</option></select>
-                  <div id="gNameStatus" class="hint" style="margin-bottom:8px"></div>
+                  <select class="field hidden" id="gWaPick" onchange="gPickWaGroup(this.value)"><option value="">Pick from WhatsApp…</option></select>
+                  <div id="gNameStatus" class="hint"></div>
                 </div>
-                <div>
-                  <div class="flabel">Group invite link <span style="font-weight:400;color:var(--text-soft)">optional</span></div>
-                  <input class="finput" id="gInviteLink" placeholder="https://chat.whatsapp.com/..."/>
-                  <div class="hint">For direct open: paste your WhatsApp group invite link. Message is copied when you open.</div>
+                <div class="g-field">
+                  <div class="flabel">Invite link <span class="flabel-soft">optional</span></div>
+                  <input class="field" id="gInviteLink" placeholder="https://chat.whatsapp.com/…"/>
+                  <div class="hint">Used for Open in WhatsApp. Message is copied when you open.</div>
                 </div>
-                <div>
-                  <div class="flabel">Weekly Schedule — From / To per day</div>
-                  <div class="card">
-                    <div class="card-h">Select days &amp; pick start / end times (scroll the list or type)</div>
+                <div class="g-field">
+                  <div class="flabel">Weekly schedule</div>
+                  <div class="card g-days">
                     {% for day in days %}
-                    <div class="drow">
+                    <label class="drow" for="chk-{{ day }}">
                       <input type="checkbox" id="chk-{{ day }}" onchange="gToggleDay('{{ day }}')"/>
-                      <span class="dn">{{ day }}</span>
-                      <div class="trange">
+                      <span class="dn"><span class="dn-short">{{ day[:3] }}</span><span class="dn-full">{{ day }}</span></span>
+                      <div class="trange" onclick="event.stopPropagation()">
                         <input class="tin" id="from-{{ day }}" list="timeOptions" placeholder="From" disabled oninput="gOnSchedule()"/>
-                        <span class="dash">→</span>
+                        <span class="dash" aria-hidden="true">–</span>
                         <input class="tin" id="to-{{ day }}" list="timeOptions" placeholder="To" disabled oninput="gOnSchedule()"/>
                       </div>
-                    </div>
+                    </label>
                     {% endfor %}
                   </div>
                 </div>
@@ -106,22 +182,22 @@
                   <div class="msg-h">
                     <span>Message</span>
                     <div class="ha">
-                      <select class="lk" id="gTplPick" style="border:none;background:none;" onchange="gInsertTemplate(this.value)"><option value="">↶ Insert template…</option></select>
-                      <button class="lk" onclick="copyBox('gMsg')">⧉ Copy</button>
-                      <button class="lk" onclick="gRegen()">↺ Regenerate</button>
+                      <select class="lk" id="gTplPick" onchange="gInsertTemplate(this.value)"><option value="">Insert template…</option></select>
+                      <button class="lk" type="button" onclick="copyBox('gMsg')">Copy</button>
+                      <button class="lk" type="button" onclick="gRegen()">Regenerate</button>
                     </div>
                   </div>
                   <textarea class="msg-edit" id="gMsg" oninput="gMsgEdited=true;updateGroupPreview()" placeholder="Select days to auto-generate the message…"></textarea>
                   <div class="msg-preview" id="gMsgPreview"></div>
-                  <div class="msg-hint">Wrap *text* for bold. Use {date} / {weekday} tokens — replaced when sent.</div>
+                  <div class="msg-hint">Wrap *text* for bold. Use {date} / {weekday} — replaced when sent.</div>
                 </div>
               </div>
             </div>
             <div class="actionbar hidden" id="gActions">
-              <button class="btn btn-soft" onclick="saveGroup()">Save</button>
-              <button class="btn btn-primary" onclick="releaseCurrentGroup()">Automated Send</button>
-              <button class="btn btn-primary" id="relAllBtn" style="margin-left:auto" onclick="releaseAllGroups()">
-                <span id="relAllTxt">Automated All</span><div class="spinner hidden" id="relAllSpin"></div>
+              <button class="btn btn-soft" type="button" onclick="saveGroup()">Save</button>
+              <button class="btn btn-primary" type="button" onclick="releaseCurrentGroup()">Send this</button>
+              <button class="btn btn-primary" type="button" id="relAllBtn" style="margin-left:auto" onclick="releaseAllGroups()">
+                <span id="relAllTxt">Send all</span><div class="spinner hidden" id="relAllSpin"></div>
               </button>
             </div>
           </div>
@@ -130,22 +206,59 @@
 
       <!-- ════ TABLE ════ -->
       <section class="view" id="view-table">
-        <div class="toolbar">
-          <button class="btn btn-primary btn-sm" onclick="addColumn()">+ Add Group Column</button>
-          <button class="btn btn-soft btn-sm" onclick="selectAllCols(true)">☑ Select all</button>
-          <button class="btn btn-soft btn-sm" onclick="selectAllCols(false)">☐ Clear</button>
-          <button class="btn btn-soft btn-sm" onclick="saveTable()">Save Table</button>
-          <button class="btn btn-primary btn-sm" id="relTblBtn" style="margin-left:auto" onclick="releaseTable()">
-            <span id="relTblTxt">Automated Selected</span><div class="spinner hidden" id="relTblSpin"></div>
-          </button>
+        <div class="toolbar sched-toolbar">
+          <div class="sched-toolbar-left">
+            <div class="seg view-seg" id="schedViewSeg" role="group" aria-label="Schedule layout">
+              <button type="button" data-val="table" class="on" onclick="setScheduleView('table')" title="Table view">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M3 15h18M9 3v18"/></svg>
+                <span>Table</span>
+              </button>
+              <button type="button" data-val="board" onclick="setScheduleView('board')" title="Board view">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="3" width="7" height="18" rx="1.5"/><rect x="14" y="3" width="7" height="18" rx="1.5"/></svg>
+                <span>Board</span>
+              </button>
+            </div>
+            <button class="btn btn-soft btn-sm" type="button" onclick="addColumn()">+ Add group</button>
+            <div class="sched-sel-actions">
+              <button class="btn btn-ghost btn-sm" type="button" onclick="selectAllCols(true)">Select all</button>
+              <button class="btn btn-ghost btn-sm" type="button" onclick="selectAllCols(false)">Clear</button>
+            </div>
+          </div>
+          <div class="sched-toolbar-right">
+            <span class="sched-sel-count" id="schedSelCount"></span>
+            <button class="btn btn-soft btn-sm" type="button" onclick="saveTable()">Save</button>
+            <button class="btn btn-primary btn-sm" type="button" id="relTblBtn" onclick="releaseTable()">
+              <span id="relTblTxt">Send selected</span><div class="spinner hidden" id="relTblSpin"></div>
+            </button>
+          </div>
         </div>
         <div class="view-pad table-view-pad">
-          <div id="tableWrap"></div>
-          <div class="table-notes card">
-            <div class="card-h">Notes</div>
-            <div class="table-notes-body">
-              <textarea id="tableNotes" class="table-notes-input" rows="4" placeholder="Add comments or notes for this schedule table…" oninput="saveTableNotes()"></textarea>
-              <div class="hint">Saved on this device. Not sent with WhatsApp messages.</div>
+          <div id="tableWrap" class="sched-canvas"></div>
+        </div>
+        <div class="sched-notes-bar">
+          <div class="notes-panel">
+            <div class="notes-head">
+              <button class="notes-toggle" onclick="toggleNotes()" aria-expanded="true" type="button"><svg class="notes-caret" viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M6 9l6 6 6-6"/></svg><span>Notes</span></button>
+              <div class="notes-toolbar" id="notesToolbar">
+                <div class="notes-tb-group">
+                  <button class="notes-tb-btn" type="button" title="Bold" onclick="notesWrap('*')"><b>B</b></button>
+                  <button class="notes-tb-btn" type="button" title="Italic" onclick="notesWrap('_')"><i>I</i></button>
+                  <button class="notes-tb-btn" type="button" title="Heading" onclick="notesLine('# ')">H</button>
+                </div>
+                <div class="notes-tb-group">
+                  <button class="notes-tb-btn" type="button" title="Bullet list" onclick="notesLine('• ')"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><circle cx="4" cy="7" r="1.4"/><circle cx="4" cy="17" r="1.4"/><path d="M9 7h11M9 17h11"/></svg></button>
+                  <button class="notes-tb-btn" type="button" title="Checklist item" onclick="notesLine('☐ ')"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="3"/><path d="M8 12l3 3 5-6"/></svg></button>
+                  <button class="notes-tb-btn" type="button" title="Insert date & time" onclick="notesInsertTimestamp()">🕒</button>
+                </div>
+                <div class="notes-tb-group">
+                  <button class="notes-tb-btn" type="button" title="Copy notes" onclick="notesCopy()"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button>
+                  <button class="notes-tb-btn danger" type="button" title="Clear all notes" onclick="notesClear()"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/></svg></button>
+                </div>
+              </div>
+            </div>
+            <div class="notes-body" id="notesBody">
+              <textarea id="tableNotes" class="notes-area" placeholder="Jot schedule notes, reminders and follow-ups… the box grows as you type." oninput="saveTableNotes();notesAutoGrow();notesUpdateMeta()"></textarea>
+              <div class="notes-foot"><span id="notesMeta">0 words · 0 characters</span><span id="notesSaved" class="notes-saved"></span></div>
             </div>
           </div>
         </div>
@@ -153,42 +266,76 @@
 
       <!-- ════ TEMPLATES ════ -->
       <section class="view" id="view-templates">
-        <div class="toolbar"><button class="btn btn-primary btn-sm" onclick="newTemplate()">+ New Template</button></div>
-        <div class="view-pad"><div class="grid" id="tplGrid"></div></div>
+        <div class="toolbar">
+          <button class="btn btn-primary btn-sm" onclick="newTemplate()">+ New Template</button>
+          <div class="search-wrap" style="max-width:300px;margin-left:auto;flex:1">
+            <svg class="search-ico" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+            <input class="field search" id="tplSearch" placeholder="Search templates…" oninput="renderTemplates()"/>
+          </div>
+        </div>
+        <div class="grid" id="tplGrid"></div>
       </section>
+
+      <!-- ════ CONTACT DETAIL ════ -->
+      <section class="view" id="view-contact-detail"><div id="contactDetail"></div></section>
 
       <!-- ════ CONTACTS ════ -->
       <section class="view" id="view-contacts">
-        <div class="split">
+        <div class="toolbar list-toolbar">
+          <button class="btn btn-primary btn-sm" type="button" onclick="newContactDetail()">+ New contact</button>
+          <div class="search-wrap" style="flex:1;max-width:320px">
+            <svg class="search-ico" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+            <input class="field search" id="contactTableSearch" placeholder="Search contacts…" oninput="renderContactTable()"/>
+          </div>
+          <div class="seg" id="contactsModeSeg"><button type="button" data-val="table" class="on" onclick="setContactsMode('table')">Table</button><button type="button" data-val="cards" onclick="setContactsMode('cards')">Cards</button></div>
+        </div>
+        <div id="contactTableWrap"></div>
+        <div id="contactCardsWrap" class="card-grid" style="display:none"></div>
+        <div class="split" id="contactsCards" style="display:none">
           <div class="list-panel">
             <div class="lp-head">
-              <div class="row1"><b>Contacts</b><button class="btn btn-primary btn-sm" onclick="newContact()">+ New</button></div>
-              <input class="search" id="contactSearch" placeholder="🔍  Search contacts…" oninput="renderContactList()"/>
+              <div class="row1"><b>Contacts</b><button class="btn btn-primary btn-sm" type="button" onclick="newContact()">+ New</button></div>
+              <div class="search-wrap">
+                <svg class="search-ico" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+                <input class="field search" id="contactSearch" placeholder="Search contacts…" oninput="renderContactList()"/>
+              </div>
             </div>
             <div class="scroll-list" id="contactList"></div>
           </div>
           <div class="edit-panel">
-            <div class="empty" id="cEmpty"><div class="ic">👤</div><p>Select a contact or add a new one</p></div>
+            <div class="empty" id="cEmpty"><div class="empty-ico"><svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></div><p>Select a contact or add a new one</p><button class="btn btn-primary btn-sm" type="button" onclick="newContact()">+ New contact</button></div>
             <div class="edit-body hidden" id="cBody">
               <div class="edit-left">
-                <div>
-                  <div class="flabel">Contact Name</div>
-                  <input class="finput" id="cName" placeholder="e.g. Ali Khan"/>
+                <div class="editor-id">
+                  <div class="editor-av-wrap">
+                    <div class="editor-av" id="cAvatar">C</div>
+                    <button class="editor-av-edit" type="button" onclick="document.getElementById('cImgInput').click()" title="Change photo"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg></button>
+                    <input type="file" id="cImgInput" accept="image/*" hidden onchange="cPickImage(this)"/>
+                  </div>
+                  <div class="editor-id-body">
+                    <div class="editor-id-title">Contact photo</div>
+                    <div class="editor-id-actions">
+                      <button class="btn btn-soft btn-sm" type="button" onclick="document.getElementById('cImgInput').click()">Change</button>
+                      <button class="btn btn-ghost btn-sm" type="button" onclick="cRemoveImage()">Remove</button>
+                    </div>
+                    <div class="hint">Synced from WhatsApp when available · click to replace.</div>
+                  </div>
                 </div>
-                <div>
-                  <div class="flabel">Phone Number (with country code, digits only)</div>
-                  <input class="finput" id="cPhone" placeholder="e.g. 923001234567"/>
-                  <div class="msg-hint" style="padding:8px 2px 0">No “+”, spaces or dashes. Example for Pakistan: 92 then the number without the leading 0.</div>
+                <div class="g-field"><div class="flabel">Contact name</div><input class="field" id="cName" placeholder="e.g. Ali Khan" oninput="renderEditorAvatar('cAvatar',this.value,cPic)"/></div>
+                <div class="g-field">
+                  <div class="flabel">Phone number <span class="flabel-soft">country code, digits only</span></div>
+                  <input class="field" id="cPhone" placeholder="e.g. 923001234567"/>
+                  <div class="hint">No "+", spaces or dashes. Pakistan example: 92 then the number without the leading 0.</div>
                 </div>
               </div>
               <div class="edit-right">
-                <div class="card msg-card">
+                <div class="msg-card">
                   <div class="msg-h">
                     <span>Message</span>
                     <div class="ha">
-                      <select class="lk" id="cGroupPick" style="border:none;background:none;" onchange="cLoadGroup(this.value)"><option value="">⤵ Load group message…</option></select>
-                      <select class="lk" id="cTplPick" style="border:none;background:none;" onchange="cInsertTemplate(this.value)"><option value="">↶ Template…</option></select>
-                      <button class="lk" onclick="copyBox('cMsg')">⧉ Copy</button>
+                      <select class="lk" id="cGroupPick" onchange="cLoadGroup(this.value)"><option value="">Load group…</option></select>
+                      <select class="lk" id="cTplPick" onchange="cInsertTemplate(this.value)"><option value="">Template…</option></select>
+                      <button class="lk" type="button" onclick="copyBox('cMsg')">Copy</button>
                     </div>
                   </div>
                   <textarea class="msg-edit" id="cMsg" oninput="updateContactPreview()" placeholder="Type a message, or load a group's message / template above…"></textarea>
@@ -198,9 +345,9 @@
               </div>
             </div>
             <div class="actionbar hidden" id="cActions">
-              <button class="btn btn-soft" onclick="saveContact()">Save</button>
-              <button class="btn btn-primary" onclick="releaseCurrentContact()">Automated Send</button>
-              <button class="btn btn-primary" id="relCAllBtn" style="margin-left:auto" onclick="releaseAllContacts()">
+              <button class="btn btn-soft" type="button" onclick="saveContact()">Save</button>
+              <button class="btn btn-primary" type="button" onclick="releaseCurrentContact()">Automated Send</button>
+              <button class="btn btn-primary" type="button" id="relCAllBtn" style="margin-left:auto" onclick="releaseAllContacts()">
                 <span id="relCAllTxt">Automated All</span><div class="spinner hidden" id="relCAllSpin"></div>
               </button>
             </div>
@@ -210,74 +357,77 @@
 
       <!-- ════ OPEN IN WHATSAPP (direct) ════ -->
       <section class="view" id="view-wa-direct">
-        <div class="wa-panel">
-          <div class="wa-hero">
-            <h3>Open in WhatsApp</h3>
-            <p>Opens WhatsApp in your browser with deep links. Messages are copied to clipboard — you paste and send manually. No automation session required.</p>
+        <div class="wa-hero">
+          <h3>Open in WhatsApp</h3>
+          <p>Opens WhatsApp with deep links. Messages are copied to clipboard — you paste and send manually. No automation session required.</p>
+        </div>
+        <input class="field wa-search" id="waDirectSearch" placeholder="Search groups or contacts…" oninput="renderDirectPanel()"/>
+        <div class="wa-grid">
+          <div class="wa-card">
+            <h3>Groups</h3>
+            <p>Add invite links in the group editor for one-click open.</p>
+            <div class="wa-list" id="waDirectGroupList"><p class="hint">Loading…</p></div>
           </div>
-          <input class="wa-search" id="waDirectSearch" placeholder="Search groups or contacts…" oninput="renderDirectPanel()"/>
-          <div class="wa-grid">
-            <div class="wa-card">
-              <h3>Groups</h3>
-              <p>Add invite links in the group editor for one-click group open.</p>
-              <div class="wa-list" id="waDirectGroupList"><p class="hint">Loading…</p></div>
-            </div>
-            <div class="wa-card">
-              <h3>Contacts</h3>
-              <p>Opens wa.me with pre-filled message text.</p>
-              <div class="wa-list" id="waDirectContactList"><p class="hint">Loading…</p></div>
-            </div>
+          <div class="wa-card">
+            <h3>Contacts</h3>
+            <p>Opens wa.me with pre-filled message text.</p>
+            <div class="wa-list" id="waDirectContactList"><p class="hint">Loading…</p></div>
           </div>
         </div>
       </section>
 
       <!-- ════ AUTOMATED SEND ════ -->
       <section class="view" id="view-wa-auto">
-        <div class="wa-panel">
-          <div class="wa-hero">
-            <h3>Automated Send</h3>
-            <p>Link <strong>your</strong> WhatsApp on this account (each user has a separate WAHA connection). Then send schedules automatically.</p>
-            <div class="wa-status" style="margin-top:12px"><span class="wa-dot" id="autoSessionDot"></span><span id="autoSessionText">Checking…</span> · <span id="autoProviderLabel">—</span></div>
+        <div class="wa-hero">
+          <h3>Automated Send</h3>
+          <p>Link <strong>your</strong> WhatsApp on this account (each user has a separate WAHA connection). Then send schedules automatically.</p>
+          <div class="wa-status-panel">
+            <div class="wa-flow" id="waFlow"></div>
+            <div class="wa-flow-foot">
+              <span class="wa-flow-status" id="waFlowStatus">Checking…</span>
+              <span class="wa-dot" id="autoSessionDot" hidden></span>
+              <span id="autoSessionText" hidden>Checking…</span>
+              <span class="wa-flow-provider">Provider · <b id="autoProviderLabel">—</b></span>
+            </div>
           </div>
-          <div class="wa-steps">
-            <div class="wa-step-card">
-              <h4>1. Connect session</h4>
-              <p class="hint" style="margin-bottom:12px">Scan within ~20 seconds (QR refreshes automatically). If phone says &quot;Couldn&apos;t link device&quot;, tap <strong>Reset &amp; new QR</strong> and try again.</p>
-              <div style="display:flex;gap:8px;flex-wrap:wrap">
-                <button class="btn btn-primary btn-sm" id="btnStartSession" onclick="startWaSession()">Start / Show QR</button>
-                <button class="btn btn-soft btn-sm" id="btnResetSession" onclick="resetWaSession()">Reset &amp; new QR</button>
-                <button class="btn btn-soft btn-sm" onclick="loadAutoSession()">Refresh status</button>
-                <button class="btn btn-soft btn-sm" onclick="stopWaSession()">Stop session</button>
-              </div>
-              <div class="wa-qr-wrap hidden" id="waQrWrap"><img id="waQrImg" alt="WhatsApp QR code"/></div>
+        </div>
+        <div class="wa-steps">
+          <div class="wa-step-card">
+            <h4>Connect session</h4>
+            <p class="hint" style="margin-bottom:12px">Scan within ~20 seconds (QR refreshes automatically). If your phone says &quot;Couldn&apos;t link device&quot;, tap <strong>Reset &amp; new QR</strong>.</p>
+            <div style="display:flex;gap:8px;flex-wrap:wrap">
+              <button class="btn btn-primary btn-sm" id="btnStartSession" onclick="startWaSession()">Start / Show QR</button>
+              <button class="btn btn-soft btn-sm" id="btnResetSession" onclick="resetWaSession()">Reset &amp; new QR</button>
+              <button class="btn btn-soft btn-sm" onclick="loadAutoSession()">Refresh status</button>
+              <button class="btn btn-soft btn-sm" onclick="stopWaSession()">Stop session</button>
             </div>
-            <div class="wa-step-card">
-              <h4>2. Select targets</h4>
-              <div id="autoTargetList"><p class="hint">Loading…</p></div>
-            </div>
-            <div class="wa-step-card">
-              <h4>3. Send</h4>
-              <p class="hint" style="margin-bottom:12px">Requires connected session. Progress appears in the status log.</p>
-              <button class="btn btn-primary" id="autoBtn" onclick="runAutomatedFromPanel()">
-                <span id="autoTxt">Send selected</span><div class="spinner hidden" id="autoSpin"></div>
-              </button>
-            </div>
+            <div class="wa-qr-wrap hidden" id="waQrWrap"><img id="waQrImg" alt="WhatsApp QR code"/></div>
+          </div>
+          <div class="wa-step-card"><h4>Select targets</h4><div id="autoTargetList"><p class="hint">Loading…</p></div></div>
+          <div class="wa-step-card">
+            <h4>Send</h4>
+            <p class="hint" style="margin-bottom:12px">Requires a connected session. Progress appears in the status log.</p>
+            <button class="btn btn-primary" id="autoBtn" onclick="runAutomatedFromPanel()">
+              <span id="autoTxt">Send selected</span><div class="spinner hidden" id="autoSpin"></div>
+            </button>
           </div>
         </div>
       </section>
 
       <!-- ════ SEND HISTORY ════ -->
       <section class="view" id="view-history">
-        <div class="view-pad">
-          <div class="sec">
-            <div class="sec-h">Send History</div>
-            <div class="sec-b">
-              <p class="hint" style="margin-bottom:12px">Recent automated and direct sends logged for your account.</p>
-              <button class="btn btn-soft btn-sm" onclick="loadReleaseHistory()" style="margin-bottom:12px">Refresh</button>
-              <div id="historyList"><p class="hint">Open this page to load history.</p></div>
-            </div>
+        <div class="cards" id="historyStats" style="margin-bottom:16px"></div>
+        <div class="toolbar list-toolbar">
+          <div class="search-wrap" style="flex:1;max-width:300px">
+            <svg class="search-ico" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+            <input class="field search" id="historySearch" placeholder="Search sends…" oninput="historyPage=1;loadReleaseHistory()"/>
           </div>
+          <div class="seg" id="historyFilterSeg"><button type="button" data-val="all" class="on" onclick="setHistoryFilter('all')">All</button><button type="button" data-val="success" onclick="setHistoryFilter('success')">Delivered</button><button type="button" data-val="failed" onclick="setHistoryFilter('failed')">Failed</button></div>
+          <div class="seg" id="historyModeSeg" style="margin-left:auto"><button type="button" data-val="table" class="on" onclick="setHistoryMode('table')">Table</button><button type="button" data-val="board" onclick="setHistoryMode('board')">Board</button></div>
+          <button class="btn btn-soft btn-sm" type="button" onclick="loadReleaseHistory()">Refresh</button>
         </div>
+        <div id="historyWrap"></div>
+        <div class="pager" id="historyPager"></div>
       </section>
 
       <!-- ════ SETTINGS ════ -->
@@ -306,12 +456,18 @@
                     </div>
                   </div>
                   <div class="srow">
-                    <div><div class="st">Accent color</div><div class="sd">Used for buttons, highlights and active states.</div></div>
-                    <div class="swatches" id="swatches"></div>
+                    <div><div class="st">Accent color</div><div class="sd">Teal by default. Used for buttons, highlights and active states.</div></div>
+                    <div class="accent-row">
+                      <button type="button" class="accent-default" id="accentDefaultBtn" onclick="resetAccent()" title="Restore default teal">Default</button>
+                      <div class="swatches" id="swatches"></div>
+                    </div>
                   </div>
                   <div class="srow">
-                    <div><div class="st">Custom accent</div><div class="sd">Pick any color you like.</div></div>
-                    <input type="color" id="accentPicker" value="#0000EE" onchange="setAccent(this.value)" style="width:46px;height:38px;border:none;background:none;cursor:pointer;"/>
+                    <div><div class="st">Custom accent</div><div class="sd">Pick any color, or reset to the default theme accent.</div></div>
+                    <div class="accent-custom">
+                      <input type="color" id="accentPicker" value="#0d9488" onchange="setAccent(this.value)" style="width:46px;height:38px;border:none;background:none;cursor:pointer;"/>
+                      <button type="button" class="btn btn-ghost btn-sm" onclick="resetAccent()">Reset default</button>
+                    </div>
                   </div>
                   <div class="srow">
                     <div><div class="st">Font size</div><div class="sd">Base text size across the dashboard.</div></div>
@@ -365,17 +521,34 @@
                     </div>
                   </div>
                   <div class="srow">
+                    <div><div class="st">Navigation layout</div><div class="sd">Sidebar rail or top navbar on desktop.</div></div>
+                    <div class="seg" id="navLayoutSeg">
+                      <button data-val="sidebar" onclick="setPref('nav-layout','sidebar')">Sidebar</button>
+                      <button data-val="navbar" onclick="setPref('nav-layout','navbar')">Navbar</button>
+                    </div>
+                  </div>
+                  <div class="srow srow-stack" style="gap:10px">
+                    <div><div class="st">Site switcher position</div><div class="sd">Vertical position of the User / Admin / Superadmin switcher. You can also drag the grip on the switcher.</div></div>
+                    <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+                      <span class="hint" style="margin:0">Lower</span>
+                      <input class="ps-range" type="range" id="psBottomSlider" min="2" max="70" value="4" oninput="setPortalSwitcherBottom(this.value)"/>
+                      <span class="hint" style="margin:0">Higher</span>
+                      <button type="button" class="btn btn-soft btn-sm" onclick="localStorage.removeItem('ps-bottom-pct');applyPortalSwitcherBottom();const s=document.getElementById('psBottomSlider');if(s)s.value='4'">Reset</button>
+                    </div>
+                  </div>
+                  <div class="srow">
                     <div><div class="st">Default landing page</div><div class="sd">Page shown when you open the dashboard.</div></div>
                     <div class="seg" id="pageSeg">
+                      <button data-val="dashboard" onclick="setPref('default-page','dashboard')">Dashboard</button>
                       <button data-val="groups" onclick="setPref('default-page','groups')">Groups</button>
-                      <button data-val="table" onclick="setPref('default-page','table')">Table</button>
+                      <button data-val="table" onclick="setPref('default-page','table')">Scheduler</button>
                       <button data-val="wa-direct" onclick="setPref('default-page','wa-direct')">Open WA</button>
                       <button data-val="wa-auto" onclick="setPref('default-page','wa-auto')">Automated</button>
                       <button data-val="contacts" onclick="setPref('default-page','contacts')">Contacts</button>
                     </div>
                   </div>
                   <div class="srow">
-                    <div><div class="st">Table zebra stripes</div><div class="sd">Alternate row shading in schedule table.</div></div>
+                    <div><div class="st">Scheduler zebra stripes</div><div class="sd">Alternate row shading in table view.</div></div>
                     <div class="seg" id="zebraSeg">
                       <button data-val="off" onclick="setPref('table-zebra','off')">Off</button>
                       <button data-val="on" onclick="setPref('table-zebra','on')">On</button>
@@ -436,18 +609,18 @@
                     <div class="sched-controls">
                       <label class="sched-field">
                         <span class="sched-lbl">Day</span>
-                        <select class="finput" id="schedDow">
+                        <select class="field" id="schedDow">
                           <option value="0">Sunday</option><option value="1">Monday</option><option value="2">Tuesday</option>
                           <option value="3">Wednesday</option><option value="4">Thursday</option><option value="5">Friday</option><option value="6">Saturday</option>
                         </select>
                       </label>
                       <label class="sched-field">
                         <span class="sched-lbl">Hour (UTC)</span>
-                        <input class="finput" id="schedHour" type="number" min="0" max="23" placeholder="9"/>
+                        <input class="field" id="schedHour" type="number" min="0" max="23" placeholder="9"/>
                       </label>
                       <label class="sched-field">
                         <span class="sched-lbl">Minute</span>
-                        <input class="finput" id="schedMinute" type="number" min="0" max="59" placeholder="0"/>
+                        <input class="field" id="schedMinute" type="number" min="0" max="59" placeholder="0"/>
                       </label>
                     </div>
                     <p class="hint" id="schedLastRun">Not run yet</p>
@@ -461,17 +634,31 @@
               <div class="sec">
                 <div class="sec-h">Security</div>
                 <div class="sec-b">
-                  <div class="srow" style="flex-direction:column;align-items:stretch;gap:12px;">
-                    <div><div class="st">Change password</div><div class="sd">Update the password used to access this dashboard.</div></div>
-                    <input class="finput" id="curPw" type="password" placeholder="Current password"/>
-                    <input class="finput" id="newPw" type="password" placeholder="New password (min 8 chars)"/>
-                    <button class="btn btn-soft" style="align-self:flex-start" onclick="changePassword()">Update password</button>
+                  <div class="srow srow-stack" style="gap:12px">
+                    <div><div class="st">Password reset</div><div class="sd">Submit a request to reset your password — an admin or superadmin reviews and approves it. You'll be notified of the outcome.</div></div>
+                    <div id="settingsPwPending" class="pending-banner" style="display:none"></div>
+                    <input class="field" id="curPw" type="password" placeholder="Current password"/>
+                    <input class="field" id="newPw" type="password" placeholder="New password (min 8 chars)"/>
+                    <button class="btn btn-soft" style="align-self:flex-start" onclick="changePassword()">Request password reset</button>
+                  </div>
+                </div>
+              </div>
+              <div class="sec" style="margin-top:16px">
+                <div class="sec-h">Passkeys <button class="btn btn-soft btn-sm" style="margin-left:auto" type="button" onclick="loadPasskeys()">Refresh</button></div>
+                <div class="sec-b">
+                  <div class="srow srow-stack" style="gap:12px">
+                    <div><div class="st">Sign in with a passkey</div><div class="sd">Register this device (Windows Hello, Touch ID, security key, etc.) so you can sign in without a password from the login page.</div></div>
+                    <button class="btn btn-primary" type="button" id="registerPasskeyBtn" style="align-self:flex-start" onclick="registerPasskey()">Add passkey</button>
+                    <div id="passkeyList" class="hint">Loading…</div>
                   </div>
                 </div>
               </div>
               <div class="sec" style="margin-top:16px">
                 <div class="sec-h">Activity log <button class="btn btn-soft btn-sm" style="margin-left:auto" onclick="loadAudit()">Refresh</button></div>
-                <div class="sec-b"><div id="auditList" style="padding:8px 0;font-size:13px;color:var(--text-muted)">Loading…</div></div>
+                <div class="sec-b">
+                  <div id="auditList" class="hint">Loading…</div>
+                  <div class="pager" id="auditPager"></div>
+                </div>
               </div>
             </div>
 
@@ -497,44 +684,91 @@
     </div>
 
     <!-- Status log -->
-    <div class="status" id="statusPanel" style="display:none">
+    <div class="status-log hidden" id="statusPanel">
       <div class="lh"><span>Status Log</span><span><span class="toggle-log" onclick="document.getElementById('statusPanel').classList.toggle('collapsed')">collapse</span> · <span class="clr" onclick="document.getElementById('logLines').innerHTML=''">clear</span></span></div>
       <div id="logLines"></div>
     </div>
   </div>
+
+  <!-- Mobile bottom tab bar -->
+  <nav class="tabbar" id="tabbar">
+    <button class="nav-item" data-view="groups" type="button" onclick="navGo('groups')"><span class="ico"><svg viewBox="0 0 24 24"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1"/></svg></span><span class="lbl">Groups</span></button>
+    <button class="nav-item" data-view="table" type="button" onclick="navGo('table')"><span class="ico"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M3 15h18M9 3v18"/></svg></span><span class="lbl">Scheduler</span></button>
+    <button class="nav-item" data-view="wa-auto" type="button" onclick="navGo('wa-auto')"><span class="ico"><svg viewBox="0 0 24 24"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg></span><span class="lbl">Send</span></button>
+    <button class="nav-item" data-view="contacts" type="button" onclick="navGo('contacts')"><span class="ico"><svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></span><span class="lbl">Contacts</span></button>
+    <button class="nav-item" data-view="settings" type="button" onclick="navGo('settings')"><span class="ico"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg></span><span class="lbl">Settings</span></button>
+  </nav>
 </div>
 
 <!-- Template editor modal -->
 <div class="modal-scrim" id="tplModal">
-  <div class="modal">
+  <div class="modal modal-lg">
     <div class="modal-h"><span id="tplModalTitle">New Template</span><button class="modal-x" onclick="closeTpl()">✕</button></div>
     <div class="modal-b">
-      <div class="flabel">Template name</div>
-      <input class="finput" id="tplName" placeholder="e.g. Weekly schedule"/>
-      <div class="flabel" style="margin-top:16px;">Message content
-        <span style="font-weight:400;color:var(--text-soft)">Tokens replaced when sent</span>
+      <div><div class="flabel">Template name</div><input class="field" id="tplName" placeholder="e.g. Weekly schedule"/></div>
+      <div class="tpl-editor">
+        <div class="tpl-editor-main">
+          <div class="flabel">Message content <span class="flabel-soft">tokens replaced when sent</span></div>
+          <div class="tpl-toolbar" role="toolbar" aria-label="Formatting">
+            <div class="tpl-tb-group">
+              <button class="tpl-tb-btn" type="button" title="Bold (*text*)" onclick="tplWrap('*')"><b>B</b></button>
+              <button class="tpl-tb-btn" type="button" title="Italic (_text_)" onclick="tplWrap('_')"><i>I</i></button>
+              <button class="tpl-tb-btn" type="button" title="Strikethrough (~text~)" onclick="tplWrap('~')"><s>S</s></button>
+              <button class="tpl-tb-btn" type="button" title="Monospace (```text```)" onclick="tplWrap('```')"><span style="font-family:ui-monospace,monospace">M</span></button>
+              <button class="tpl-tb-btn" type="button" title="Bullet list" onclick="tplBullet()"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="4" cy="7" r="1.4"/><circle cx="4" cy="17" r="1.4"/><path d="M9 7h11M9 17h11"/></svg></button>
+            </div>
+            <div class="tpl-tb-group">
+              <button class="chip-btn" type="button" onclick="tplInsert('{date}')">{date}</button>
+              <button class="chip-btn" type="button" onclick="tplInsert('{weekday}')">{weekday}</button>
+              <button class="chip-btn" type="button" onclick="tplInsertSchedule()">＋ schedule</button>
+            </div>
+            <div class="tpl-tb-group tpl-emojis">
+              <button class="tpl-tb-btn" type="button" onclick="tplEmoji('📅')">📅</button>
+              <button class="tpl-tb-btn" type="button" onclick="tplEmoji('⏰')">⏰</button>
+              <button class="tpl-tb-btn" type="button" onclick="tplEmoji('✅')">✅</button>
+              <button class="tpl-tb-btn" type="button" onclick="tplEmoji('📌')">📌</button>
+              <button class="tpl-tb-btn" type="button" onclick="tplEmoji('🙏')">🙏</button>
+              <button class="tpl-tb-btn" type="button" onclick="tplEmoji('🎓')">🎓</button>
+            </div>
+          </div>
+          <textarea class="field" id="tplContent" style="min-height:240px" placeholder="Type your template…" oninput="tplPreview()"></textarea>
+          <div class="tpl-editor-foot"><span class="hint" id="tplCharCount">0 chars</span><span class="hint">Formatting: *bold* _italic_ ~strike~ ```mono```</span></div>
+        </div>
+        <div class="tpl-editor-side">
+          <div class="flabel">Live preview</div>
+          <div class="msg-preview"><div class="preview-b" id="tplPreviewBody"><i>Nothing to preview yet</i></div></div>
+        </div>
       </div>
-      <div class="tpl-tools">
-        <button class="chip-btn" onclick="tplInsert('*bold*')">*bold*</button>
-        <button class="chip-btn" onclick="tplInsert('{date}')">{date}</button>
-        <button class="chip-btn" onclick="tplInsert('{weekday}')">{weekday}</button>
-        <button class="chip-btn" onclick="tplInsertSchedule()">＋ schedule format</button>
+    </div>
+    <div class="modal-f"><button class="btn btn-soft" onclick="closeTpl()">Cancel</button><button class="btn btn-primary" onclick="saveTpl()">Save Template</button></div>
+  </div>
+</div>
+
+<!-- Automated Send status form -->
+<div class="modal-scrim" id="sendStatusModal">
+  <div class="modal modal-lg send-status">
+    <div class="modal-h"><span>Automated Send</span><button class="modal-x" onclick="closeSendStatus()">✕</button></div>
+    <div class="modal-b">
+      <div class="ss-meta">
+        <div class="ss-meta-item">Provider · <b id="ssProviderLabel">—</b></div>
+        <div class="ss-meta-item"><span class="ss-session" id="ssSession">—</span></div>
       </div>
-      <textarea class="msg-edit" id="tplContent" style="margin:0;min-height:240px;" placeholder="Type your template…"></textarea>
+      <div class="ss-preflight" id="ssPreflight"></div>
+      <div class="ss-progress-wrap"><div class="ss-progress" id="ssProgress"></div></div>
+      <div class="ss-counts" id="ssCounts"></div>
+      <div class="ss-list" id="ssList"></div>
     </div>
-    <div class="modal-f">
-      <button class="btn btn-soft" onclick="closeTpl()">Cancel</button>
-      <button class="btn btn-primary" onclick="saveTpl()">💾 Save Template</button>
-    </div>
+    <div class="modal-f" id="ssFooter"></div>
   </div>
 </div>
 
 <datalist id="timeOptions"></datalist>
 <div class="toast" id="toast"></div>
 
-<script src="{{ url_for('static', filename='js/theme.js') }}"></script>
-<script src="{{ url_for('static', filename='js/whatsapp.js') }}"></script>
-<script src="{{ url_for('static', filename='js/waha.js') }}"></script>
+<script src="{{ url_for('static', filename='js/chrome.js') }}?v=poc31"></script>
+<script src="{{ url_for('static', filename='js/theme.js') }}?v=poc31"></script>
+<script src="{{ url_for('static', filename='js/whatsapp.js') }}?v=poc31"></script>
+<script src="{{ url_for('static', filename='js/waha.js') }}?v=poc31"></script>
 <script>
 const DAYS = {{ days | tojson }};
 const _asUser = new URLSearchParams(location.search).get("asUser");
@@ -553,12 +787,20 @@ let cSel = null;
 let tplSel = null;
 let tableSelected = {}, colWidths = {};
 let tableDirty = true;
+let scheduleViewMode = null;
+let schedDragFrom = null;
 let auditLoaded = false;
+const SCHED_VIEW_KEY = "schedule-view";
+const TRASH_ICO = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/></svg>';
+const GRIP_ICO = '<svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor" aria-hidden="true"><circle cx="9" cy="6" r="1.5"/><circle cx="15" cy="6" r="1.5"/><circle cx="9" cy="12" r="1.5"/><circle cx="15" cy="12" r="1.5"/><circle cx="9" cy="18" r="1.5"/><circle cx="15" cy="18" r="1.5"/></svg>';
 
 /* ════ Navigation ════ */
 const VIEW_META = {
+  dashboard:{t:"Dashboard",d:"Overview of your groups, sends, and session"},
+  "group-detail":{t:"Group",d:"Group overview and weekly schedule"},
+  "contact-detail":{t:"Contact",d:"Contact overview and message"},
   groups:{t:"Groups",d:"Manage your WhatsApp groups and weekly schedules"},
-  table:{t:"Schedule Table",d:"Edit all group timings in a grid and release selected groups"},
+  table:{t:"Scheduler",d:"Edit weekly timings in table or board view, then save or send selected groups"},
   "wa-direct":{t:"Open in WhatsApp",d:"Manual deep links — copy message and open WhatsApp in browser"},
   "wa-auto":{t:"Automated Send",d:"Link session and send schedules automatically"},
   templates:{t:"Templates",d:"Reusable message templates with tokens and customization"},
@@ -566,33 +808,309 @@ const VIEW_META = {
   history:{t:"Send History",d:"Recent automated sends and retry failed deliveries"},
   settings:{t:"Settings",d:"Appearance, layout, WhatsApp, automation, security and data"},
 };
+
+function navGo(v){ showView(v); if(typeof closeNavGroups==="function") closeNavGroups(); }
+function navSched(mode){
+  if(typeof setScheduleView==="function") setScheduleView(mode);
+  else if(typeof setSchedView==="function") setSchedView(mode);
+  else { try{ localStorage.setItem(SCHED_VIEW_KEY, mode); }catch(e){} scheduleViewMode=mode; }
+  showView("table");
+  if(typeof closeNavGroups==="function") closeNavGroups();
+}
+function syncNavSched(){
+  const active=document.querySelector(".view.active");
+  const isTable=!!active && active.id==="view-table";
+  const mode=isTable ? (typeof getScheduleView==="function" ? getScheduleView() : (scheduleViewMode||localStorage.getItem(SCHED_VIEW_KEY)||"table")) : null;
+  document.querySelectorAll("[data-sched]").forEach((b)=>b.classList.toggle("active", isTable && b.dataset.sched===mode));
+  const sidebar=!(document.documentElement.getAttribute("data-nav")==="navbar" && window.innerWidth>860);
+  document.querySelectorAll(".nav-group").forEach((gr)=>{
+    const has=!!gr.querySelector(".nav-item.active");
+    gr.classList.toggle("has-active", has);
+    if(has && sidebar) gr.classList.add("open");
+  });
+}
+function nextScheduledSend(job){
+  if(!job || !job.enabled) return null;
+  const now=new Date(); const target=new Date(now);
+  target.setHours(job.hour??9, job.minute??0, 0, 0);
+  let add=((job.dow??0)-now.getDay()+7)%7;
+  if(add===0 && target<=now) add=7;
+  target.setDate(target.getDate()+add);
+  return target;
+}
+async function renderUserDashboard(){
+  const el=document.getElementById("dashHome"); if(!el) return;
+  const u=typeof currentUser==="function" ? currentUser() : {displayName:document.getElementById("userDot")?.textContent||"User",email:""};
+  let hist=[];
+  try{ hist=await (await fetch("/api/release-history")).json(); if(!Array.isArray(hist)) hist=hist.items||hist.rows||[]; }catch(e){ hist=[]; }
+  const successCount=hist.filter((h)=> (h.status||"")==="success").length;
+  const failCount=Math.max(0, hist.length-successCount);
+  const rate=hist.length ? Math.round((successCount/hist.length)*100) : 100;
+  const job=typeof scheduledJobState!=="undefined" ? scheduledJobState : {enabled:false};
+  const scheduled=!!job.enabled;
+  const nextSend=nextScheduledSend(job);
+  let sess=false;
+  try{ if(typeof fetchSessionStatusCached==="function"){ const st=await fetchSessionStatusCached(false); sess=!!(st&&(st.connected||st.ready||st.status==="WORKING")); } }catch(e){}
+  const now=new Date(); const hr=now.getHours();
+  const greet=hr<12?"Good morning":hr<18?"Good afternoon":"Good evening";
+  const firstName=((u&& (u.displayName||u.email))||"there").split(" ")[0];
+  const weekdayName=now.toLocaleDateString(undefined,{weekday:"long"});
+  const todayGroups=(groups||[]).filter((g)=>(g.schedule||[]).some((e)=>e.day===weekdayName && (e.from||"").trim()));
+  const days7=[];
+  for(let i=6;i>=0;i--){ const dd=new Date(now); dd.setDate(now.getDate()-i); const key=dd.toDateString(); const cnt=hist.filter((h)=> new Date(h.at||h.created_at||0).toDateString()===key).length; days7.push({label:dd.toLocaleDateString(undefined,{weekday:"short"})[0],cnt}); }
+  const maxCnt=Math.max(1,...days7.map((x)=>x.cnt));
+  const DA={sched:'<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M3 15h18M9 3v18"/></svg>',auto:'<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>',direct:'<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><path d="M15 3h6v6"/><path d="M10 14 21 3"/></svg>',tpl:'<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg>'};
+  el.innerHTML=`
+    <div class="dash-hero">
+      <div><h2>${greet}, ${esc(firstName)}</h2><p>${now.toLocaleDateString(undefined,{weekday:"long",day:"numeric",month:"long"})} — schedule overview.</p></div>
+      <div class="dash-hero-actions"><button class="btn btn-soft" onclick="navGo('table')">Open Scheduler</button><button class="btn btn-primary" onclick="navGo('groups');newGroupDetail()">+ New group</button></div>
+    </div>
+    <div class="cards" style="margin-top:18px">
+      <div class="stat dash-stat" onclick="navGo('groups')"><div class="n">${groups.length}</div><div class="l">Groups</div></div>
+      <div class="stat dash-stat" onclick="navGo('contacts')"><div class="n">${contacts.length}</div><div class="l">Contacts</div></div>
+      <div class="stat dash-stat" onclick="navGo('templates')"><div class="n">${templates.length}</div><div class="l">Templates</div></div>
+      <div class="stat dash-stat" onclick="navGo('history')"><div class="n">${successCount}</div><div class="l">Delivered</div></div>
+      <div class="stat"><div class="n">${rate}%</div><div class="l">Success rate</div></div>
+    </div>
+    <div class="dash-grid">
+      <div class="sec"><div class="sec-h">Quick actions</div><div class="sec-b dash-actions">
+        <button class="dash-action" onclick="navGo('table')"><span class="da-ico">${DA.sched}</span><span class="da-body"><b>Open Scheduler</b><i>Edit weekly timings</i></span></button>
+        <button class="dash-action" onclick="navGo('wa-auto')"><span class="da-ico">${DA.auto}</span><span class="da-body"><b>Automated Send</b><i>Link &amp; send</i></span></button>
+        <button class="dash-action" onclick="navGo('wa-direct')"><span class="da-ico">${DA.direct}</span><span class="da-body"><b>Open in WhatsApp</b><i>Direct links</i></span></button>
+        <button class="dash-action" onclick="navGo('templates')"><span class="da-ico">${DA.tpl}</span><span class="da-body"><b>Templates</b><i>Reusable messages</i></span></button>
+      </div></div>
+      <div class="sec"><div class="sec-h">Session &amp; automation</div><div class="sec-b">
+        <div class="dash-status-row"><span class="dot-live ${sess?"on":""}"></span><span>${sess?"WhatsApp connected":"Not connected"}</span><button class="btn btn-soft btn-sm" style="margin-left:auto" onclick="navGo('wa-auto')">Manage</button></div>
+        <div class="dash-status-row"><span>Scheduled weekly send</span><span class="chip ${scheduled?"chip-default":""}" style="margin-left:auto">${scheduled?"On":"Off"}</span></div>
+        ${nextSend?`<div class="dash-status-row"><span>Next send</span><span style="margin-left:auto;font-weight:700">${nextSend.toLocaleDateString(undefined,{weekday:"short",day:"numeric",month:"short"})} · ${nextSend.toLocaleTimeString(undefined,{hour:"2-digit",minute:"2-digit"})}</span></div>`:""}
+        <div class="dash-status-row"><span>Automated delay</span><span style="margin-left:auto;font-weight:700">${(settings&&settings.delaySeconds!=null)?settings.delaySeconds:5}s</span></div>
+      </div></div>
+    </div>
+    <div class="dash-grid dash-grid-2">
+      <div class="sec"><div class="sec-h">Today · ${esc(weekdayName)}<span class="chip" style="margin-left:auto">${todayGroups.length} scheduled</span></div><div class="sec-b">
+        ${todayGroups.length?todayGroups.map((g)=>{const e=(g.schedule||[]).find((x)=>x.day===weekdayName)||{};return `<div class="dash-today-row"><div class="av small">${avatarInner(g.name,entityPic(g))}</div><div style="min-width:0;flex:1"><b>${esc(g.name)}</b><div class="hint" style="margin:0">${esc(e.from||"")}${e.to?" – "+esc(e.to):""}</div></div><button class="btn btn-soft btn-sm" onclick="openGroupDetailByName('${escA(g.name)}')">Open</button></div>`;}).join(""):'<p class="hint">No groups scheduled for today.</p>'}
+      </div></div>
+      <div class="sec"><div class="sec-h">Weekly activity</div><div class="sec-b">
+        <div class="dash-spark">${days7.map((x)=>`<div class="spark-col"><div class="spark-bar" style="height:${Math.round((x.cnt/maxCnt)*100)}%"></div><span class="spark-lbl">${x.label}</span></div>`).join("")}</div>
+        <div class="dash-mini-stats"><span><b>${hist.length}</b> total</span><span><b class="ok-text">${successCount}</b> delivered</span><span><b class="err-text">${failCount}</b> failed</span></div>
+      </div></div>
+    </div>
+    <div class="sec" style="margin-top:16px"><div class="sec-h">Recent sends<button class="btn btn-soft btn-sm" style="margin-left:auto" onclick="navGo('history')">View all</button></div><div class="sec-b">
+      ${hist.length?hist.slice(0,5).map((h)=>`<div class="dash-hist"><span class="hstatus ${(h.status||"")==="success"?"ok":"err"}"><span class="hdot"></span>${(h.status||"")==="success"?"Delivered":"Failed"}</span><b>${esc(h.target_name||h.targetName||"")}</b><span class="hint" style="margin:0 0 0 auto">${new Date(h.at||h.created_at||Date.now()).toLocaleDateString()}</span></div>`).join(""):'<p class="hint">No sends yet.</p>'}
+    </div></div>`;
+  if(typeof animateCounters==="function") animateCounters();
+}
+
 function showView(v){
   document.querySelectorAll(".view").forEach(s=>s.classList.toggle("active", s.id===`view-${v}`));
-  document.querySelectorAll(".nav-item[data-view]").forEach(b=>b.classList.toggle("active", b.dataset.view===v));
+  const navKey = v==="group-detail" ? "groups" : v==="contact-detail" ? "contacts" : v;
+  document.querySelectorAll(".nav-item[data-view]").forEach(b=>b.classList.toggle("active", b.dataset.view===navKey));
   const meta = VIEW_META[v] || VIEW_META.groups;
   document.getElementById("pageTitle").textContent = meta.t;
   document.getElementById("pageDesc").textContent  = meta.d;
+  if (v==="dashboard") renderUserDashboard();
+  if (v==="groups") renderGroupTable();
+  if (v==="contacts") renderContactTable();
+  if (v==="group-detail") renderGroupDetail();
+  if (v==="contact-detail") renderContactDetail();
   if (v==="table" && tableDirty) { renderTable(); tableDirty = false; }
   if (v==="templates") renderTemplates();
   if (v==="wa-direct") renderDirectPanel();
   if (v==="wa-auto") renderAutoSendPanel();
   if (v==="history") loadReleaseHistory();
   if (v==="settings") loadScheduledJob();
-  if (window.innerWidth<=820) document.getElementById("app").classList.remove("rail-open");
+  if (window.innerWidth<=820) document.getElementById("shell").classList.remove("rail-open");
+  if(typeof syncNavSched==="function") syncNavSched();
 }
 
-/* ── Audit log ── */
-async function loadAudit(){
-  const box=document.getElementById("auditList"); if(!box)return;
-  try{
-    const rows=await (await fetch("/api/audit")).json();
-    if(!rows.length){box.innerHTML="No activity yet.";return;}
-    const label={login:"Signed in",login_failed:"Failed login",logout:"Signed out",signup:"Account created",
-      release:"Released messages",direct_whatsapp:"Opened WhatsApp",password_change:"Password changed",config_restore:"Config restored"};
-    box.innerHTML=rows.map(r=>`<div class="audit-row"><span class="act">${esc(label[r.action]||r.action)}</span>
-      <span class="meta">${esc(r.detail||"")} · ${esc(r.ip||"")}</span>
-      <span class="when">${new Date(r.at).toLocaleString()}</span></div>`).join("");
-  }catch{ box.innerHTML="Could not load activity."; }
+/* ── Audit log (paginated) ── */
+let auditRows = [];
+let auditPage = 1;
+const AUDIT_PER_PAGE = 10;
+const AUDIT_LABELS = {
+  login: "Signed in",
+  login_failed: "Failed login",
+  logout: "Signed out",
+  signup: "Account created",
+  release: "Released messages",
+  direct_whatsapp: "Opened WhatsApp",
+  password_change: "Password changed",
+  password_request: "Password reset requested",
+  config_restore: "Config restored",
+};
+
+function auditPageWindow(cur, pages) {
+  const out = [];
+  for (let p = 1; p <= pages; p++) {
+    if (p === 1 || p === pages || (p >= cur - 1 && p <= cur + 1)) out.push(p);
+    else if (out[out.length - 1] !== "…") out.push("…");
+  }
+  return out;
+}
+
+function renderAudit() {
+  const box = document.getElementById("auditList");
+  const pager = document.getElementById("auditPager");
+  if (!box) return;
+  if (!auditRows.length) {
+    box.innerHTML = "No activity yet.";
+    if (pager) pager.innerHTML = "";
+    return;
+  }
+  const pages = Math.max(1, Math.ceil(auditRows.length / AUDIT_PER_PAGE));
+  if (auditPage > pages) auditPage = pages;
+  if (auditPage < 1) auditPage = 1;
+  const start = (auditPage - 1) * AUDIT_PER_PAGE;
+  const page = auditRows.slice(start, start + AUDIT_PER_PAGE);
+  box.innerHTML = page
+    .map(
+      (r) => `<div class="audit-row"><span class="act">${esc(AUDIT_LABELS[r.action] || r.action)}</span>
+      <span class="meta">${esc(r.detail || "")} · ${esc(r.ip || "")}</span>
+      <span class="when">${new Date(r.at).toLocaleString()}</span></div>`
+    )
+    .join("");
+  if (!pager) return;
+  if (pages <= 1) {
+    pager.innerHTML = `<span class="pager-info">${auditRows.length} item${auditRows.length === 1 ? "" : "s"}</span>`;
+    return;
+  }
+  let btns = `<button type="button" class="pager-btn" ${auditPage === 1 ? "disabled" : ""} onclick="auditGoto(${auditPage - 1})" aria-label="Previous page">‹</button>`;
+  auditPageWindow(auditPage, pages).forEach((p) => {
+    btns +=
+      p === "…"
+        ? `<span class="pager-gap">…</span>`
+        : `<button type="button" class="pager-btn${p === auditPage ? " on" : ""}" onclick="auditGoto(${p})">${p}</button>`;
+  });
+  btns += `<button type="button" class="pager-btn" ${auditPage === pages ? "disabled" : ""} onclick="auditGoto(${auditPage + 1})" aria-label="Next page">›</button>`;
+  pager.innerHTML = `<span class="pager-info">Showing ${start + 1}–${Math.min(start + AUDIT_PER_PAGE, auditRows.length)} of ${auditRows.length}</span><div class="pager-btns">${btns}</div>`;
+}
+
+function auditGoto(p) {
+  auditPage = p;
+  renderAudit();
+}
+
+async function loadAudit() {
+  const box = document.getElementById("auditList");
+  if (!box) return;
+  box.innerHTML = "Loading…";
+  const pager = document.getElementById("auditPager");
+  if (pager) pager.innerHTML = "";
+  try {
+    const rows = await (await fetch("/api/audit")).json();
+    auditRows = Array.isArray(rows) ? rows : [];
+    auditPage = 1;
+    renderAudit();
+  } catch {
+    box.innerHTML = "Could not load activity.";
+    if (pager) pager.innerHTML = "";
+  }
+}
+
+/* ── Passkeys ── */
+function _b64urlToBuf(s) {
+  const str = String(s || "").replace(/-/g, "+").replace(/_/g, "/");
+  const pad = "=".repeat((4 - (str.length % 4)) % 4);
+  const raw = atob(str + pad);
+  const out = new Uint8Array(raw.length);
+  for (let i = 0; i < raw.length; i++) out[i] = raw.charCodeAt(i);
+  return out.buffer;
+}
+function _bufToB64url(buf) {
+  const bytes = new Uint8Array(buf);
+  let s = "";
+  bytes.forEach((b) => { s += String.fromCharCode(b); });
+  return btoa(s).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+}
+async function loadPasskeys() {
+  const box = document.getElementById("passkeyList");
+  if (!box) return;
+  box.innerHTML = "Loading…";
+  try {
+    const res = await fetch("/api/passkeys");
+    const d = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(d.error || "Could not load passkeys");
+    const rows = d.passkeys || [];
+    if (!rows.length) {
+      box.innerHTML = '<p class="hint" style="margin:0">No passkeys registered yet. Add one to enable passwordless sign-in on the login page.</p>';
+      return;
+    }
+    box.innerHTML = rows
+      .map((p) => {
+        const when = p.lastUsedAt || p.createdAt;
+        const meta = when ? ` · ${typeof relTime === "function" ? relTime(when) : new Date(when).toLocaleString()}` : "";
+        return `<div class="audit-row" style="flex-direction:row;align-items:center;flex-wrap:wrap;gap:10px">
+          <span class="act">${esc(p.label || "Passkey")}</span>
+          <span class="meta">Registered${meta}</span>
+          <button type="button" class="btn btn-soft btn-sm" style="margin-left:auto" onclick="removePasskey(${p.id})">Remove</button>
+        </div>`;
+      })
+      .join("");
+  } catch (e) {
+    box.innerHTML = `<p class="hint" style="margin:0">${esc(e.message || "Could not load passkeys.")}</p>`;
+  }
+}
+async function registerPasskey() {
+  const btn = document.getElementById("registerPasskeyBtn");
+  if (!window.PublicKeyCredential) {
+    toast("Passkeys are not supported in this browser", "err");
+    return;
+  }
+  if (btn) btn.disabled = true;
+  try {
+    const optRes = await fetch("/api/passkeys/register/options", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: "{}",
+    });
+    const opt = await optRes.json().catch(() => ({}));
+    if (!optRes.ok) throw new Error(opt.error || "Could not start registration");
+    const pk = opt.publicKey || opt;
+    pk.challenge = _b64urlToBuf(pk.challenge);
+    if (pk.user && pk.user.id) pk.user.id = _b64urlToBuf(pk.user.id);
+    if (Array.isArray(pk.excludeCredentials)) {
+      pk.excludeCredentials = pk.excludeCredentials.map((c) => ({ ...c, id: _b64urlToBuf(c.id) }));
+    }
+    const cred = await navigator.credentials.create({ publicKey: pk });
+    if (!cred) throw new Error("Passkey registration cancelled");
+    const transports = typeof cred.response.getTransports === "function" ? cred.response.getTransports() : [];
+    const verifyRes = await fetch("/api/passkeys/register/verify", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        challengeKey: opt.challengeKey,
+        id: cred.id,
+        rawId: _bufToB64url(cred.rawId),
+        type: cred.type,
+        transports,
+        response: {
+          clientDataJSON: _bufToB64url(cred.response.clientDataJSON),
+          attestationObject: _bufToB64url(cred.response.attestationObject),
+          transports,
+        },
+      }),
+    });
+    const body = await verifyRes.json().catch(() => ({}));
+    if (!verifyRes.ok) throw new Error(body.error || "Verification failed");
+    toast("Passkey added");
+    loadPasskeys();
+  } catch (e) {
+    toast(e.message || "Could not register passkey", "err");
+  } finally {
+    if (btn) btn.disabled = false;
+  }
+}
+async function removePasskey(id) {
+  if (!confirm("Remove this passkey? You will not be able to use it to sign in.")) return;
+  try {
+    const res = await fetch(`/api/passkeys/${id}`, { method: "DELETE" });
+    const d = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(d.error || "Remove failed");
+    toast("Passkey removed");
+    loadPasskeys();
+  } catch (e) {
+    toast(e.message || "Remove failed", "err");
+  }
 }
 
 /* ════ Time helpers ════ */
@@ -620,31 +1138,89 @@ function replaceTokens(t){
 async function boot(){
   buildTimeOptions(); applyTheme(); updateLogoChevron(); loadTableNotes();
   if(localStorage.getItem("rail-collapsed")==="1"){
-    document.getElementById("app").classList.add("rail-collapsed");
+    document.getElementById("shell").classList.add("rail-collapsed");
     updateLogoChevron();
   }
   await Promise.all([loadGroups(), loadTemplates(), loadContacts(), loadSettings()]);
   fetchSessionStatusCached(true);
   startSSE();
-  const landingRaw = localStorage.getItem("default-page") || "groups";
+  /* Profile / deep links use ?view=&sched= (same as POC dashboard.html) */
+  const params = new URLSearchParams(location.search);
+  const viewParam = params.get("view");
+  if (viewParam === "table" && params.get("sched") === "board" && typeof setScheduleView === "function") {
+    setScheduleView("board");
+  } else if (viewParam === "table" && params.get("sched") === "table" && typeof setScheduleView === "function") {
+    setScheduleView("table");
+  }
+  const landingRaw = (viewParam && VIEW_META[viewParam]) ? viewParam : (localStorage.getItem("default-page") || "dashboard");
   const landing = landingRaw === "whatsapp" ? "wa-direct" : landingRaw;
   if (VIEW_META[landing]) showView(landing);
   if (getStatusLogPref() === "always") showLog();
 }
 const TABLE_NOTES_KEY="schedule-table-notes";
-function loadTableNotes(){
+async function loadTableNotes(){
   const el=document.getElementById("tableNotes"); if(!el)return;
+  try{
+    const r=await fetch("/api/scheduler/notes");
+    if(r.ok){ const d=await r.json(); el.value=d.notes||d.table_notes||""; notesAutoGrow(); notesUpdateMeta(); return; }
+  }catch(e){}
   el.value=localStorage.getItem(TABLE_NOTES_KEY)||"";
+  notesAutoGrow(); notesUpdateMeta();
 }
-function saveTableNotes(){
+let _notesTimer;
+async function saveTableNotes(){
   const el=document.getElementById("tableNotes"); if(!el)return;
-  localStorage.setItem(TABLE_NOTES_KEY, el.value);
+  const notes=el.value||"";
+  localStorage.setItem(TABLE_NOTES_KEY, notes);
+  clearTimeout(_notesTimer);
+  _notesTimer=setTimeout(async()=>{
+    try{ await fetch("/api/scheduler/notes",{method:"PUT",headers:{"Content-Type":"application/json"},body:JSON.stringify({notes})}); }catch(e){}
+    const s=document.getElementById("notesSaved"); if(s){ s.textContent="Saved ✓"; s.classList.add("show"); clearTimeout(s._t); s._t=setTimeout(()=>s.classList.remove("show"),1600); }
+  },400);
+}
+function notesAutoGrow(){ const el=document.getElementById("tableNotes"); if(!el)return; el.style.height="auto"; el.style.height=Math.max(120,el.scrollHeight)+"px"; }
+function notesUpdateMeta(){
+  const el=document.getElementById("tableNotes"), m=document.getElementById("notesMeta"); if(!el||!m)return;
+  const v=el.value; const words=(v.trim().match(/\S+/g)||[]).length; const lines=v?v.split("\n").length:0;
+  m.textContent=`${words} word${words===1?"":"s"} · ${v.length} character${v.length===1?"":"s"} · ${lines} line${lines===1?"":"s"}`;
+}
+function notesAfterEdit(){ const el=document.getElementById("tableNotes"); if(el) el.focus(); saveTableNotes(); notesAutoGrow(); notesUpdateMeta(); }
+function notesWrap(marker){
+  const ta=document.getElementById("tableNotes"); if(!ta)return; const s=ta.selectionStart,e=ta.selectionEnd; const sel=ta.value.slice(s,e);
+  if(sel){ ta.value=ta.value.slice(0,s)+marker+sel+marker+ta.value.slice(e); ta.selectionStart=s+marker.length; ta.selectionEnd=e+marker.length; }
+  else{ const ph=marker==="*"?"bold":"italic"; ta.value=ta.value.slice(0,s)+marker+ph+marker+ta.value.slice(e); ta.selectionStart=s+marker.length; ta.selectionEnd=s+marker.length+ph.length; }
+  notesAfterEdit();
+}
+function notesLine(prefix){
+  const ta=document.getElementById("tableNotes"); if(!ta)return; const s=ta.selectionStart;
+  const lineStart=ta.value.lastIndexOf("\n",s-1)+1;
+  ta.value=ta.value.slice(0,lineStart)+prefix+ta.value.slice(lineStart);
+  ta.selectionStart=ta.selectionEnd=s+prefix.length; notesAfterEdit();
+}
+function notesInsertTimestamp(){
+  const ta=document.getElementById("tableNotes"); if(!ta)return; const s=ta.selectionStart;
+  const stamp=new Date().toLocaleString(undefined,{weekday:"short",day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"});
+  const txt=(s>0&&ta.value[s-1]!=="\n"?"\n":"")+"— "+stamp+" — ";
+  ta.value=ta.value.slice(0,s)+txt+ta.value.slice(s); ta.selectionStart=ta.selectionEnd=s+txt.length; notesAfterEdit();
+}
+async function notesCopy(){ const ta=document.getElementById("tableNotes"); if(!ta||!ta.value.trim()){ toast("Nothing to copy","err"); return; } try{ await navigator.clipboard.writeText(ta.value); toast("Notes copied ✓"); }catch{ toast("Copy failed","err"); } }
+function notesClear(){ const ta=document.getElementById("tableNotes"); if(!ta||!ta.value)return; if(!confirm("Clear all notes for this schedule?"))return; ta.value=""; notesAfterEdit(); toast("Notes cleared"); }
+function toggleNotes(){
+  const body=document.getElementById("notesBody"), tb=document.getElementById("notesToolbar"), btn=document.querySelector(".notes-toggle");
+  if(!body)return; const collapsed=body.classList.toggle("collapsed");
+  if(tb) tb.classList.toggle("hidden",collapsed);
+  if(btn){ btn.setAttribute("aria-expanded",String(!collapsed)); btn.classList.toggle("is-collapsed",collapsed); }
+  if(!collapsed) notesAutoGrow();
 }
 async function loadGroups(){ groups=await (await fetch("/api/groups")).json();
-  groups.forEach(g=>{ if(g.message===undefined)g.message=""; normalize(g); });
-  tableDirty=true; invalidateWaCache(); renderGroupList(); refreshPickers(); }
+  groups.forEach(g=>{ if(g.message===undefined)g.message=""; normalize(g); if(!g.pic && (g.photoUrl||g.photo_url)) g.pic=g.photoUrl||g.photo_url; });
+  tableDirty=true; invalidateWaCache(); renderGroupList(); if(typeof renderGroupTable==="function") renderGroupTable(); refreshPickers();
+  if(document.getElementById("view-table")?.classList.contains("active")){ renderTable(); tableDirty=false; }
+}
 async function loadTemplates(){ templates=await (await fetch("/api/templates")).json(); renderTemplates(); refreshPickers(); }
-async function loadContacts(){ contacts=await (await fetch("/api/contacts")).json(); invalidateWaCache(); renderContactList(); }
+async function loadContacts(){ contacts=await (await fetch("/api/contacts")).json();
+  contacts.forEach(c=>{ if(!c.pic && (c.photoUrl||c.photo_url)) c.pic=c.photoUrl||c.photo_url; });
+  invalidateWaCache(); renderContactList(); if(typeof renderContactTable==="function") renderContactTable(); }
 async function loadSettings(){ settings=await (await fetch("/api/settings")).json();
   syncSettingsUI();
   if(settings.maintenanceMode){
@@ -660,17 +1236,36 @@ function relTime(iso){if(!iso)return"";const d=new Date(iso),s=(Date.now()-d)/10
   if(s<60)return"just now";if(s<3600)return Math.floor(s/60)+"m ago";if(s<86400)return Math.floor(s/3600)+"h ago";return d.toLocaleDateString();}
 
 /* ════ GROUPS ════ */
+const ICO_SEND = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M22 2 11 13"/><path d="M22 2 15 22l-4-9-9-4 20-7z"/></svg>';
+const ICO_DUP = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>';
+const ICO_DEL = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/></svg>';
+function groupInitials(name){
+  const parts=(name||"").trim().split(/\s+/).filter(Boolean);
+  if(!parts.length) return "G";
+  if(parts.length===1) return parts[0].slice(0,2).toUpperCase();
+  return (parts[0][0]+parts[1][0]).toUpperCase();
+}
 function renderGroupList(){
-  const q=(document.getElementById("groupSearch").value||"").toLowerCase();
-  const el=document.getElementById("groupList"); el.innerHTML="";
-  groups.forEach((g,i)=>{
-    if(q&&!g.name.toLowerCase().includes(q))return;
-    const days=g.schedule.map(e=>e.day.slice(0,3)).join(", ");
-    const last=g.lastReleased?` · <span class="sent">✓ ${relTime(g.lastReleased)}</span>`:"";
-    const d=document.createElement("div"); d.className="li"+(gSel===i?" active":""); d.onclick=()=>selectGroup(i);
-    d.innerHTML=`<div class="av">👥</div><div class="meta"><div class="nm">${esc(g.name)}</div>
-      <div class="sb">${g.schedule.length} day(s) · ${days}${last}</div></div>
-      <div class="acts"><button class="ibtn send" title="Release">✈</button><button class="ibtn dup" title="Duplicate">⧉</button><button class="ibtn del" title="Delete">🗑</button></div>`;
+  const q=(document.getElementById("groupSearch")?.value||"").toLowerCase();
+  const el=document.getElementById("groupList"); if(!el) return; el.innerHTML="";
+  const matched=groups.map((g,i)=>({g,i})).filter(({g})=>!q||g.name.toLowerCase().includes(q));
+  if(!matched.length){
+    el.innerHTML=`<div class="list-empty">${groups.length?"No matches":"No groups yet"}</div>`;
+    return;
+  }
+  matched.forEach(({g,i})=>{
+    const activeDays=g.schedule.filter(e=>(e.from||"").trim()||(e.to||"").trim()).length;
+    const days=g.schedule.map(e=>e.day.slice(0,3)).join(" · ");
+    const last=g.lastReleased?`<span class="sent">${relTime(g.lastReleased)}</span>`:"";
+    const d=document.createElement("div"); d.className="li g-li"+(gSel===i?" active":""); d.onclick=()=>selectGroup(i);
+    d.innerHTML=`<div class="av" aria-hidden="true">${esc(groupInitials(g.name))}</div>
+      <div class="meta"><div class="nm">${esc(g.name)}</div>
+      <div class="sb">${activeDays?`${activeDays} day${activeDays===1?"":"s"}${days?` · ${esc(days)}`:""}`:"No schedule yet"}${last?` · ${last}`:""}</div></div>
+      <div class="acts">
+        <button class="ibtn send" type="button" title="Open in WhatsApp">${ICO_SEND}</button>
+        <button class="ibtn dup" type="button" title="Duplicate">${ICO_DUP}</button>
+        <button class="ibtn del" type="button" title="Delete">${ICO_DEL}</button>
+      </div>`;
     const[s,du,de]=d.querySelectorAll("button");
     s.onclick=e=>{e.stopPropagation();directOneGroup(i);};
     du.onclick=e=>{e.stopPropagation();duplicateGroup(i);};
@@ -711,78 +1306,530 @@ function gBuild(){const name=document.getElementById("gName").value.trim();if(!n
 async function saveGroup(){const b=gBuild();if(!b)return false;
   const res=gSel!==null?await fetch(`/api/groups/${gSel}`,put(b)):await fetch("/api/groups",post(b));
   const d=await res.json();if(d.error){toast(d.error,"err");return false;}
-  await loadGroups(); if(gSel===null)gSel=groups.length-1; renderGroupList(); toast("Group saved ✓"); return true;}
+  await loadGroups(); if(gSel===null)gSel=groups.length-1; renderGroupList(); if(typeof renderGroupTable==="function") renderGroupTable(); toast("Group saved ✓"); return true;}
 async function duplicateGroup(i){const g=groups[i];let name=g.name+" (copy)",n=2;while(groups.some(x=>x.name===name))name=`${g.name} (copy ${n++})`;
   const d=await (await fetch("/api/groups",post({name,schedule:g.schedule,message:g.message,inviteLink:g.inviteLink||""}))).json();
   if(d.error){toast(d.error,"err");return;} await loadGroups(); toast(`Duplicated as "${name}"`);}
 async function deleteGroup(i){if(!confirm(`Delete "${groups[i].name}"?`))return;await fetch(`/api/groups/${i}`,{method:"DELETE"});
-  if(gSel===i){gSel=null;document.getElementById("gEmpty").classList.remove("hidden");document.getElementById("gBody").classList.add("hidden");document.getElementById("gActions").classList.add("hidden");}
+  if(gSel===i){gSel=null;document.getElementById("gEmpty")?.classList.remove("hidden");document.getElementById("gBody")?.classList.add("hidden");document.getElementById("gActions")?.classList.add("hidden");}
   else if(gSel>i)gSel--; await loadGroups(); toast("Group deleted");}
 async function releaseCurrentGroup(){if(!(await saveGroup()))return;const g=groups[gSel];
-  releaseWithMode([{name:g.name,message:replaceTokens(messageFor(g))}],"relAllSpin","relAllBtn","relAllTxt","Automated All","automated");}
-function releaseOneGroup(i){const g=groups[i];releaseWithMode([{name:g.name,message:replaceTokens(messageFor(g))}],"relAllSpin","relAllBtn","relAllTxt","Automated All","automated");}
+  releaseWithMode([{name:g.name,message:replaceTokens(messageFor(g))}],"relAllSpin","relAllBtn","relAllTxt","Send all","automated");}
+function releaseOneGroup(i){const g=groups[i];releaseWithMode([{name:g.name,message:replaceTokens(messageFor(g))}],"relAllSpin","relAllBtn","relAllTxt","Send all","automated");}
 function releaseAllGroups(){const t=groups.map(g=>({name:g.name,message:replaceTokens(messageFor(g))})).filter(x=>x.message.trim());
-  releaseWithMode(t,"relAllSpin","relAllBtn","relAllTxt","Automated All","automated");}
+  releaseWithMode(t,"relAllSpin","relAllBtn","relAllTxt","Send all","automated");}
 async function directCurrentGroup(){if(!(await saveGroup()))return;openDirectGroupByName(groups[gSel].name);}
 function directOneGroup(i){openDirectGroupByName(groups[i].name);}
 function directAllGroups(){groups.forEach((g,i)=>setTimeout(()=>directOneGroup(i),i*500));}
 
-/* ════ TABLE ════ */
+/* ════ GROUPS: table / cards + detail ════ */
+let groupsMode = localStorage.getItem("groups-mode") || "table";
+let gdIdx = null, gdEdit = false, gdWorking = null, gdPendingFile = null;
+function entityPic(e){ return (e && (e.pic || e.photoUrl || e.photo_url)) || ""; }
+function readImageAsDataURL(file, cb){
+  if(!file || !file.type || !file.type.startsWith("image/")){ toast("Choose an image file","err"); return; }
+  const r=new FileReader(); r.onload=()=>cb(r.result); r.onerror=()=>toast("Could not read image","err"); r.readAsDataURL(file);
+}
+async function uploadEntityPhoto(entity, id, file){
+  if(!file || id==null) return null;
+  const fd=new FormData(); fd.append("file", file); fd.append("id", String(id));
+  try{
+    const d=await (await fetch(`/api/photos/${entity}`,{method:"POST",body:fd})).json();
+    if(d.error){ toast(d.error,"err"); return null; }
+    return d.url || d.photo_url || null;
+  }catch{ return null; }
+}
+function _syncGroupsMode(){
+  document.querySelectorAll("#groupsModeSeg button").forEach((b)=>b.classList.toggle("on", b.dataset.val===groupsMode));
+  const tw=document.getElementById("groupTableWrap"), cw=document.getElementById("groupCardsWrap"), cc=document.getElementById("groupsCards");
+  if(tw) tw.style.display = groupsMode==="table" ? "" : "none";
+  if(cw) cw.style.display = groupsMode==="cards" ? "" : "none";
+  if(cc) cc.style.display = "none";
+}
+function setGroupsMode(m){ groupsMode=m; localStorage.setItem("groups-mode", m); _syncGroupsMode(); renderGroupTable(); }
+function renderGroupCards(){
+  const wrap=document.getElementById("groupCardsWrap"); if(!wrap) return;
+  const q=(document.getElementById("groupTableSearch")?.value||"").toLowerCase();
+  if(!groups.length){ wrap.innerHTML=`<div class="empty" style="grid-column:1/-1"><div class="empty-ico"><svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg></div><p>No groups yet</p><button class="btn btn-primary btn-sm" onclick="newGroupDetail()">+ New group</button></div>`; return; }
+  const rows=groups.map((g,i)=>({g,i})).filter(({g})=>!q||g.name.toLowerCase().includes(q));
+  if(!rows.length){ wrap.innerHTML='<div class="empty" style="grid-column:1/-1"><p>No groups match your search.</p></div>'; return; }
+  wrap.innerHTML=rows.map(({g,i})=>{
+    const active=(g.schedule||[]).filter((e)=>(e.from||"").trim()).length;
+    const chips=(g.schedule||[]).filter((e)=>(e.from||"").trim()).map((e)=>`<span class="ec-chip">${esc(e.day.slice(0,3))}</span>`).join("")||'<span class="ec-none">No schedule</span>';
+    const pic=entityPic(g);
+    return `<article class="ecard" onclick="openGroupDetail(${i})" tabindex="0" onkeydown="if(event.key==='Enter')openGroupDetail(${i})">
+      <div class="ecard-top"><div class="av small${pic?" has-img":""}">${avatarInner(g.name,pic)}${g.waLinked?'<span class="wa-badge"></span>':""}</div>
+        <div class="ecard-id"><b>${esc(g.name)}</b><span>${active?`${active} day${active===1?"":"s"}`:"No schedule"}</span></div>
+        <span class="ecard-go">›</span></div>
+      <div class="ecard-days">${chips}</div>
+      <div class="ecard-foot"><span class="${g.waLinked?"status-on":"status-off"}">${g.waLinked?"On WhatsApp":"Not linked"}</span><span class="hint" style="margin:0">${g.lastReleased?"Sent "+relTime(g.lastReleased):"Never sent"}</span></div>
+    </article>`;
+  }).join("");
+}
+function renderGroupTable(){
+  _syncGroupsMode();
+  if(groupsMode==="cards"){ renderGroupCards(); return; }
+  const wrap=document.getElementById("groupTableWrap"); if(!wrap) return;
+  const q=(document.getElementById("groupTableSearch")?.value||"").toLowerCase();
+  if(!groups.length){ wrap.innerHTML=`<div class="tbl-wrap"><div class="empty"><div class="empty-ico"><svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg></div><p>No groups yet</p><button class="btn btn-primary btn-sm" onclick="newGroupDetail()">+ New group</button></div></div>`; return; }
+  const rows=groups.map((g,i)=>({g,i})).filter(({g})=>!q||g.name.toLowerCase().includes(q));
+  if(!rows.length){ wrap.innerHTML='<div class="tbl-wrap"><div class="empty"><p>No groups match your search.</p></div></div>'; return; }
+  wrap.innerHTML=`<div class="tbl-wrap"><table class="data grid-table"><thead><tr><th>Group</th><th>Schedule</th><th>Status</th><th>Last sent</th><th></th></tr></thead><tbody>`+
+    rows.map(({g,i})=>{
+      const days=(g.schedule||[]).filter((e)=>(e.from||"").trim()).map((e)=>e.day.slice(0,3)).join(" · ")||"—";
+      const pic=entityPic(g);
+      return `<tr onclick="openGroupDetail(${i})"><td><div class="grid-name"><div class="av small${pic?" has-img":""}">${avatarInner(g.name,pic)}${g.waLinked?'<span class="wa-badge"></span>':""}</div><b>${esc(g.name)}</b></div></td><td>${(g.schedule||[]).length?`${g.schedule.length} day${g.schedule.length===1?"":"s"} · <span class="hint" style="margin:0">${esc(days)}</span>`:'<span class="hint" style="margin:0">No schedule</span>'}</td><td>${g.waLinked?'<span class="status-on">On WhatsApp</span>':'<span class="status-off">Not linked</span>'}</td><td>${g.lastReleased?relTime(g.lastReleased):"—"}</td><td class="grid-go">›</td></tr>`;
+    }).join("")+`</tbody></table></div>`;
+}
+function openGroupDetail(i){
+  gdIdx=i; gdEdit=false; gdPendingFile=null;
+  gdWorking=JSON.parse(JSON.stringify(groups[i]));
+  if(!gdWorking.pic) gdWorking.pic=entityPic(gdWorking);
+  if(!gdWorking.inviteLink) gdWorking.inviteLink=gdWorking.invite_link||"";
+  showView("group-detail");
+}
+function openGroupDetailByName(name){ const i=groups.findIndex((g)=>g.name===name); if(i>=0) openGroupDetail(i); }
+function newGroupDetail(){
+  gdIdx=null; gdPendingFile=null;
+  gdWorking={name:"",schedule:[],message:"",inviteLink:"",pic:"",waLinked:false,lastReleased:""};
+  gdEdit=true; showView("group-detail");
+}
+function backToGroups(){ showView("groups"); }
+function gdToggleEdit(){
+  if(gdEdit){ if(gdIdx==null){ backToGroups(); return; } gdEdit=false; gdPendingFile=null; gdWorking=JSON.parse(JSON.stringify(groups[gdIdx])); if(!gdWorking.pic) gdWorking.pic=entityPic(gdWorking); }
+  else gdEdit=true;
+  renderGroupDetail();
+}
+function gdRefreshAvatar(){ const el=document.getElementById("gdAvatar"); if(el){ el.className="editor-av"+(gdWorking.pic?" has-img":""); el.innerHTML=avatarInner(gdWorking.name,gdWorking.pic); } }
+function gdSetField(f,v){ gdWorking[f]=v; if(f==="name") gdRefreshAvatar(); gdPreview(); }
+function gdSetCell(day,field,val){
+  let e=(gdWorking.schedule||[]).find((x)=>x.day===day);
+  if(!e){ e={day,from:"",to:""}; gdWorking.schedule.push(e); }
+  e[field]=val.trim();
+  if(!e.from&&!e.to) gdWorking.schedule=gdWorking.schedule.filter((x)=>x.day!==day);
+  gdWorking.schedule.sort((a,b)=>DAYS.indexOf(a.day)-DAYS.indexOf(b.day));
+  gdPreview();
+}
+function gdPickImage(input){
+  const f=input.files[0]; input.value="";
+  if(!f) return;
+  gdPendingFile=f;
+  readImageAsDataURL(f,(url)=>{ gdWorking.pic=url; gdRefreshAvatar(); toast("Photo updated — save to keep"); });
+}
+async function gdSave(){
+  if(!gdWorking.name.trim()){ toast("Enter a group name","err"); return; }
+  const schedule=(gdWorking.schedule||[]).filter((e)=>(e.from||"").trim());
+  if(!schedule.length){ toast("Select at least one day with a From time","err"); return; }
+  for(const e of schedule){ if(!(e.from||"").trim()){ toast(`Enter a "From" time for ${e.day}`,"err"); return; } }
+  const auto=genMessage(schedule);
+  const msg=(gdWorking.message||"").trim()===auto.trim()?"":(gdWorking.message||"");
+  const prev=gdIdx!==null?groups[gdIdx]:{};
+  const body={name:gdWorking.name.trim(),schedule,message:msg,lastReleased:prev.lastReleased||gdWorking.lastReleased||"",inviteLink:(gdWorking.inviteLink||"").trim()};
+  const res=gdIdx!==null?await fetch(`/api/groups/${gdIdx}`,put(body)):await fetch("/api/groups",post(body));
+  const d=await res.json(); if(d.error){ toast(d.error,"err"); return; }
+  await loadGroups();
+  if(gdIdx===null) gdIdx=groups.length-1;
+  if(gdPendingFile && groups[gdIdx]?.id!=null){
+    const url=await uploadEntityPhoto("groups", groups[gdIdx].id, gdPendingFile);
+    if(url){ groups[gdIdx].pic=url; groups[gdIdx].photoUrl=url; }
+    gdPendingFile=null;
+  }
+  gdWorking=JSON.parse(JSON.stringify(groups[gdIdx])); if(!gdWorking.pic) gdWorking.pic=entityPic(gdWorking);
+  gdEdit=false; renderGroupDetail(); toast("Group saved ✓");
+}
+async function gdDelete(){
+  if(gdIdx==null){ backToGroups(); return; }
+  if(!confirm(`Delete "${groups[gdIdx].name}"?`)) return;
+  await fetch(`/api/groups/${gdIdx}`,{method:"DELETE"});
+  gdIdx=null; await loadGroups(); backToGroups(); toast("Group deleted");
+}
+function gdReleaseCurrent(){
+  if(gdIdx==null) return;
+  const g=groups[gdIdx];
+  releaseWithMode([{name:g.name,message:replaceTokens(messageFor(g))}],"relAllSpin","relAllBtn","relAllTxt","Send all","automated");
+}
+function gdPreview(){
+  const el=document.getElementById("gdPreview"); if(!el) return;
+  const rendered=replaceTokens(messageFor(gdWorking));
+  el.innerHTML=`<div class="preview-h">WhatsApp preview</div><div class="preview-b">${typeof renderWhatsAppPreview==="function"?renderWhatsAppPreview(rendered):esc(rendered)||"<i>No message</i>"}</div>`;
+}
+function renderGroupDetail(){
+  const el=document.getElementById("groupDetail"); if(!el) return;
+  if(gdWorking==null){ el.innerHTML='<p class="hint">Select a group.</p>'; return; }
+  const g=gdWorking;
+  const scheduleRows=DAYS.map((day)=>{
+    const e=(g.schedule||[]).find((x)=>x.day===day)||{}; const f=e.from||"", t=e.to||"";
+    return gdEdit
+      ? `<tr><td class="day-col">${day}</td><td><div class="crange"><input class="cell" list="timeOptions" value="${escA(f)}" placeholder="From" oninput="gdSetCell('${day}','from',this.value)"/><span class="dash">–</span><input class="cell" list="timeOptions" value="${escA(t)}" placeholder="To" oninput="gdSetCell('${day}','to',this.value)"/></div></td></tr>`
+      : `<tr class="${f||t?"filled":""}"><td class="day-col">${day}</td><td>${(f||t)?`<b>${esc(f)}</b> – <b>${esc(t)}</b>`:'<span class="hint" style="margin:0">—</span>'}</td></tr>`;
+  }).join("");
+  const pic=entityPic(g);
+  el.innerHTML=`
+    <div class="detail-top"><button class="btn btn-soft btn-sm" onclick="backToGroups()">← Back to groups</button><div style="flex:1"></div>
+      ${gdEdit?`<button class="btn btn-soft btn-sm" onclick="gdToggleEdit()">Cancel</button><button class="btn btn-primary btn-sm" onclick="gdSave()">Save changes</button>`:`<button class="btn btn-primary btn-sm" onclick="gdToggleEdit()">✎ Edit details</button><button class="btn btn-soft btn-sm" onclick="gdReleaseCurrent()">Send</button><button class="icon-btn" title="Delete" onclick="gdDelete()">${TRASH_ICO}</button>`}
+    </div>
+    <div class="detail-hero">
+      <div class="detail-av-wrap"><div class="editor-av${pic?" has-img":""}" id="gdAvatar">${avatarInner(g.name,pic)}</div>${gdEdit?`<button class="editor-av-edit" type="button" onclick="document.getElementById('gdImg').click()" title="Change photo"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg></button><input id="gdImg" type="file" accept="image/*" hidden onchange="gdPickImage(this)"/>`:""}</div>
+      <div class="detail-hero-body">
+        ${gdEdit?`<input class="field detail-name-input" value="${escA(g.name)}" oninput="gdSetField('name',this.value)" placeholder="WhatsApp group name"/>`:`<h2>${esc(g.name||"Untitled group")}</h2>`}
+        <div class="detail-badges"><span class="chip">${(g.schedule||[]).length} day${(g.schedule||[]).length===1?"":"s"}</span>${g.waLinked?'<span class="chip chip-default">On WhatsApp</span>':""}${g.lastReleased?`<span class="chip">Sent ${relTime(g.lastReleased)}</span>`:""}</div>
+      </div>
+    </div>
+    <div class="detail-grid">
+      <div class="sec"><div class="sec-h">Weekly schedule${gdEdit?'<span class="hint" style="margin:0 0 0 auto">editable</span>':""}</div><div class="sec-b" style="padding:0"><div class="sched-canvas" style="border:none;box-shadow:none"><table class="sched detail-sched"><tbody>${scheduleRows}</tbody></table></div></div></div>
+      <div class="sec"><div class="sec-h">Message &amp; details</div><div class="sec-b">
+        ${gdEdit?`<div class="g-field" style="margin-bottom:14px"><div class="flabel">Invite link <span class="flabel-soft">optional</span></div><input class="field" value="${escA(g.inviteLink||"")}" oninput="gdSetField('inviteLink',this.value)" placeholder="https://chat.whatsapp.com/…"/></div><div class="g-field" style="margin-bottom:10px"><div class="flabel">Message</div><textarea class="field" style="min-height:150px" oninput="gdSetField('message',this.value)">${esc(messageFor(g))}</textarea></div>`:(g.inviteLink?'<div class="hint" style="margin:0 0 10px">Invite link set · opens the group directly.</div>':"")}
+        <div class="msg-preview" id="gdPreview"></div>
+      </div></div>
+    </div>`;
+  gdPreview();
+}
+
+/* ════ CONTACTS: table / cards + detail ════ */
+let contactsMode = localStorage.getItem("contacts-mode") || "table";
+let cdIdx = null, cdEdit = false, cdWorking = null, cdPendingFile = null;
+function _syncContactsMode(){
+  document.querySelectorAll("#contactsModeSeg button").forEach((b)=>b.classList.toggle("on", b.dataset.val===contactsMode));
+  const tw=document.getElementById("contactTableWrap"), cw=document.getElementById("contactCardsWrap"), cc=document.getElementById("contactsCards");
+  if(tw) tw.style.display = contactsMode==="table" ? "" : "none";
+  if(cw) cw.style.display = contactsMode==="cards" ? "" : "none";
+  if(cc) cc.style.display = "none";
+}
+function setContactsMode(m){ contactsMode=m; localStorage.setItem("contacts-mode", m); _syncContactsMode(); renderContactTable(); }
+function renderContactCards(){
+  const wrap=document.getElementById("contactCardsWrap"); if(!wrap) return;
+  const q=(document.getElementById("contactTableSearch")?.value||"").toLowerCase();
+  if(!contacts.length){ wrap.innerHTML=`<div class="empty" style="grid-column:1/-1"><div class="empty-ico"><svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></div><p>No contacts yet</p><button class="btn btn-primary btn-sm" onclick="newContactDetail()">+ New contact</button></div>`; return; }
+  const rows=contacts.map((c,i)=>({c,i})).filter(({c})=>!q||c.name.toLowerCase().includes(q)||(c.phone||"").includes(q));
+  if(!rows.length){ wrap.innerHTML='<div class="empty" style="grid-column:1/-1"><div class="empty-ico">🔍</div><p>No contacts match your search.</p></div>'; return; }
+  wrap.innerHTML=rows.map(({c,i})=>{
+    const prev=esc((c.message||"").slice(0,70))+((c.message||"").length>70?"…":"");
+    const pic=entityPic(c);
+    return `<article class="ecard" onclick="openContactDetail(${i})" tabindex="0" onkeydown="if(event.key==='Enter')openContactDetail(${i})">
+      <div class="ecard-top"><div class="av small${pic?" has-img":""}">${avatarInner(c.name,pic)}${c.waLinked?'<span class="wa-badge"></span>':""}</div>
+        <div class="ecard-id"><b>${esc(c.name)}</b><span>+${esc(c.phone||"—")}</span></div>
+        <span class="ecard-go">›</span></div>
+      <div class="ecard-msg">${prev||'<span class="ec-none">No message</span>'}</div>
+      <div class="ecard-foot"><span class="${c.waLinked?"status-on":"status-off"}">${c.waLinked?"On WhatsApp":"Not verified"}</span><span class="hint" style="margin:0">${c.lastReleased?"Sent "+relTime(c.lastReleased):"Never sent"}</span></div>
+    </article>`;
+  }).join("");
+}
+function renderContactTable(){
+  _syncContactsMode();
+  if(contactsMode==="cards"){ renderContactCards(); return; }
+  const wrap=document.getElementById("contactTableWrap"); if(!wrap) return;
+  const q=(document.getElementById("contactTableSearch")?.value||"").toLowerCase();
+  if(!contacts.length){ wrap.innerHTML=`<div class="tbl-wrap"><div class="empty"><div class="empty-ico"><svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></div><p>No contacts yet</p><button class="btn btn-primary btn-sm" onclick="newContactDetail()">+ New contact</button></div></div>`; return; }
+  const rows=contacts.map((c,i)=>({c,i})).filter(({c})=>!q||c.name.toLowerCase().includes(q)||(c.phone||"").includes(q));
+  if(!rows.length){ wrap.innerHTML='<div class="tbl-wrap"><div class="empty"><div class="empty-ico">🔍</div><p>No contacts match your search.</p></div></div>'; return; }
+  wrap.innerHTML=`<div class="tbl-wrap"><table class="data grid-table"><thead><tr><th>Contact</th><th>Phone</th><th>Message</th><th>Last sent</th><th></th></tr></thead><tbody>`+
+    rows.map(({c,i})=>{
+      const prev=esc((c.message||"").slice(0,40))+((c.message||"").length>40?"…":"");
+      const pic=entityPic(c);
+      return `<tr onclick="openContactDetail(${i})"><td><div class="grid-name"><div class="av small${pic?" has-img":""}">${avatarInner(c.name,pic)}${c.waLinked?'<span class="wa-badge"></span>':""}</div><b>${esc(c.name)}</b></div></td><td>+${esc(c.phone)}</td><td><span class="hint" style="margin:0">${prev||"—"}</span></td><td>${c.lastReleased?relTime(c.lastReleased):"—"}</td><td class="grid-go">›</td></tr>`;
+    }).join("")+`</tbody></table></div>`;
+}
+function openContactDetail(i){
+  cdIdx=i; cdEdit=false; cdPendingFile=null;
+  cdWorking=JSON.parse(JSON.stringify(contacts[i]));
+  if(!cdWorking.pic) cdWorking.pic=entityPic(cdWorking);
+  showView("contact-detail");
+}
+function newContactDetail(){
+  cdIdx=null; cdPendingFile=null;
+  cdWorking={name:"",phone:"",message:"",pic:"",waLinked:false,lastReleased:""};
+  cdEdit=true; showView("contact-detail");
+}
+function backToContacts(){ showView("contacts"); }
+function cdToggleEdit(){
+  if(cdEdit){ if(cdIdx==null){ backToContacts(); return; } cdEdit=false; cdPendingFile=null; cdWorking=JSON.parse(JSON.stringify(contacts[cdIdx])); if(!cdWorking.pic) cdWorking.pic=entityPic(cdWorking); }
+  else cdEdit=true;
+  renderContactDetail();
+}
+function cdRefreshAvatar(){ const el=document.getElementById("cdAvatar"); if(el){ el.className="editor-av"+(cdWorking.pic?" has-img":""); el.innerHTML=avatarInner(cdWorking.name,cdWorking.pic); } }
+function cdSetField(f,v){ cdWorking[f]=f==="phone"?String(v).replace(/\D/g,""):v; if(f==="name") cdRefreshAvatar(); cdPreview(); }
+function cdPickImage(input){
+  const f=input.files[0]; input.value="";
+  if(!f) return;
+  cdPendingFile=f;
+  readImageAsDataURL(f,(url)=>{ cdWorking.pic=url; cdRefreshAvatar(); toast("Photo updated — save to keep"); });
+}
+async function cdSave(){
+  if(!cdWorking.name.trim()){ toast("Enter contact name","err"); return; }
+  if(!cdWorking.phone){ toast("Enter phone (digits, country code)","err"); return; }
+  const prev=cdIdx!==null?contacts[cdIdx]:{};
+  const body={name:cdWorking.name.trim(),phone:String(cdWorking.phone).replace(/\D/g,""),message:cdWorking.message||"",lastReleased:prev.lastReleased||cdWorking.lastReleased||""};
+  const res=cdIdx!==null?await fetch(`/api/contacts/${cdIdx}`,put(body)):await fetch("/api/contacts",post(body));
+  const d=await res.json(); if(d.error){ toast(d.error,"err"); return; }
+  await loadContacts();
+  if(cdIdx===null) cdIdx=contacts.length-1;
+  if(cdPendingFile && contacts[cdIdx]?.id!=null){
+    const url=await uploadEntityPhoto("contacts", contacts[cdIdx].id, cdPendingFile);
+    if(url){ contacts[cdIdx].pic=url; contacts[cdIdx].photoUrl=url; }
+    cdPendingFile=null;
+  }
+  cdWorking=JSON.parse(JSON.stringify(contacts[cdIdx])); if(!cdWorking.pic) cdWorking.pic=entityPic(cdWorking);
+  cdEdit=false; renderContactDetail(); toast("Contact saved ✓");
+}
+async function cdDelete(){
+  if(cdIdx==null){ backToContacts(); return; }
+  if(!confirm(`Delete "${contacts[cdIdx].name}"?`)) return;
+  await fetch(`/api/contacts/${cdIdx}`,{method:"DELETE"});
+  cdIdx=null; await loadContacts(); backToContacts(); toast("Contact deleted");
+}
+function cdReleaseCurrent(){
+  if(cdIdx==null) return;
+  const c=contacts[cdIdx]; const t=contactTarget(c);
+  if(!t.message.trim()){ toast("Message is empty","err"); return; }
+  releaseWithMode([t],"relCAllSpin","relCAllBtn","relCAllTxt","Automated All","automated");
+}
+function cdPreview(){
+  const el=document.getElementById("cdPreview"); if(!el) return;
+  const rendered=replaceTokens(cdWorking.message||"");
+  el.innerHTML=`<div class="preview-h">WhatsApp preview</div><div class="preview-b">${typeof renderWhatsAppPreview==="function"?renderWhatsAppPreview(rendered):esc(rendered)||"<i>No message</i>"}</div>`;
+}
+function renderContactDetail(){
+  const el=document.getElementById("contactDetail"); if(!el) return;
+  if(cdWorking==null){ el.innerHTML='<p class="hint">Select a contact.</p>'; return; }
+  const c=cdWorking; const pic=entityPic(c);
+  el.innerHTML=`
+    <div class="detail-top"><button class="btn btn-soft btn-sm" onclick="backToContacts()">← Back to contacts</button><div style="flex:1"></div>
+      ${cdEdit?`<button class="btn btn-soft btn-sm" onclick="cdToggleEdit()">Cancel</button><button class="btn btn-primary btn-sm" onclick="cdSave()">Save changes</button>`:`<button class="btn btn-primary btn-sm" onclick="cdToggleEdit()">✎ Edit details</button><button class="btn btn-soft btn-sm" onclick="cdReleaseCurrent()">Send</button><button class="icon-btn" title="Delete" onclick="cdDelete()">${TRASH_ICO}</button>`}
+    </div>
+    <div class="detail-hero">
+      <div class="detail-av-wrap"><div class="editor-av${pic?" has-img":""}" id="cdAvatar">${avatarInner(c.name,pic)}</div>${cdEdit?`<button class="editor-av-edit" type="button" onclick="document.getElementById('cdImg').click()" title="Change photo"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg></button><input id="cdImg" type="file" accept="image/*" hidden onchange="cdPickImage(this)"/>`:""}</div>
+      <div class="detail-hero-body">
+        ${cdEdit?`<input class="field detail-name-input" value="${escA(c.name)}" oninput="cdSetField('name',this.value)" placeholder="Contact name"/>`:`<h2>${esc(c.name||"Untitled contact")}</h2>`}
+        <div class="detail-badges"><span class="chip">+${esc(c.phone||"—")}</span>${c.waLinked?'<span class="chip chip-default">On WhatsApp</span>':""}${c.lastReleased?`<span class="chip">Sent ${relTime(c.lastReleased)}</span>`:""}</div>
+      </div>
+    </div>
+    <div class="detail-grid">
+      <div class="sec"><div class="sec-h">Details</div><div class="sec-b">
+        ${cdEdit?`<div class="g-field"><div class="flabel">Phone <span class="flabel-soft">country code, digits only</span></div><input class="field" value="${escA(c.phone||"")}" oninput="cdSetField('phone',this.value)" placeholder="e.g. 923001234567"/><div class="hint">No "+", spaces or dashes.</div></div>`:`<div class="dash-status-row"><span>Phone</span><span style="margin-left:auto;font-weight:700">+${esc(c.phone||"—")}</span></div><div class="dash-status-row"><span>Status</span><span style="margin-left:auto">${c.waLinked?'<span class="status-on">On WhatsApp</span>':'<span class="status-off">Not verified</span>'}</span></div>`}
+      </div></div>
+      <div class="sec"><div class="sec-h">Message</div><div class="sec-b">
+        ${cdEdit?`<textarea class="field" style="min-height:150px;margin-bottom:10px" oninput="cdSetField('message',this.value)" placeholder="Type a message… *bold* {date} {weekday}">${esc(c.message||"")}</textarea>`:""}
+        <div class="msg-preview" id="cdPreview"></div>
+      </div></div>
+    </div>`;
+  cdPreview();
+}
+
+/* ════ TABLE / BOARD ════ */
+function getScheduleView(){
+  if(scheduleViewMode==="table"||scheduleViewMode==="board") return scheduleViewMode;
+  const saved=localStorage.getItem(SCHED_VIEW_KEY);
+  if(saved==="table"||saved==="board"){ scheduleViewMode=saved; return saved; }
+  scheduleViewMode = window.innerWidth<=820 ? "board" : "table";
+  return scheduleViewMode;
+}
+function setScheduleView(mode){
+  if(mode!=="table"&&mode!=="board") return;
+  scheduleViewMode=mode;
+  localStorage.setItem(SCHED_VIEW_KEY, mode);
+  syncScheduleViewSeg();
+  renderTable();
+}
+function syncScheduleViewSeg(){
+  const mode=getScheduleView();
+  document.querySelectorAll("#schedViewSeg button").forEach(b=>b.classList.toggle("on", b.dataset.val===mode));
+}
+function updateSchedSelCount(){
+  const el=document.getElementById("schedSelCount"); if(!el) return;
+  if(!groups.length){ el.textContent=""; return; }
+  const n=groups.reduce((a,_,i)=>a+(tableSelected[i]!==false?1:0),0);
+  el.textContent = n===groups.length ? `${n} selected` : `${n} of ${groups.length} selected`;
+}
 function renderTable(){
-  const w=document.getElementById("tableWrap");
-  if(!groups.length){w.innerHTML=`<div class="empty"><div class="ic">📊</div><p>No groups yet. Add a column or create groups first.</p></div>`;return;}
-  let h='<table class="sched"><thead><tr><th class="day-col">Day</th>';
-  groups.forEach((g,ci)=>{ if(tableSelected[ci]===undefined)tableSelected[ci]=true;
-    const wd=colWidths[ci]?`width:${colWidths[ci]}px`:"width:200px";
-    h+=`<th style="${wd}"><div class="ch"><div class="top">
-      <input type="checkbox" ${tableSelected[ci]?"checked":""} onchange="tableSelected[${ci}]=this.checked"/>
-      <input class="gn" value="${escA(g.name)}" onchange="groups[${ci}].name=this.value.trim()"/>
-      <button class="rc" onclick="removeColumn(${ci})">🗑</button></div></div>
-      <div class="resizer" onmousedown="startResize(event,${ci})"></div></th>`;});
+  const w=document.getElementById("tableWrap"); if(!w) return;
+  syncScheduleViewSeg();
+  groups.forEach((_,ci)=>{ if(tableSelected[ci]===undefined) tableSelected[ci]=true; });
+  if(!groups.length){
+    w.innerHTML=`<div class="empty sched-empty"><div class="ic svg-empty">${getScheduleView()==="board"
+      ? '<svg viewBox="0 0 24 24" width="40" height="40" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="7" height="18" rx="1.5"/><rect x="14" y="3" width="7" height="18" rx="1.5"/></svg>'
+      : '<svg viewBox="0 0 24 24" width="40" height="40" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M3 15h18M9 3v18"/></svg>'
+    }</div><p>No groups yet</p><button class="btn btn-primary btn-sm" type="button" onclick="addColumn()">+ Add group</button></div>`;
+    updateSchedSelCount();
+    return;
+  }
+  if(getScheduleView()==="board") renderScheduleBoard(w);
+  else renderScheduleGrid(w);
+  updateSchedSelCount();
+}
+function renderScheduleGrid(w){
+  let h='<div class="sched-scroll"><table class="sched"><thead><tr><th class="day-col">Day</th>';
+  groups.forEach((g,ci)=>{
+    const wd=colWidths[ci]?`width:${colWidths[ci]}px`:"width:168px";
+    h+=`<th style="${wd}" data-gi="${ci}" ondragover="schedDragOver(event,${ci})" ondrop="schedDrop(event,${ci})" ondragenter="schedDragEnter(event,${ci})" ondragleave="schedDragLeave(event)">
+      <div class="ch"><div class="top">
+      <span class="drag-handle" draggable="true" title="Drag to reorder" ondragstart="schedDragStart(event,${ci})" ondragend="schedDragEnd(event)">${GRIP_ICO}</span>
+      <input type="checkbox" aria-label="Select ${escA(g.name)}" ${tableSelected[ci]?"checked":""} onchange="tableSelected[${ci}]=this.checked;updateSchedSelCount()"/>
+      <input class="gn" value="${escA(g.name)}" aria-label="Group name" onchange="groups[${ci}].name=this.value.trim();tableDirty=true"/>
+      <button class="rc" type="button" title="Remove group" onclick="removeColumn(${ci})">${TRASH_ICO}</button></div></div>
+      <div class="resizer" onmousedown="startResize(event,${ci})"></div></th>`;
+  });
   h+='</tr></thead><tbody>';
-  DAYS.forEach(day=>{h+=`<tr><td class="day-col">${day}</td>`;
-    groups.forEach((g,ci)=>{const e=g.schedule.find(x=>x.day===day)||{};const f=e.from||"",t=e.to||"";
+  DAYS.forEach(day=>{
+    h+=`<tr><td class="day-col"><span class="day-short">${day.slice(0,3)}</span><span class="day-full">${day}</span></td>`;
+    groups.forEach((g,ci)=>{
+      const e=g.schedule.find(x=>x.day===day)||{}; const f=e.from||"", t=e.to||"";
       h+=`<td class="${(f||t)?'filled':''}"><div class="crange">
-        <input class="cell" list="timeOptions" value="${escA(f)}" placeholder="From" oninput="updateCell(${ci},'${day}','from',this)"/>
-        <span class="dash">→</span>
-        <input class="cell" list="timeOptions" value="${escA(t)}" placeholder="To" oninput="updateCell(${ci},'${day}','to',this)"/></div></td>`;});
-    h+='</tr>';});
-  w.innerHTML=h+'</tbody></table>';
+        <input class="cell" list="timeOptions" value="${escA(f)}" placeholder="From" aria-label="${escA(g.name)} ${day} from" oninput="updateCell(${ci},'${day}','from',this)"/>
+        <span class="dash" aria-hidden="true">–</span>
+        <input class="cell" list="timeOptions" value="${escA(t)}" placeholder="To" aria-label="${escA(g.name)} ${day} to" oninput="updateCell(${ci},'${day}','to',this)"/></div></td>`;
+    });
+    h+='</tr>';
+  });
+  w.innerHTML=h+'</tbody></table></div>';
+}
+function renderScheduleBoard(w){
+  let h='<div class="sched-board">';
+  groups.forEach((g,ci)=>{
+    const activeDays=g.schedule.filter(e=>(e.from||"").trim()||(e.to||"").trim()).length;
+    h+=`<article class="sb-card${tableSelected[ci]!==false?"":" is-dim"}" data-gi="${ci}" ondragover="schedDragOver(event,${ci})" ondrop="schedDrop(event,${ci})" ondragenter="schedDragEnter(event,${ci})" ondragleave="schedDragLeave(event)">
+      <header class="sb-head">
+        <span class="drag-handle" draggable="true" title="Drag to reorder" ondragstart="schedDragStart(event,${ci})" ondragend="schedDragEnd(event)">${GRIP_ICO}</span>
+        <label class="sb-check"><input type="checkbox" ${tableSelected[ci]?"checked":""} onchange="tableSelected[${ci}]=this.checked;updateSchedSelCount();this.closest('.sb-card').classList.toggle('is-dim',!this.checked)"/><span class="sr-only">Select</span></label>
+        <input class="gn" value="${escA(g.name)}" aria-label="Group name" onchange="groups[${ci}].name=this.value.trim();tableDirty=true"/>
+        <span class="sb-meta">${activeDays} day${activeDays===1?"":"s"}</span>
+        <button class="rc" type="button" title="Remove group" onclick="removeColumn(${ci})">${TRASH_ICO}</button>
+      </header>
+      <div class="sb-days">`;
+    DAYS.forEach(day=>{
+      const e=g.schedule.find(x=>x.day===day)||{}; const f=e.from||"", t=e.to||"";
+      h+=`<div class="sb-day${(f||t)?" filled":""}" data-day="${day}">
+        <span class="sb-day-name">${day.slice(0,3)}</span>
+        <div class="crange">
+          <input class="cell" list="timeOptions" value="${escA(f)}" placeholder="From" aria-label="${escA(g.name)} ${day} from" oninput="updateCell(${ci},'${day}','from',this)"/>
+          <span class="dash" aria-hidden="true">–</span>
+          <input class="cell" list="timeOptions" value="${escA(t)}" placeholder="To" aria-label="${escA(g.name)} ${day} to" oninput="updateCell(${ci},'${day}','to',this)"/>
+        </div>
+      </div>`;
+    });
+    h+=`</div></article>`;
+  });
+  w.innerHTML=h+'</div>';
+}
+function schedDragStart(e,ci){
+  schedDragFrom=ci;
+  e.dataTransfer.effectAllowed="move";
+  e.dataTransfer.setData("text/plain", String(ci));
+  const host=e.target.closest("th, .sb-card");
+  if(host) host.classList.add("is-dragging");
+  requestAnimationFrame(()=>document.getElementById("tableWrap")?.classList.add("is-reordering"));
+}
+function schedDragOver(e,ci){
+  e.preventDefault();
+  e.dataTransfer.dropEffect="move";
+}
+function schedDragEnter(e,ci){
+  e.preventDefault();
+  const host=e.currentTarget;
+  if(!(host instanceof HTMLElement)) return;
+  if(schedDragFrom===null||schedDragFrom===ci) return;
+  document.querySelectorAll(".sched .drag-over, .sb-card.drag-over").forEach(el=>el.classList.remove("drag-over"));
+  host.classList.add("drag-over");
+}
+function schedDragLeave(e){
+  const host=e.currentTarget;
+  if(!(host instanceof HTMLElement)) return;
+  if(!host.contains(e.relatedTarget)) host.classList.remove("drag-over");
+}
+function schedDrop(e,ci){
+  e.preventDefault();
+  const from=schedDragFrom!==null?schedDragFrom:parseInt(e.dataTransfer.getData("text/plain"),10);
+  schedDragFrom=null;
+  document.querySelectorAll(".drag-over, .is-dragging").forEach(el=>el.classList.remove("drag-over","is-dragging"));
+  document.getElementById("tableWrap")?.classList.remove("is-reordering");
+  if(Number.isNaN(from)||from===ci) return;
+  moveGroup(from,ci);
+}
+function schedDragEnd(){
+  schedDragFrom=null;
+  document.querySelectorAll(".drag-over, .is-dragging").forEach(el=>el.classList.remove("drag-over","is-dragging"));
+  document.getElementById("tableWrap")?.classList.remove("is-reordering");
+}
+function moveGroup(fromIdx,toIdx){
+  if(fromIdx===toIdx||fromIdx<0||toIdx<0||fromIdx>=groups.length||toIdx>=groups.length) return;
+  const selArr=groups.map((_,i)=>tableSelected[i]!==false);
+  const wArr=groups.map((_,i)=>colWidths[i]);
+  const [g]=groups.splice(fromIdx,1);
+  groups.splice(toIdx,0,g);
+  const [s]=selArr.splice(fromIdx,1); selArr.splice(toIdx,0,s);
+  const [ww]=wArr.splice(fromIdx,1); wArr.splice(toIdx,0,ww);
+  tableSelected={}; colWidths={};
+  selArr.forEach((v,i)=>{ tableSelected[i]=v; });
+  wArr.forEach((v,i)=>{ if(v) colWidths[i]=v; });
+  if(gSel===fromIdx) gSel=toIdx;
+  else if(gSel!==null){
+    if(fromIdx<gSel&&toIdx>=gSel) gSel--;
+    else if(fromIdx>gSel&&toIdx<=gSel) gSel++;
+  }
+  tableDirty=true;
+  renderTable();
+  renderGroupList();
 }
 function updateCell(ci,day,field,inp){const g=groups[ci];let e=g.schedule.find(x=>x.day===day);
   if(!e){e={day,from:"",to:""};g.schedule.push(e);} e[field]=inp.value.trim();
   if(!e.from&&!e.to)g.schedule=g.schedule.filter(x=>x.day!==day);
   g.schedule.sort((a,b)=>DAYS.indexOf(a.day)-DAYS.indexOf(b.day));
-  inp.closest("td").classList.toggle("filled",!!(e.from||e.to)); tableDirty=true;}
+  const cell=inp.closest("td")||inp.closest(".sb-day");
+  if(cell) cell.classList.toggle("filled",!!(e.from||e.to));
+  const card=inp.closest(".sb-card");
+  if(card){
+    const n=g.schedule.filter(x=>(x.from||"").trim()||(x.to||"").trim()).length;
+    const meta=card.querySelector(".sb-meta");
+    if(meta) meta.textContent=`${n} day${n===1?"":"s"}`;
+  }
+  tableDirty=true;}
 function selectAllCols(v){groups.forEach((g,ci)=>tableSelected[ci]=v);renderTable();}
 function addColumn(){const n=prompt("WhatsApp group name (exact):");if(!n||!n.trim())return;
   groups.push({name:n.trim(),schedule:[],message:""});tableSelected[groups.length-1]=true;tableDirty=true;renderTable();}
-function removeColumn(ci){if(!confirm(`Remove "${groups[ci].name}"? (Save Table to persist)`))return;groups.splice(ci,1);tableSelected={};colWidths={};tableDirty=true;renderTable();}
+function removeColumn(ci){if(!confirm(`Remove "${groups[ci].name}"? (Save to persist)`))return;groups.splice(ci,1);tableSelected={};colWidths={};tableDirty=true;renderTable();}
 function startResize(e,ci){e.preventDefault();e.stopPropagation();const th=e.target.closest("th"),hd=e.target;hd.classList.add("drag");
   const sx=e.clientX,sw=th.offsetWidth;
   function mv(ev){const wv=Math.max(120,sw+ev.clientX-sx);colWidths[ci]=wv;th.style.width=wv+"px";}
   function up(){hd.classList.remove("drag");document.removeEventListener("mousemove",mv);document.removeEventListener("mouseup",up);}
   document.addEventListener("mousemove",mv);document.addEventListener("mouseup",up);}
-async function saveTable(){for(const g of groups)if(!g.name||!g.name.trim()){toast("Every column needs a name","err");return false;}
+async function saveTable(){for(const g of groups)if(!g.name||!g.name.trim()){toast("Every group needs a name","err");return false;}
   const d=await (await fetch("/api/groups",put({groups}))).json();if(d.error){toast(d.error,"err");return false;}
-  await loadGroups();toast("Table saved ✓");return true;}
+  await loadGroups();toast("Schedule saved ✓");return true;}
 async function releaseTable(){if(!(await saveTable()))return;
   const t=groups.filter((g,ci)=>tableSelected[ci]).map(g=>({name:g.name,message:replaceTokens(genMessage(g.schedule))})).filter(x=>x.message.trim());
-  if(!t.length){toast("Select at least one column with timings","err");return;}
-  doRelease(t,"relTblSpin","relTblBtn","relTblTxt","Automated Selected");}
+  if(!t.length){toast("Select at least one group with timings","err");return;}
+  doRelease(t,"relTblSpin","relTblBtn","relTblTxt","Send selected");}
 async function directTable(){if(!(await saveTable()))return;
   const names=groups.filter((g,ci)=>tableSelected[ci]).map(g=>g.name);
   for(let i=0;i<names.length;i++) setTimeout(()=>openDirectGroupByName(names[i]),i*500);}
 
 /* ════ TEMPLATES ════ */
 function renderTemplates(){
-  const g=document.getElementById("tplGrid");if(!g)return;
-  if(!templates.length){g.innerHTML=`<div class="empty" style="grid-column:1/-1"><div class="ic">📝</div><p>No templates yet. Create one to reuse across groups and contacts.</p></div>`;return;}
-  g.innerHTML=templates.map((t,i)=>`<div class="tpl"><h3>${esc(t.name)}${t.isDefault?'<span class="chip-default">Default</span>':''}</h3>
-    <pre>${esc(t.content)||"<i>empty</i>"}</pre>
-    <div class="row"><button class="btn btn-soft btn-sm" onclick="editTemplate(${i})">✎ Edit</button>
-      <button class="btn btn-soft btn-sm" onclick="copyText(templates[${i}].content)">⧉ Copy</button>
-      <button class="btn btn-soft btn-sm" style="margin-left:auto;color:var(--error)" onclick="deleteTemplate(${i})">${t.isDefault?'Reset':'Delete'}</button></div></div>`).join("");
+  const g=document.getElementById("tplGrid"); if(!g) return;
+  if(!templates.length){
+    g.innerHTML=`<div class="empty" style="grid-column:1/-1"><div class="empty-ico">📝</div><p>No templates yet. Create one to reuse across groups and contacts.</p><button class="btn btn-primary btn-sm" onclick="newTemplate()">+ New Template</button></div>`;
+    return;
+  }
+  const q=(document.getElementById("tplSearch")?.value||"").toLowerCase().trim();
+  const list=templates.map((t,i)=>({t,i})).filter(({t})=>!q||(t.name||"").toLowerCase().includes(q)||(t.content||"").toLowerCase().includes(q));
+  if(!list.length){ g.innerHTML=`<div class="empty" style="grid-column:1/-1"><div class="empty-ico">🔍</div><p>No templates match your search.</p></div>`; return; }
+  g.innerHTML=list.map(({t,i})=>`<div class="tpl">
+    <h3>${esc(t.name)}${t.isDefault?'<span class="chip chip-default">Default</span>':""}</h3>
+    <div class="tpl-preview">${(typeof renderWhatsAppPreview==="function"?renderWhatsAppPreview(typeof replaceTokens==="function"?replaceTokens(t.content||""):t.content||""):esc(t.content))||"<i>Empty template</i>"}</div>
+    <div class="tpl-foot"><span class="tpl-count">${(t.content||"").length} chars</span></div>
+    <div class="row">
+      <button class="btn btn-soft btn-sm" onclick="editTemplate(${i})">Edit</button>
+      <button class="btn btn-soft btn-sm" onclick="duplicateTemplate(${i})">Duplicate</button>
+      <button class="btn btn-soft btn-sm" onclick="copyText(templates[${i}].content)">Copy</button>
+      <button class="btn btn-soft btn-sm" style="margin-left:auto;color:var(--error)" onclick="deleteTemplate(${i})">${t.isDefault?"Reset":"Delete"}</button>
+    </div></div>`).join("");
+}
+async function duplicateTemplate(i){
+  const t=templates[i];
+  let name=t.name+" (copy)", n=2;
+  while(templates.some((x)=>x.name===name)) name=`${t.name} (copy ${n++})`;
+  const d=await (await fetch("/api/templates",post({name,content:t.content||""}))).json();
+  if(d.error){ toast(d.error,"err"); return; }
+  await loadTemplates(); toast(`Duplicated as "${name}"`);
 }
 function newTemplate(){ tplSel=null; openTpl("New Template","",""); }
 function editTemplate(i){ tplSel=i; openTpl("Edit Template",templates[i].name,templates[i].content); }
@@ -791,12 +1838,44 @@ function openTpl(title,name,content){
   document.getElementById("tplName").value=name||"";
   document.getElementById("tplContent").value=content||"";
   document.getElementById("tplModal").classList.add("show");
+  tplPreview();
   document.getElementById("tplName").focus();
 }
 function closeTpl(){ document.getElementById("tplModal").classList.remove("show"); }
 function tplInsert(txt){
   const ta=document.getElementById("tplContent");const s=ta.selectionStart,e=ta.selectionEnd;
-  ta.value=ta.value.slice(0,s)+txt+ta.value.slice(e); ta.focus(); ta.selectionStart=ta.selectionEnd=s+txt.length;
+  ta.value=ta.value.slice(0,s)+txt+ta.value.slice(e); ta.focus(); ta.selectionStart=ta.selectionEnd=s+txt.length; tplPreview();
+}
+function tplWrap(marker){
+  const ta=document.getElementById("tplContent"); if(!ta)return; const s=ta.selectionStart,e=ta.selectionEnd; const sel=ta.value.slice(s,e);
+  if(marker==="```"){
+    const block=sel||"code"; ta.value=ta.value.slice(0,s)+"```"+block+"```"+ta.value.slice(e);
+    ta.selectionStart=s+3; ta.selectionEnd=s+3+block.length;
+  }else if(sel){
+    ta.value=ta.value.slice(0,s)+marker+sel+marker+ta.value.slice(e);
+    ta.selectionStart=s+marker.length; ta.selectionEnd=e+marker.length;
+  }else{
+    const ph=marker==="*"?"bold":marker==="_"?"italic":"text";
+    ta.value=ta.value.slice(0,s)+marker+ph+marker+ta.value.slice(e);
+    ta.selectionStart=s+marker.length; ta.selectionEnd=s+marker.length+ph.length;
+  }
+  ta.focus(); tplPreview();
+}
+function tplBullet(){
+  const ta=document.getElementById("tplContent"); if(!ta)return; const s=ta.selectionStart,e=ta.selectionEnd;
+  const sel=ta.value.slice(s,e)||"item";
+  const bulleted=sel.split("\n").map((ln)=>ln.startsWith("* ")||ln.startsWith("- ")?ln:"* "+ln.replace(/^\s+/, "")).join("\n");
+  ta.value=ta.value.slice(0,s)+bulleted+ta.value.slice(e); ta.focus(); tplPreview();
+}
+function tplEmoji(em){ tplInsert(em); }
+function tplPreview(){
+  const ta=document.getElementById("tplContent"); const val=ta?ta.value:"";
+  const cc=document.getElementById("tplCharCount"); if(cc) cc.textContent=val.length+" chars";
+  const pv=document.getElementById("tplPreviewBody");
+  if(pv){
+    const rendered=typeof replaceTokens==="function"?replaceTokens(val):val;
+    pv.innerHTML=(typeof renderWhatsAppPreview==="function"?renderWhatsAppPreview(rendered):esc(rendered))||"<i>Nothing to preview yet</i>";
+  }
 }
 function tplInsertSchedule(){
   tplInsert("*Note*\nSchedule for this week:\n* Saturday: 12:00pm - 1:30pm\n* Sunday: 12:00pm - 1:30pm\n*Kindly Acknowledge*");
@@ -815,24 +1894,57 @@ async function deleteTemplate(i){const t=templates[i];
   await fetch(`/api/templates/${i}`,{method:"DELETE"});loadTemplates();toast(t.isDefault?"Default reset":"Template deleted");}
 
 /* ════ CONTACTS ════ */
+let cPic = "";
+let cPendingFile = null;
+function renderEditorAvatar(id, name, pic){
+  const el=document.getElementById(id); if(!el) return;
+  el.className="editor-av"+(pic?" has-img":"");
+  el.innerHTML=typeof avatarInner==="function"?avatarInner(name||"C", pic):esc((name||"C").slice(0,1).toUpperCase());
+}
+function cPickImage(input){
+  const f=input.files&&input.files[0]; input.value="";
+  if(!f) return;
+  cPendingFile=f;
+  if(typeof readImageAsDataURL==="function"){
+    readImageAsDataURL(f,(url)=>{ cPic=url; renderEditorAvatar("cAvatar", document.getElementById("cName").value, cPic); toast("Photo updated — save to keep"); });
+  }
+}
+function cRemoveImage(){ cPic=""; cPendingFile=null; renderEditorAvatar("cAvatar", document.getElementById("cName")?.value||"", ""); toast("Photo removed — save to keep"); }
 function renderContactList(){
-  const q=(document.getElementById("contactSearch").value||"").toLowerCase();
-  const el=document.getElementById("contactList");el.innerHTML="";
-  contacts.forEach((c,i)=>{ if(q&&!c.name.toLowerCase().includes(q)&&!(c.phone||"").includes(q))return;
+  const q=(document.getElementById("contactSearch")?.value||"").toLowerCase();
+  const el=document.getElementById("contactList"); if(!el) return; el.innerHTML="";
+  const matched=contacts.map((c,i)=>({c,i})).filter(({c})=>!q||c.name.toLowerCase().includes(q)||(c.phone||"").includes(q));
+  if(!matched.length){ el.innerHTML=`<div class="list-empty">${contacts.length?"No matches":"No contacts yet"}</div>`; return; }
+  matched.forEach(({c,i})=>{
     const last=c.lastReleased?` · <span class="sent">✓ ${relTime(c.lastReleased)}</span>`:"";
-    const d=document.createElement("div");d.className="li"+(cSel===i?" active":"");d.onclick=()=>selectContact(i);
-    d.innerHTML=`<div class="av">${esc((c.name||"?").slice(0,1).toUpperCase())}</div>
+    const pic=entityPic(c);
+    const d=document.createElement("div"); d.className="li"+(cSel===i?" active":""); d.onclick=()=>selectContact(i);
+    d.innerHTML=`<div class="av${pic?" has-img":""}">${typeof avatarInner==="function"?avatarInner(c.name,pic):esc((c.name||"?").slice(0,1).toUpperCase())}${c.waLinked?'<span class="wa-badge" title="Linked in WhatsApp"></span>':""}</div>
       <div class="meta"><div class="nm">${esc(c.name)}</div><div class="sb">+${esc(c.phone)}${last}</div></div>
-      <div class="acts"><button class="ibtn send" title="Send">✈</button><button class="ibtn del" title="Delete">🗑</button></div>`;
+      <div class="acts"><button class="ibtn send" title="Open in WhatsApp" type="button">${typeof ICO_SEND!=="undefined"?ICO_SEND:"✈"}</button><button class="ibtn del" title="Delete" type="button">${typeof ICO_DEL!=="undefined"?ICO_DEL:(typeof TRASH_ICO!=="undefined"?TRASH_ICO:"🗑")}</button></div>`;
     const[s,de]=d.querySelectorAll("button");
     s.onclick=e=>{e.stopPropagation();directOneContact(i);};
     de.onclick=e=>{e.stopPropagation();deleteContact(i);};
-    el.appendChild(d);});
+    el.appendChild(d);
+  });
 }
-function selectContact(i){cSel=i;const c=contacts[i];
-  document.getElementById("cName").value=c.name;document.getElementById("cPhone").value=c.phone;document.getElementById("cMsg").value=c.message||"";
-  cShowEditor();renderContactList();updateContactPreview();}
-function newContact(){cSel=null;document.getElementById("cName").value="";document.getElementById("cPhone").value="";document.getElementById("cMsg").value="";cShowEditor();renderContactList();document.getElementById("cName").focus();}
+function selectContact(i){
+  cSel=i; const c=contacts[i];
+  cPic=entityPic(c); cPendingFile=null;
+  document.getElementById("cName").value=c.name;
+  document.getElementById("cPhone").value=c.phone;
+  document.getElementById("cMsg").value=c.message||"";
+  renderEditorAvatar("cAvatar", c.name, cPic);
+  cShowEditor(); renderContactList(); updateContactPreview();
+}
+function newContact(){
+  cSel=null; cPic=""; cPendingFile=null;
+  document.getElementById("cName").value="";
+  document.getElementById("cPhone").value="";
+  document.getElementById("cMsg").value="";
+  renderEditorAvatar("cAvatar", "", "");
+  cShowEditor(); renderContactList(); document.getElementById("cName").focus();
+}
 function cShowEditor(){document.getElementById("cEmpty").classList.add("hidden");document.getElementById("cBody").classList.remove("hidden");document.getElementById("cActions").classList.remove("hidden");}
 function cLoadGroup(i){if(i==="")return;document.getElementById("cMsg").value=replaceTokens(messageFor(groups[i]));document.getElementById("cGroupPick").value="";updateContactPreview();toast(`Loaded "${groups[i].name}" message`);}
 function cInsertTemplate(i){if(i==="")return;document.getElementById("cMsg").value=replaceTokens(templates[i].content);document.getElementById("cTplPick").value="";updateContactPreview();toast("Template inserted");}
@@ -843,9 +1955,17 @@ function cBuild(){const name=document.getElementById("cName").value.trim();const
 async function saveContact(){const b=cBuild();if(!b)return false;
   const res=cSel!==null?await fetch(`/api/contacts/${cSel}`,put(b)):await fetch("/api/contacts",post(b));
   const d=await res.json();if(d.error){toast(d.error,"err");return false;}
-  await loadContacts();if(cSel===null)cSel=contacts.length-1;renderContactList();toast("Contact saved ✓");return true;}
+  await loadContacts();if(cSel===null)cSel=contacts.length-1;
+  if(cPendingFile && contacts[cSel]?.id!=null && typeof uploadEntityPhoto==="function"){
+    const url=await uploadEntityPhoto("contacts", contacts[cSel].id, cPendingFile);
+    if(url){ contacts[cSel].pic=url; contacts[cSel].photoUrl=url; cPic=url; }
+    cPendingFile=null;
+  } else if(cPic){ cPic=entityPic(contacts[cSel]); }
+  renderContactList(); if(typeof renderContactTable==="function")renderContactTable();
+  renderEditorAvatar("cAvatar", contacts[cSel]?.name||b.name, entityPic(contacts[cSel])||cPic);
+  toast("Contact saved ✓"); return true;}
 async function deleteContact(i){if(!confirm(`Delete "${contacts[i].name}"?`))return;await fetch(`/api/contacts/${i}`,{method:"DELETE"});
-  if(cSel===i){cSel=null;document.getElementById("cEmpty").classList.remove("hidden");document.getElementById("cBody").classList.add("hidden");document.getElementById("cActions").classList.add("hidden");}
+  if(cSel===i){cSel=null;cPic="";cPendingFile=null;document.getElementById("cEmpty")?.classList.remove("hidden");document.getElementById("cBody")?.classList.add("hidden");document.getElementById("cActions")?.classList.add("hidden");}
   else if(cSel>i)cSel--;await loadContacts();toast("Contact deleted");}
 function contactTarget(c){return{name:c.name,phone:c.phone,message:replaceTokens(c.message||"")};}
 async function releaseCurrentContact(){if(!(await saveContact()))return;const c=contacts[cSel];
@@ -861,10 +1981,10 @@ function directAllContacts(){contacts.forEach((c,i)=>setTimeout(()=>directOneCon
 
 /* ════ Pickers (templates/groups dropdowns) ════ */
 function refreshPickers(){
-  const tplOpts=`<option value="">↶ Insert template…</option>`+templates.map((t,i)=>`<option value="${i}">${esc(t.name)}</option>`).join("");
-  const gTpl=document.getElementById("gTplPick"); if(gTpl)gTpl.innerHTML=tplOpts;
-  const cTpl=document.getElementById("cTplPick"); if(cTpl)cTpl.innerHTML=`<option value="">↶ Template…</option>`+templates.map((t,i)=>`<option value="${i}">${esc(t.name)}</option>`).join("");
-  const cG=document.getElementById("cGroupPick"); if(cG)cG.innerHTML=`<option value="">⤵ Load group message…</option>`+groups.map((g,i)=>`<option value="${i}">${esc(g.name)}</option>`).join("");
+  const tplOpts=`<option value="">Template…</option>`+templates.map((t,i)=>`<option value="${i}">${esc(t.name)}</option>`).join("");
+  const gTpl=document.getElementById("gTplPick"); if(gTpl)gTpl.innerHTML=`<option value="">Insert template…</option>`+templates.map((t,i)=>`<option value="${i}">${esc(t.name)}</option>`).join("");
+  const cTpl=document.getElementById("cTplPick"); if(cTpl)cTpl.innerHTML=tplOpts;
+  const cG=document.getElementById("cGroupPick"); if(cG)cG.innerHTML=`<option value="">Load group…</option>`+groups.map((g,i)=>`<option value="${i}">${esc(g.name)}</option>`).join("");
 }
 
 /* ════ Settings: automation / security / data ════ */
@@ -874,9 +1994,23 @@ async function saveAutomation(){
 async function changePassword(){
   const current=document.getElementById("curPw").value,nw=document.getElementById("newPw").value;
   if(nw.length<8){toast("Password must be at least 8 characters","err");return;}
-  const d=await (await fetch("/api/auth/change-password",post({current,new:nw}))).json();
+  const role=(window.SSIES_USER&&window.SSIES_USER.role)||"";
+  if(role==="superadmin"){
+    const d=await (await fetch("/api/auth/change-password",post({current,new:nw}))).json();
+    if(d.error){toast(d.error,"err");return;}
+    document.getElementById("curPw").value="";document.getElementById("newPw").value="";toast("Password updated ✓");
+    return;
+  }
+  const d=await (await fetch("/api/profile/password-request",post({current,password:nw}))).json();
   if(d.error){toast(d.error,"err");return;}
-  document.getElementById("curPw").value="";document.getElementById("newPw").value="";toast("Password updated ✓");}
+  document.getElementById("curPw").value="";document.getElementById("newPw").value="";
+  toast(d.message||"Password reset requested — awaiting approval");
+  try{
+    const p=await (await fetch("/api/profile/password-request")).json();
+    const ban=document.getElementById("settingsPwPending");
+    if(ban&&p.pending){ ban.style.display=""; ban.textContent="⏳ A password reset request is pending approval"; }
+  }catch(e){}
+}
 async function exportConfig(){const cfg=await (await fetch("/api/config")).json();
   const blob=new Blob([JSON.stringify(cfg,null,2)],{type:"application/json"});const a=document.createElement("a");
   a.href=URL.createObjectURL(blob);a.download=`schedule_backup_${new Date().toISOString().slice(0,10)}.json`;a.click();URL.revokeObjectURL(a.href);toast("Backup downloaded ✓");}
@@ -887,29 +2021,111 @@ async function importConfig(input){const f=input.files[0];input.value="";if(!f)r
     await Promise.all([loadGroups(),loadTemplates(),loadContacts(),loadSettings()]);toast("Config restored ✓");}
   catch(e){toast("Invalid JSON file","err");}}
 
-/* ════ Release / SSE ════ */
+/* ════ Release / SSE + send status modal (POC UI) ════ */
+let ssTargets=[], ssStatus=[], ssPhase="ready", ssMeta=null, ssPf=null;
+const ICO_SEND_BTN = typeof ICO_SEND!=="undefined" ? ICO_SEND : "➤";
 async function doRelease(targets,spin,btn,txt,label){
   if(!targets.length){toast("Nothing to send","err");return;}
+  ssTargets=targets.slice(); ssStatus=targets.map(()=>"queued"); ssMeta={spin,btn,txt,label};
+  try{ ssPf=await runPreflight(targets); }catch{ toast("Pre-flight check failed","err"); return; }
+  ssPhase="ready";
+  renderSendStatus();
+  document.getElementById("sendStatusModal")?.classList.add("show");
+}
+function closeSendStatus(){
+  if(ssPhase==="running"){ toast("Send in progress…","err"); return; }
+  document.getElementById("sendStatusModal")?.classList.remove("show");
+}
+function ssStatusIcon(st){ return st==="success"?"✓":st==="failed"?"✕":st==="sending"?'<span class="ss-spin"></span>':"•"; }
+function ssStatusLabel(st){ return st==="success"?"Delivered":st==="failed"?"Failed":st==="sending"?"Sending…":"Queued"; }
+function renderSendStatus(){
+  const prov=(document.getElementById("autoProviderLabel")?.textContent||"waha").toUpperCase();
+  const pl=document.getElementById("ssProviderLabel"); if(pl) pl.textContent=prov;
+  const connected=document.getElementById("autoSessionDot")?.classList.contains("on");
+  const sess=document.getElementById("ssSession");
+  if(sess){ sess.textContent=connected?"Session connected":"Not connected"; sess.className="ss-session "+(connected?"ok":"bad"); }
+  const pfEl=document.getElementById("ssPreflight");
+  if(pfEl&&ssPf){
+    pfEl.innerHTML=`<div class="ss-sec-h">Pre-flight checks</div>`+(ssPf.checks||[]).map((c)=>`<div class="ss-check ${c.ok?"ok":"bad"}"><span class="ss-check-ic">${c.ok?"✓":"✕"}</span><span class="ss-check-lbl">${esc(c.label)}</span>${c.hint?`<em>${esc(c.hint)}</em>`:""}</div>`).join("");
+  }
+  renderSsList(); renderSsProgress(); renderSsFooter();
+}
+function renderSsList(){
+  const el=document.getElementById("ssList"); if(!el) return;
+  el.innerHTML=`<div class="ss-sec-h">Recipients</div>`+ssTargets.map((t,i)=>{ const st=ssStatus[i]||"queued"; return `<div class="ss-row st-${st}"><span class="ss-row-ic">${ssStatusIcon(st)}</span><div class="ss-row-body"><b>${esc(t.name)}</b><span>${t.phone?"+"+esc(t.phone):"group message"}</span></div><span class="ss-row-tag">${ssStatusLabel(st)}</span></div>`; }).join("");
+}
+function renderSsProgress(){
+  const done=ssStatus.filter((s)=>s==="success"||s==="failed").length;
+  const pct=ssTargets.length?Math.round((done/ssTargets.length)*100):0;
+  const bar=document.getElementById("ssProgress"); if(bar) bar.style.width=pct+"%";
+  const counts=document.getElementById("ssCounts");
+  if(counts){
+    const ok=ssStatus.filter((s)=>s==="success").length;
+    const fail=ssStatus.filter((s)=>s==="failed").length;
+    counts.textContent=ssPhase==="ready"?`${ssTargets.length} recipient${ssTargets.length===1?"":"s"}`: `${ok} delivered · ${fail} failed · ${ssTargets.length-ok-fail} remaining`;
+  }
+}
+function renderSsFooter(){
+  const f=document.getElementById("ssFooter"); if(!f) return;
+  if(ssPhase==="done"){
+    const fail=ssStatus.filter((s)=>s==="failed").length;
+    f.innerHTML=`<button class="btn btn-soft" onclick="ssCopyLog()">Copy log</button>${fail?`<button class="btn btn-soft" onclick="showView('history');closeSendStatus()">View history</button>`:""}<button class="btn btn-soft" onclick="closeSendStatus();showView('history')">View history</button><button class="btn btn-primary" style="margin-left:auto" onclick="closeSendStatus()">Done</button>`;
+    return;
+  }
+  if(ssPhase==="running"){
+    f.innerHTML=`<span class="hint">Sending… progress also appears in the status log.</span>`;
+    return;
+  }
+  if(ssPf&&ssPf.ready) f.innerHTML=`<button class="btn btn-soft" onclick="closeSendStatus()">Cancel</button><button class="btn btn-primary" style="margin-left:auto" onclick="ssStart()">${ICO_SEND_BTN} Start send · ${ssTargets.length}</button>`;
+  else f.innerHTML=`<span class="ss-blocked">Resolve the checks above to send.</span><button class="btn btn-soft" style="margin-left:auto" onclick="closeSendStatus()">Close</button>`;
+}
+async function ssCopyLog(){
+  const lines=document.getElementById("logLines")?.innerText||ssTargets.map((t,i)=>`${t.name}: ${ssStatus[i]}`).join("\n");
+  try{ await navigator.clipboard.writeText(lines); toast("Log copied ✓"); }catch{ toast("Copy failed","err"); }
+}
+async function ssStart(){
+  if(!ssMeta||!ssPf?.ready) return;
+  ssPhase="running";
+  ssStatus=ssTargets.map(()=>"queued");
+  if(ssStatus.length) ssStatus[0]="sending";
+  renderSendStatus();
+  const {spin,btn,txt,label}=ssMeta;
+  maybeShowStatusOnSend(); setBusy(spin,btn,txt,true,"Sending…"); showLog();
+  const log=document.getElementById("logLines"); if(log) log.innerHTML="";
   try{
-    const pf=await runPreflight(targets);
-    const lines=(pf.checks||[]).map(c=>`${c.ok?"✓":"✗"} ${c.label}${c.hint?` — ${c.hint}`:""}`).join("\n");
-    if(!pf.ready){alert(`Cannot send yet:\n\n${lines}`);return;}
-    if(!confirm(`Pre-flight checks passed:\n\n${lines}\n\nAutomated send to ${targets.length} recipient(s)?\n\n`+targets.map(t=>`• ${t.name}`).join("\n")))return;
-  }catch{toast("Pre-flight check failed","err");return;}
-  maybeShowStatusOnSend();setBusy(spin,btn,txt,true,"Sending…");showLog();document.getElementById("logLines").innerHTML="";
-  const d=await (await fetch("/api/release",post({targets}))).json();
-  if(d.error){toast(d.error,"err");setBusy(spin,btn,txt,false,label);}}
-function setBusy(spin,btn,txt,busy,label){document.getElementById(btn).disabled=busy;
-  document.getElementById(txt).textContent=busy?"Sending…":label;document.getElementById(spin).classList.toggle("hidden",!busy);}
+    const d=await (await fetch("/api/release",post({targets:ssTargets}))).json();
+    if(d.error){ toast(d.error,"err"); ssPhase="ready"; setBusy(spin,btn,txt,false,label); renderSendStatus(); return; }
+  }catch(e){ toast("Send failed","err"); ssPhase="ready"; setBusy(spin,btn,txt,false,label); renderSendStatus(); }
+}
+function setBusy(spin,btn,txt,busy,label){const b=document.getElementById(btn); if(b) b.disabled=busy;
+  const x=document.getElementById(txt); if(x) x.textContent=busy?"Sending…":label; document.getElementById(spin)?.classList.toggle("hidden",!busy);}
 function resetBusy(){["relAll","relTbl","relCAll","auto"].forEach(p=>{const b=document.getElementById(p+"Btn");if(b){b.disabled=false;const s=document.getElementById(p+"Spin");if(s)s.classList.add("hidden");}});
   const m={relAllTxt:"Automated All",relTblTxt:"Automated Selected",relCAllTxt:"Automated All",autoTxt:"Send selected"};
-  for(const k in m){const e=document.getElementById(k);if(e)e.textContent=m[k];}}
-function showLog(){document.getElementById("statusPanel").style.display="block";}
+  for(const k in m){const e=document.getElementById(k);if(e)e.textContent=m[k];}
+  if(ssPhase==="running"){ ssPhase="done"; ssStatus=ssStatus.map((s)=>s==="queued"||s==="sending"?"success":s); renderSendStatus(); }
+}
+function showLog(){document.getElementById("statusPanel").classList.remove("hidden");}
 function startSSE(){const es=new EventSource("/api/status");es.onmessage=e=>{if(e.data==="ping")return;
   const[type,...r]=e.data.split(":");appendLog(type,r.join(":"));
-  if(type==="done"){resetBusy();loadGroups();loadContacts();} if(type==="error")resetBusy();};}
-function appendLog(type,msg){showLog();const l=document.getElementById("logLines");const d=document.createElement("div");
-  d.className="ll "+type;d.textContent=msg;l.appendChild(d);document.getElementById("statusPanel").scrollTop=1e9;}
+  if(type==="done"){resetBusy();loadGroups();loadContacts();if(typeof loadReleaseHistory==="function")loadReleaseHistory();} if(type==="error"){resetBusy(); if(ssPhase==="running"){ ssPhase="done"; renderSendStatus(); }}}; }
+function appendLog(type,msg){
+  showLog();
+  const l=document.getElementById("logLines"); const d=document.createElement("div");
+  d.className="ll "+type; d.textContent=msg; l.appendChild(d); l.scrollTop=1e9;
+  if(ssPhase==="running" && ssTargets.length){
+    const lower=(msg||"").toLowerCase();
+    let idx=ssTargets.findIndex((t)=>lower.includes((t.name||"").toLowerCase()) && (t.name||"").length>1);
+    if(idx<0) idx=ssStatus.findIndex((s)=>s==="sending"||s==="queued");
+    if(idx>=0){
+      if(type==="success"||type==="ok") ssStatus[idx]="success";
+      else if(type==="error"||type==="fail"||type==="failed") ssStatus[idx]="failed";
+      else if(type==="info"||type==="progress") ssStatus[idx]="sending";
+      const next=ssStatus.findIndex((s,i)=>i>idx && s==="queued");
+      if(next>=0 && (ssStatus[idx]==="success"||ssStatus[idx]==="failed")) ssStatus[next]="sending";
+      renderSsList(); renderSsProgress();
+    }
+  }
+}
 
 /* ════ Helpers ════ */
 function post(b){return{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(b)};}
@@ -921,7 +2137,7 @@ async function copyText(t){try{await navigator.clipboard.writeText(t);toast("Cop
 let tt;function toast(m,type="ok"){const e=document.getElementById("toast");e.textContent=m;e.className=`toast ${type} show`;clearTimeout(tt);tt=setTimeout(()=>e.classList.remove("show"),3000);}
 
 </script>
-<script src="{{ url_for('static', filename='js/features.js') }}"></script>
+<script src="{{ url_for('static', filename='js/features.js') }}?v=poc31"></script>
 <script>boot();</script>
 </body>
 </html>

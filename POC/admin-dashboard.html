@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Admin · SSIES Schedule Sender</title>
+<link rel="icon" href="assets/img/favicon-32.png"/>
+<script>(function(){var m=localStorage.getItem("theme-mode")||"system";var d=m==="dark"||(m==="system"&&matchMedia("(prefers-color-scheme: dark)").matches);document.documentElement.setAttribute("data-theme",d?"dark":"light");var a=localStorage.getItem("accent")||(d?"#2dd4bf":"#0d9488");if(a.toLowerCase()==="#0000ee")a=(d?"#2dd4bf":"#0d9488");document.documentElement.style.setProperty("--accent",a);document.documentElement.setAttribute("data-nav",localStorage.getItem("nav-layout")||"sidebar");})();</script>
+<link rel="preconnect" href="https://api.fontshare.com">
+<link href="https://api.fontshare.com/v2/css?f[]=satoshi@400,500,700,900&display=swap" rel="stylesheet">
+<link href="assets/css/app.css?v=18" rel="stylesheet"/>
+</head>
+<body>
+<div class="shell" id="shell">
+  <div class="scrim" onclick="toggleRail()"></div>
+  <aside class="rail" id="rail"></aside>
+  <div class="main">
+    <div class="topbar">
+      <button class="menu-btn" onclick="toggleRail()" aria-label="Menu"><svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h16"/></svg></button>
+      <div class="tt"><h2>Dashboard</h2><p>Admin overview</p></div>
+      <div class="topbar-actions"><span class="badge">Admin</span><button class="icon-btn" id="quickTheme" onclick="quickToggleTheme()" title="Toggle theme">🌙</button></div>
+    </div>
+    <div class="page-pad">
+      <div class="dash-hero"><div><h2>Welcome, <span id="adminName"></span> 👋</h2><p>Manage user accounts and review password-reset requests.</p></div><a class="btn btn-primary" href="admin-users.html">+ Create user</a></div>
+      <div class="cards" id="stats" style="margin-top:18px"></div>
+      <div class="dash-grid">
+        <div class="sec"><div class="sec-h">Quick actions</div><div class="sec-b dash-actions" id="quickActions"></div></div>
+        <div class="sec"><div class="sec-h">Pending requests</div><div class="sec-b" id="pendReqs"></div></div>
+      </div>
+      <div class="dash-grid dash-grid-2" style="margin-top:16px">
+        <div class="sec"><div class="sec-h">Account status</div><div class="sec-b" id="acctStatus"></div></div>
+        <div class="sec"><div class="sec-h">Recent activity<a class="btn btn-soft btn-sm" style="margin-left:auto" href="admin-activity.html">View log</a></div><div class="sec-b" id="adminActivity"></div></div>
+      </div>
+      <div class="sec" style="margin-top:16px"><div class="sec-h">Users<a class="btn btn-soft btn-sm" style="margin-left:auto" href="admin-users.html">Manage users</a></div>
+        <div class="sec-b"><div id="recentTable"></div></div>
+      </div>
+    </div>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+<script src="assets/js/store.js?v=18"></script>
+<script src="assets/js/theme.js?v=18"></script>
+<script src="assets/js/portal.js?v=18"></script>
+<script>
+initPortal({ kind: "admin", active: "dashboard" });
+applyTheme();
+const me = currentUser();
+document.getElementById("adminName").textContent = (me.displayName || me.email).split(" ")[0];
+const users = listUsers("user");
+const active = users.filter((u) => u.isActive).length;
+document.getElementById("stats").innerHTML = `
+  <div class="stat dash-stat" onclick="location.href='admin-users.html'"><div class="n">${users.length}</div><div class="l">Total users</div></div>
+  <div class="stat"><div class="n">${active}</div><div class="l">Active</div></div>
+  <div class="stat"><div class="n">${users.length - active}</div><div class="l">Disabled</div></div>
+  <div class="stat"><div class="n">${pendingRequestsFor("admin").length}</div><div class="l">Pending requests</div></div>`;
+document.getElementById("quickActions").innerHTML = `
+  <a class="dash-action" href="admin-users.html"><span class="da-ico">👥</span><span class="da-body"><b>Manage users</b><i>Create · edit · disable</i></span></a>
+  <a class="dash-action" href="admin-activity.html"><span class="da-ico">📋</span><span class="da-body"><b>Activity log</b><i>Your recent actions</i></span></a>
+  <a class="dash-action" href="dashboard.html"><span class="da-ico">🗓️</span><span class="da-body"><b>Schedule dashboard</b><i>Your own groups</i></span></a>
+  <a class="dash-action" href="admin-profile.html"><span class="da-ico">⚙️</span><span class="da-body"><b>Profile</b><i>Account &amp; security</i></span></a>`;
+(function renderInsights() {
+  const total = users.length || 1;
+  const disabled = users.length - active;
+  const aPct = Math.round((active / total) * 100), dPct = 100 - aPct;
+  const as = document.getElementById("acctStatus");
+  if (as) as.innerHTML = `
+    <div class="dist-bar"><span class="dist-a" style="width:${aPct}%"></span><span class="dist-b" style="width:${dPct}%"></span></div>
+    <div class="dist-legend"><span><i class="dot-a"></i>Active · ${active} (${aPct}%)</span><span><i class="dot-b"></i>Disabled · ${disabled} (${dPct}%)</span></div>
+    <div class="dash-status-row"><span>Total users</span><span style="margin-left:auto;font-weight:700">${users.length}</span></div>
+    <div class="dash-status-row"><span>WhatsApp provider</span><span class="chip" style="margin-left:auto">${esc((STORE.system.waProvider || "waha").toUpperCase())}</span></div>
+    <div class="dash-status-row"><span>Maintenance mode</span><span class="chip ${STORE.system.maintenanceMode ? "" : "chip-default"}" style="margin-left:auto">${STORE.system.maintenanceMode ? "On" : "Off"}</span></div>`;
+  const acts = (STORE.globalAudit || []).slice(0, 6);
+  const al = document.getElementById("adminActivity");
+  if (al) al.innerHTML = acts.length ? acts.map((r) => `<div class="dash-hist"><span class="chip">${esc(r.action)}</span><b>${esc(r.detail || "—")}</b><span class="hint" style="margin:0 0 0 auto">${relTime(r.at)}</span></div>`).join("") : '<p class="hint">No recent activity.</p>';
+})();
+function renderPend() {
+  const el = document.getElementById("pendReqs"); const p = pendingRequestsFor("admin");
+  el.innerHTML = p.length ? p.map((r) => `<div class="dash-status-row" style="flex-wrap:wrap;gap:8px"><div style="min-width:0"><b>${esc(r.userEmail)}</b><div class="hint" style="margin:0">${esc(r.userRole)} · ${relTime(r.requestedAt)}</div></div><div style="margin-left:auto;display:flex;gap:8px"><button class="btn btn-primary btn-sm" onclick="approve('${r.id}')">Approve</button><button class="btn btn-soft btn-sm" onclick="decline('${r.id}')">Reject</button></div></div>`).join("") : '<p class="hint">No pending requests 🎉</p>';
+}
+function approve(id) { approvePasswordRequest(id); toast("Password reset approved ✓"); renderPend(); refreshStats(); if (typeof updateNotifBadge === "function") updateNotifBadge(); }
+function decline(id) { rejectPasswordRequest(id); toast("Request declined"); renderPend(); refreshStats(); if (typeof updateNotifBadge === "function") updateNotifBadge(); }
+function refreshStats() { const q = document.querySelector("#stats .stat:last-child .n"); if (q) q.textContent = pendingRequestsFor("admin").length; }
+renderPend();
+portalTable({
+  id:"adRecent", mount:"recentTable", bare:true, perPage:6, emptyText:"No users yet",
+  getRows:()=> [...users].sort((a,b)=> new Date(b.createdAt)-new Date(a.createdAt)),
+  rowClick:(u)=>`location.href='admin-user-detail.html?id=${u.id}'`,
+  columns:[
+    { label:"Email", render:(u)=>esc(u.email) },
+    { label:"Name", render:(u)=>esc(u.displayName||"—") },
+    { label:"Status", render:(u)=> u.isActive?'<span class="status-on">Active</span>':'<span class="status-off">Disabled</span>' },
+    { label:"Created", render:(u)=>fmtShortDate(u.createdAt) },
+  ],
+});
+</script>
+</body>
+</html>

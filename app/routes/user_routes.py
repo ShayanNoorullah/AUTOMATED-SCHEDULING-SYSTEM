@@ -38,14 +38,47 @@ def _seed_default_template(user_id):
     seed_default_template_for_user(user_id)
 
 
+def _entity_photo_url(entity, row):
+    """Return photo API URL only when the file exists on disk."""
+    rel = getattr(row, "photo_path", None)
+    if not rel:
+        return None
+    import os
+    from app.config import INSTANCE_DIR
+    full = os.path.normpath(os.path.join(INSTANCE_DIR, "uploads", rel))
+    root = os.path.normpath(os.path.join(INSTANCE_DIR, "uploads"))
+    if not (full.startswith(root + os.sep) and os.path.isfile(full)):
+        return None
+    return f"/api/photos/file/{entity}/{row.id}"
+
+
+def _enrich_group(row):
+    d = group_dict(row)
+    d["id"] = row.id
+    d["waLinked"] = bool(getattr(row, "wa_linked", False))
+    d["photoUrl"] = _entity_photo_url("groups", row)
+    return d
+
+
+def _enrich_contact(row):
+    d = contact_dict(row)
+    d["id"] = row.id
+    d["waLinked"] = bool(getattr(row, "wa_linked", False))
+    d["photoUrl"] = _entity_photo_url("contacts", row)
+    return d
+
+
 @bp.route("/")
 @login_required
 def index():
+    photo_url = g.profile.photo_url() if hasattr(g.profile, "photo_url") else None
     return render_template(
         "user/index.html",
         days=DAYS,
         username=g.profile.display_label(),
+        email=g.profile.email,
         role=g.profile.role,
+        photo_url=photo_url,
         csrf_token="",
     )
 
@@ -59,6 +92,36 @@ def profile_page():
         back_url="/",
         back_label="Dashboard",
         use_portal=False,
+    )
+
+
+@bp.route("/notifications")
+@login_required
+def notifications_page():
+    role = g.profile.role
+    if role == "admin":
+        return render_template(
+            "user/notifications.html",
+            profile=g.profile,
+            use_portal=True,
+            portal_kind="admin",
+            portal_title="Admin Portal",
+            back_url="/admin/",
+        )
+    if role == "superadmin":
+        return render_template(
+            "user/notifications.html",
+            profile=g.profile,
+            use_portal=True,
+            portal_kind="superadmin",
+            portal_title="Superadmin",
+            back_url="/superadmin/",
+        )
+    return render_template(
+        "user/notifications.html",
+        profile=g.profile,
+        use_portal=False,
+        back_url="/",
     )
 
 
@@ -111,7 +174,7 @@ def change_password():
 def get_groups():
     uid = _effective_user_id()
     rows = Group.query.filter_by(user_id=uid).order_by(Group.position, Group.id).all()
-    return jsonify([group_dict(g) for g in rows])
+    return jsonify([_enrich_group(g) for g in rows])
 
 
 def _parse_invite_link(data):
@@ -138,7 +201,8 @@ def add_group():
     n = Group.query.filter_by(user_id=uid).count()
     db.session.add(Group(user_id=uid, name=data["name"], schedule=data["schedule"],
                          message_enc=enc(data.get("message", "")),
-                         last_released=data.get("lastReleased", ""), invite_link=invite, position=n))
+                         last_released=data.get("lastReleased", ""), invite_link=invite,
+                         wa_linked=bool(invite), position=n))
     db.session.commit()
     return jsonify({"ok": True})
 
@@ -159,6 +223,8 @@ def update_group(idx):
     if "inviteLink" in data or "invite_link" in data:
         try:
             g_row.invite_link = _parse_invite_link(data)
+            if g_row.invite_link:
+                g_row.wa_linked = True  # additive: never clear on empty
         except ValueError as e:
             return jsonify({"error": str(e)}), 400
     db.session.commit()
@@ -263,7 +329,7 @@ def delete_template(idx):
 def get_contacts():
     uid = _effective_user_id()
     rows = Contact.query.filter_by(user_id=uid).order_by(Contact.position, Contact.id).all()
-    return jsonify([contact_dict(c) for c in rows])
+    return jsonify([_enrich_contact(c) for c in rows])
 
 
 @bp.route("/api/contacts", methods=["POST"])
@@ -523,7 +589,19 @@ def whatsapp_validate_groups():
     if isinstance(names, str):
         names = [names]
     from app.services.group_validate import validate_group_names
-    return jsonify({"validation": validate_group_names(names, user_id=_effective_user_id())})
+    uid = _effective_user_id()
+    validation = validate_group_names(names, user_id=uid)
+    # Additive: mark matching groups as WhatsApp-linked (never clear on failure).
+    for name, result in (validation or {}).items():
+        if result and result.get("ok") is True:
+            Group.query.filter_by(user_id=uid, name=name).update(
+                {"wa_linked": True}, synchronize_session=False
+            )
+    try:
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+    return jsonify({"validation": validation})
 
 
 @bp.route("/api/release/preflight", methods=["POST"])

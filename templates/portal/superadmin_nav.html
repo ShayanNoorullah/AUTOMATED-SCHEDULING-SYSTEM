@@ -1,10 +1,62 @@
-<a href="/superadmin" class="portal-nav-link{% if request.path in ('/superadmin', '/superadmin/') %} active{% endif %}">Dashboard</a>
-<a href="/superadmin/users" class="portal-nav-link{% if request.path.startswith('/superadmin/users') or request.path.startswith('/superadmin/inspect') %} active{% endif %}">All users</a>
-<a href="/superadmin/admins" class="portal-nav-link{% if request.path.startswith('/superadmin/admins') %} active{% endif %}">Admins</a>
-<a href="/superadmin/roles" class="portal-nav-link{% if request.path.startswith('/superadmin/roles') %} active{% endif %}">Roles</a>
-<a href="/superadmin/settings" class="portal-nav-link{% if request.path.startswith('/superadmin/settings') %} active{% endif %}">Settings</a>
-<a href="/superadmin/audit" class="portal-nav-link{% if request.path.startswith('/superadmin/audit') %} active{% endif %}">Audit log</a>
-<a href="/superadmin/profile" class="portal-nav-link{% if request.path.startswith('/superadmin/profile') %} active{% endif %}">Profile</a>
-<div class="portal-nav-divider"></div>
-<a href="/" class="portal-nav-link">User Dashboard</a>
-<a href="/admin" class="portal-nav-link">Admin Portal</a>
+{# Superadmin nav — POC grouped structure; People items share /users?tab= #}
+{% set p = request.path %}
+{% set tab = request.args.get('tab', '') %}
+{% set on_users_mgmt = p.startswith('/superadmin/users') or p.startswith('/superadmin/admins') or p.startswith('/superadmin/roles') or p.startswith('/superadmin/inspect') %}
+<button class="nav-item{% if p in ('/superadmin', '/superadmin/') %} active{% endif %}" onclick="location.href='/superadmin/'" type="button">
+  <span class="ico"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg></span>
+  <span class="lbl">Dashboard</span>
+</button>
+
+<div class="nav-group{% if on_users_mgmt %} has-active open{% endif %}" id="grpPeople">
+  <button class="nav-item nav-group-btn" onclick="toggleNavGroup(this)" title="People" type="button">
+    <span class="ico"><svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg></span>
+    <span class="lbl">People</span>
+    <svg class="caret" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M6 9l6 6 6-6"/></svg>
+  </button>
+  <div class="nav-submenu">
+    <a class="nav-item nav-sub{% if on_users_mgmt and (tab == 'users' or tab == '' or p.startswith('/superadmin/inspect')) and not (tab == 'admins' or tab == 'roles') %} active{% endif %}" href="/superadmin/users?tab=users">
+      <span class="ico"><svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg></span>
+      <span class="lbl">Users</span>
+    </a>
+    <a class="nav-item nav-sub{% if tab == 'admins' %} active{% endif %}" href="/superadmin/users?tab=admins">
+      <span class="ico"><svg viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></span>
+      <span class="lbl">Admins</span>
+    </a>
+    <a class="nav-item nav-sub{% if tab == 'roles' %} active{% endif %}" href="/superadmin/users?tab=roles">
+      <span class="ico"><svg viewBox="0 0 24 24"><path d="M12 2 4 5v6c0 5 3.4 8.5 8 10 4.6-1.5 8-5 8-10V5z"/><path d="M9 12l2 2 4-4"/></svg></span>
+      <span class="lbl">Roles &amp; access</span>
+    </a>
+  </div>
+</div>
+
+<div class="nav-group{% if p.startswith('/superadmin/settings') or p.startswith('/superadmin/audit') %} has-active open{% endif %}" id="grpSystem">
+  <button class="nav-item nav-group-btn" onclick="toggleNavGroup(this)" title="System" type="button">
+    <span class="ico"><svg viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg></span>
+    <span class="lbl">System</span>
+    <svg class="caret" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M6 9l6 6 6-6"/></svg>
+  </button>
+  <div class="nav-submenu">
+    <a class="nav-item nav-sub{% if p.startswith('/superadmin/settings') %} active{% endif %}" href="/superadmin/settings">
+      <span class="ico"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg></span>
+      <span class="lbl">Settings</span>
+    </a>
+    <a class="nav-item nav-sub{% if p.startswith('/superadmin/audit') %} active{% endif %}" href="/superadmin/audit">
+      <span class="ico"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M16 13H8M16 17H8M10 9H8"/></svg></span>
+      <span class="lbl">Audit log</span>
+    </a>
+  </div>
+</div>
+
+<div class="nav-group{% if p.startswith('/superadmin/profile') %} has-active open{% endif %}" id="grpAccount">
+  <button class="nav-item nav-group-btn" onclick="toggleNavGroup(this)" title="Account" type="button">
+    <span class="ico"><svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></span>
+    <span class="lbl">Account</span>
+    <svg class="caret" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M6 9l6 6 6-6"/></svg>
+  </button>
+  <div class="nav-submenu">
+    <a class="nav-item nav-sub{% if p.startswith('/superadmin/profile') %} active{% endif %}" href="/superadmin/profile">
+      <span class="ico"><svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></span>
+      <span class="lbl">Profile</span>
+    </a>
+  </div>
+</div>

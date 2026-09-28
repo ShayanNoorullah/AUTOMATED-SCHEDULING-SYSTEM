@@ -2,30 +2,50 @@
 {% block title %}Audit log{% endblock %}
 {% block portal_title %}Superadmin{% endblock %}
 {% block page_heading %}Global audit log{% endblock %}
-{% block nav %}{% include "portal/superadmin_nav.html" %}{% endblock %}
+{% block page_sub %}System-wide activity trail{% endblock %}
 {% block top_actions %}
-<div class="filter-bar">
-  <input id="filterAction" placeholder="Filter action…" style="padding:9px 12px;border:1px solid var(--border-strong);border-radius:var(--r-md);font-family:inherit"/>
-  <button class="btn btn-soft" onclick="load()">Refresh</button>
-  <a class="btn btn-primary" href="/superadmin/api/audit/export">Export CSV</a>
-</div>
+<button class="btn btn-soft btn-sm" onclick="refresh()">Refresh</button>
+<a class="btn btn-primary btn-sm" href="/superadmin/api/audit/export">Export CSV</a>
 {% endblock %}
+{% block nav %}{% include "portal/superadmin_nav.html" %}{% endblock %}
 {% block content %}
-<table>
-  <thead><tr><th>Time</th><th>Action</th><th>Detail</th><th>Actor</th><th>IP</th></tr></thead>
-  <tbody id="rows"><tr class="empty-row"><td colspan="5" class="loading">Loading…</td></tr></tbody>
-</table>
+<div id="auditTable"></div>
 {% endblock %}
 {% block scripts %}
 <script>
+const ACT_LABEL = {
+  login:"Signed in", login_failed:"Failed login", logout:"Signed out",
+  user_create:"Created user", user_update:"Updated user", user_delete:"Deleted user",
+  role_change:"Changed role", role_add:"Added role", role_update:"Updated role", role_delete:"Deleted role",
+  release:"Released messages", direct_whatsapp:"Opened WhatsApp", settings_update:"Updated settings",
+  config_restore:"Restored config"
+};
+function actLabel(a){ return ACT_LABEL[a] || a; }
+let _rows = [];
 async function load(){
-  const action=document.getElementById("filterAction").value.trim();
-  const url=action?`/superadmin/api/audit?action=${encodeURIComponent(action)}`:"/superadmin/api/audit";
-  const rows=await api(url);
-  const el=document.getElementById("rows");
-  if(!rows.length){el.innerHTML='<tr class="empty-row"><td colspan="5">No entries</td></tr>';return;}
-  el.innerHTML=rows.map(r=>`<tr><td>${fmtDate(r.at)}</td><td>${esc(r.action)}</td><td>${esc(r.detail)}</td><td>${esc(r.actorEmail||r.actorId||'—')}</td><td>${esc(r.ip)}</td></tr>`).join("");
+  _rows = await api("/superadmin/api/audit");
+  if (_rows && !Array.isArray(_rows)) _rows = _rows.items || _rows.rows || [];
+  const actions = [...new Set(_rows.map((r) => r.action))];
+  portalTable({
+    id:"tblAudit", mount:"auditTable", perPage:12,
+    searchPlaceholder:"Search audit…", emptyText:"No entries", emptyIco:"📋",
+    getRows:() => _rows,
+    searchKeys:[(r) => actLabel(r.action), "detail", "actorEmail", "ip"],
+    filters:[{
+      key:"action",
+      options:[{val:"",label:"All actions"}].concat(actions.map((a) => ({val:a,label:actLabel(a)}))),
+      match:(r,v) => r.action === v
+    }],
+    columns:[
+      { label:"Time", render:(r) => fmtDate(r.at || r.created_at) },
+      { label:"Action", render:(r) => `<span class="chip">${esc(actLabel(r.action))}</span>` },
+      { label:"Detail", render:(r) => esc(r.detail || "—") },
+      { label:"Actor", render:(r) => esc(r.actorEmail || r.actor_email || r.actorId || "—") },
+      { label:"IP", render:(r) => esc(r.ip || "—") },
+    ],
+  });
 }
+function refresh(){ load(); }
 load();
 </script>
 {% endblock %}

@@ -8,6 +8,11 @@ from app.services.audit import audit
 
 
 def profile_dict(p, include_stats=False):
+    pic = None
+    try:
+        pic = p.photo_url() if hasattr(p, "photo_url") else None
+    except Exception:
+        pic = None
     d = {
         "id": str(p.id),
         "email": p.email,
@@ -18,6 +23,7 @@ def profile_dict(p, include_stats=False):
         "delaySeconds": p.delay_seconds,
         "createdAt": p.created_at.isoformat(timespec="seconds") if p.created_at else None,
         "lastLoginAt": p.last_login_at.isoformat(timespec="seconds") if p.last_login_at else None,
+        "profilePic": pic,
     }
     if include_stats:
         uid = p.id
@@ -125,8 +131,33 @@ def delete_user(target, actor):
         release_user_slot(target.id)
     except Exception:
         pass
+
+    # Clear dependent rows before profile delete (DB FKs are RESTRICT, not CASCADE).
+    from app.models import (
+        Group, Contact, Template, ReleaseLog, ScheduledJob,
+        Notification, PasswordRequest, WebAuthnCredential, AuditLog,
+    )
+    Group.query.filter_by(user_id=target.id).delete(synchronize_session=False)
+    Contact.query.filter_by(user_id=target.id).delete(synchronize_session=False)
+    Template.query.filter_by(user_id=target.id).delete(synchronize_session=False)
+    ReleaseLog.query.filter_by(user_id=target.id).delete(synchronize_session=False)
+    ScheduledJob.query.filter_by(user_id=target.id).delete(synchronize_session=False)
+    Notification.query.filter_by(user_id=target.id).delete(synchronize_session=False)
+    WebAuthnCredential.query.filter_by(user_id=target.id).delete(synchronize_session=False)
+    PasswordRequest.query.filter_by(user_id=target.id).delete(synchronize_session=False)
+    PasswordRequest.query.filter_by(reviewer_id=target.id).update(
+        {PasswordRequest.reviewer_id: None}, synchronize_session=False
+    )
+    AuditLog.query.filter(
+        (AuditLog.actor_id == target.id) | (AuditLog.target_id == target.id)
+    ).delete(synchronize_session=False)
+
     sb = get_supabase_admin()
-    sb.auth.admin.delete_user(uid)
+    try:
+        sb.auth.admin.delete_user(uid)
+    except Exception:
+        # Auth user may already be gone (partial prior delete)
+        pass
     db.session.delete(target)
     db.session.commit()
     audit("user_deleted", f"email={email}", actor_id=actor.id, target_id=uuid.UUID(uid))
