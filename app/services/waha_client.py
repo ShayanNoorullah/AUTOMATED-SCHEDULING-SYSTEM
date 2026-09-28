@@ -542,14 +542,32 @@ def _probe_label_ids(session_name, max_id=80):
 
 
 def get_lid_phone_map(session=None):
-    """Map WhatsApp @lid ids -> phone digits using WAHA lids endpoint."""
+    """Map WhatsApp @lid ids -> phone digits using WAHA lids endpoint.
+
+    WAHA paginates /lids at 100 by default; NOWEB label chats are @lid ids, so
+    an incomplete map silently drops most label members. Page through everything.
+    """
     name = _session_name(session)
     out = {}
-    try:
-        data = _req("GET", f"/api/{name}/lids", session_name=name)
-    except WahaError:
-        return out
-    items = data if isinstance(data, list) else _normalize_waha_items(data)
+    items = []
+    page = 1000
+    offset = 0
+    for _ in range(50):  # hard cap: 50k lids
+        try:
+            batch = _req(
+                "GET", f"/api/{name}/lids",
+                session_name=name,
+                params={"limit": page, "offset": offset},
+            )
+        except WahaError:
+            break
+        rows = batch if isinstance(batch, list) else _normalize_waha_items(batch)
+        if not rows:
+            break
+        items.extend(rows)
+        if len(rows) < page:
+            break
+        offset += page
     for row in items or []:
         if not isinstance(row, dict):
             continue
@@ -559,6 +577,67 @@ def get_lid_phone_map(session=None):
         if lid and phone and len(phone) >= 8:
             out[lid] = phone
             out[lid.split("@")[0]] = phone
+    return out
+
+
+def get_contact_directory(session=None, lid_map=None):
+    """Build phone -> display name from WAHA contacts + lid map."""
+    name = _session_name(session)
+    if lid_map is None:
+        lid_map = get_lid_phone_map(session)
+    directory = {}
+    try:
+        cfg = _cfg(name)
+        import requests as _rq
+        r = _rq.get(
+            f"{cfg['base']}/api/contacts/all",
+            params={"session": name},
+            headers=_headers(cfg["key"]),
+            timeout=60,
+        )
+        if r.status_code < 400 and r.content:
+            data = r.json()
+        else:
+            data = []
+    except Exception:
+        data = []
+    items = data if isinstance(data, list) else _normalize_waha_items(data)
+    for row in items or []:
+        if not isinstance(row, dict):
+            continue
+        cid = str(row.get("id") or row.get("jid") or "")
+        push = (
+            row.get("pushname")
+            or row.get("pushName")
+            or row.get("name")
+            or row.get("notify")
+            or row.get("notifyName")
+            or ""
+        )
+        push = str(push).strip()
+        if not push:
+            continue
+        phone = ""
+        if cid.endswith("@c.us") or "@s.whatsapp.net" in cid:
+            phone = "".join(ch for ch in cid.split("@")[0] if ch.isdigit())
+        elif lid_map:
+            phone = lid_map.get(cid) or lid_map.get(cid.split("@")[0]) or ""
+        if phone and len(phone) >= 8:
+            directory[phone] = push
+    return directory
+
+
+def get_group_name_map(session=None):
+    """chatId -> group subject/name."""
+    out = {}
+    try:
+        for g in list_groups(session) or []:
+            gid = g.get("id")
+            gname = g.get("name")
+            if gid and gname:
+                out[str(gid)] = gname
+    except WahaError:
+        pass
     return out
 
 

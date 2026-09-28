@@ -230,6 +230,9 @@ def _ensure_poc_parity_columns():
             ("wa_linked", "wa_linked BOOLEAN DEFAULT 0"),
             ("labels", "labels JSONB DEFAULT '[]'::jsonb" if db.engine.dialect.name == "postgresql" else "labels JSON DEFAULT '[]'"),
         ])
+        add_cols("contact_lists", [
+            ("groups", "groups JSONB DEFAULT '[]'::jsonb" if db.engine.dialect.name == "postgresql" else "groups JSON DEFAULT '[]'"),
+        ])
         db.session.commit()
     except Exception:
         db.session.rollback()

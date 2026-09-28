@@ -385,14 +385,42 @@ def delete_contact(idx):
     return jsonify({"ok": True})
 
 
+def _contact_name_map(uid):
+    """Request-scoped {phone_digits: display_name} for a user's saved contacts."""
+    cache = getattr(g, "_contact_name_cache", None)
+    if cache is None:
+        cache = {}
+        g._contact_name_cache = cache
+    if uid in cache:
+        return cache[uid]
+    m = {}
+    for c in Contact.query.filter_by(user_id=uid).all():
+        ph = digits(dec(c.phone_enc))
+        nm = (c.name or "").strip()
+        if ph and nm and nm != ph:
+            m[ph] = nm
+    cache[uid] = m
+    return m
+
+
 def _list_dict(row):
+    groups = row.groups if isinstance(getattr(row, "groups", None), list) else []
+    members = row.members if isinstance(row.members, list) else []
+    name_map = _contact_name_map(row.user_id)
+    member_names = {}
+    for ph in members:
+        d = digits(ph)
+        if d and name_map.get(d):
+            member_names[d] = name_map[d]
     return {
         "id": row.public_id,
         "dbId": row.id,
         "name": row.name,
         "color": row.color or "#0d9488",
         "labels": row.labels if isinstance(row.labels, list) else [],
-        "members": row.members if isinstance(row.members, list) else [],
+        "members": members,
+        "memberNames": member_names,
+        "groups": groups,
         "message": dec(row.message_enc) if row.message_enc else "",
     }
 
@@ -436,11 +464,18 @@ def create_list():
                 ph = digits(dec(c.phone_enc))
                 if ph and ph not in members:
                     members.append(ph)
+    groups_in = data.get("groups") if isinstance(data.get("groups"), list) else []
+    groups = []
+    for g in groups_in:
+        if isinstance(g, dict) and (g.get("id") or g.get("name")):
+            groups.append({"id": str(g.get("id") or ""), "name": str(g.get("name") or g.get("id") or "")[:255]})
+        elif isinstance(g, str) and g.strip():
+            groups.append({"id": g.strip(), "name": g.strip()[:255]})
     n = ContactList.query.filter_by(user_id=uid).count()
     row = ContactList(
         user_id=uid, public_id=public_id, name=name,
         color=(data.get("color") or "#0d9488")[:20],
-        labels=labels, members=members,
+        labels=labels, members=members, groups=groups,
         message_enc=enc(data.get("message") or ""),
         position=n,
     )
@@ -470,6 +505,15 @@ def update_list(public_id):
     if "members" in data:
         members = data.get("members") if isinstance(data.get("members"), list) else []
         row.members = [digits(x) for x in members if digits(x)]
+    if "groups" in data:
+        groups_in = data.get("groups") if isinstance(data.get("groups"), list) else []
+        groups = []
+        for g in groups_in:
+            if isinstance(g, dict) and (g.get("id") or g.get("name")):
+                groups.append({"id": str(g.get("id") or ""), "name": str(g.get("name") or g.get("id") or "")[:255]})
+            elif isinstance(g, str) and g.strip():
+                groups.append({"id": g.strip(), "name": g.strip()[:255]})
+        row.groups = groups
     if "message" in data:
         row.message_enc = enc(data.get("message") or "")
     db.session.commit()
@@ -522,19 +566,23 @@ def _sync_lists_from_whatsapp(uid, only_public_id=None):
     """
     Sync ContactList rows from WhatsApp Business labels via WAHA.
     Creates missing lists for each WA label, upserts contacts from labeled chats,
-    and assigns label membership. Falls back to local contact.labels if WAHA fails.
+    attaches labeled groups, and assigns membership. Falls back to local labels if WAHA fails.
     """
     import uuid as _uuid
     from app.services.waha_client import (
         WahaError, use_waha_user, get_labels, get_chats_for_label, phone_from_chat,
-        get_lid_phone_map,
+        get_lid_phone_map, get_contact_directory, get_group_name_map,
+        _chat_id, _is_group_chat, _group_label,
     )
 
     wa_labels = []
     source = "local"
     label_to_phones = {}  # label name -> [phones]
+    label_to_groups = {}  # label name -> [{id, name}]
     phone_meta = {}  # phone -> {name, labels:set}
     lid_map = {}
+    name_directory = {}
+    group_names = {}
 
     try:
         with use_waha_user(uid, assign=False):
@@ -542,6 +590,14 @@ def _sync_lists_from_whatsapp(uid, only_public_id=None):
                 lid_map = get_lid_phone_map() or {}
             except WahaError:
                 lid_map = {}
+            try:
+                name_directory = get_contact_directory(lid_map=lid_map) or {}
+            except Exception:
+                name_directory = {}
+            try:
+                group_names = get_group_name_map() or {}
+            except Exception:
+                group_names = {}
             raw_labels = get_labels() or []
             for lab in raw_labels:
                 if not isinstance(lab, dict):
@@ -550,14 +606,30 @@ def _sync_lists_from_whatsapp(uid, only_public_id=None):
                 lid = lab.get("id")
                 if not name or lid is None:
                     continue
-                # Skip placeholder names from id-probe unless chats resolve later
                 wa_labels.append(name)
                 try:
                     chats = get_chats_for_label(lid) or []
                 except WahaError:
                     chats = []
                 phones = []
+                groups_found = []
+                seen_gids = set()
                 for chat in chats:
+                    if not isinstance(chat, dict):
+                        continue
+                    gid = _chat_id(chat)
+                    if _is_group_chat(chat, gid):
+                        if not gid or gid in seen_gids:
+                            continue
+                        seen_gids.add(gid)
+                        gname = (
+                            _group_label(chat)
+                            or group_names.get(str(gid))
+                            or group_names.get(gid)
+                            or str(gid)
+                        )
+                        groups_found.append({"id": str(gid), "name": str(gname)[:255]})
+                        continue
                     ph = phone_from_chat(chat, lid_map=lid_map)
                     if not ph:
                         continue
@@ -565,24 +637,29 @@ def _sync_lists_from_whatsapp(uid, only_public_id=None):
                     meta = phone_meta.setdefault(ph, {"name": "", "labels": set()})
                     meta["labels"].add(name)
                     cname = ""
-                    if isinstance(chat, dict):
-                        for key in ("name", "pushName", "notifyName", "formattedName", "subject", "title"):
-                            val = chat.get(key)
-                            if isinstance(val, str) and val.strip():
-                                cname = val.strip()
-                                break
+                    for key in ("name", "pushName", "pushname", "notifyName", "formattedName", "subject", "title"):
+                        val = chat.get(key)
+                        if isinstance(val, str) and val.strip():
+                            cname = val.strip()
+                            break
+                    if not cname:
+                        cname = name_directory.get(ph) or ""
                     if cname and (not meta["name"] or meta["name"] == ph):
                         meta["name"] = cname
                 label_to_phones[name] = phones
+                label_to_groups[name] = groups_found
             source = "whatsapp"
     except WahaError as e:
-        # No WA session / labels unavailable — rebuild from local contact labels only
         source = "local"
         local_err = str(e)
     else:
         local_err = None
 
-    # Upsert contacts discovered from WA
+    # Enrich phone_meta names from directory for any still-empty entries
+    for ph, meta in phone_meta.items():
+        if (not meta["name"] or meta["name"] == ph) and name_directory.get(ph):
+            meta["name"] = name_directory[ph]
+
     contacts_by_phone = {}
     for c in Contact.query.filter_by(user_id=uid).all():
         ph = digits(dec(c.phone_enc))
@@ -593,11 +670,12 @@ def _sync_lists_from_whatsapp(uid, only_public_id=None):
     for ph, meta in phone_meta.items():
         row_c = contacts_by_phone.get(ph)
         labs = sorted(meta["labels"])
+        resolved_name = (meta["name"] or name_directory.get(ph) or ph)[:255]
         if row_c is None:
             n = Contact.query.filter_by(user_id=uid).count()
             row_c = Contact(
                 user_id=uid,
-                name=(meta["name"] or ph)[:255],
+                name=resolved_name,
                 phone_enc=enc(ph),
                 message_enc=enc(""),
                 labels=labs,
@@ -611,17 +689,12 @@ def _sync_lists_from_whatsapp(uid, only_public_id=None):
             existing = row_c.labels if isinstance(row_c.labels, list) else []
             merged_labs = sorted(set([str(x).strip() for x in existing if str(x).strip()] + labs))
             row_c.labels = merged_labs
-            if meta["name"] and (not row_c.name or row_c.name == ph):
-                row_c.name = meta["name"][:255]
+            if resolved_name and resolved_name != ph and (not row_c.name or row_c.name == ph):
+                row_c.name = resolved_name
             row_c.wa_linked = True
             upserted += 1
 
     db.session.flush()
-
-    # Existing lists
-    existing_lists = ContactList.query.filter_by(user_id=uid).order_by(ContactList.position, ContactList.id).all()
-    if only_public_id:
-        existing_lists = [r for r in existing_lists if r.public_id == only_public_id]
 
     def _find_list_for_label(label_name):
         ln = label_name.strip().lower()
@@ -633,7 +706,6 @@ def _sync_lists_from_whatsapp(uid, only_public_id=None):
                 return r
         return None
 
-    # Create a list per WA label when doing full sync
     if source == "whatsapp" and not only_public_id:
         for lab_name in wa_labels:
             if _find_list_for_label(lab_name):
@@ -646,43 +718,57 @@ def _sync_lists_from_whatsapp(uid, only_public_id=None):
                 color="#0d9488",
                 labels=[lab_name],
                 members=list(label_to_phones.get(lab_name) or []),
+                groups=list(label_to_groups.get(lab_name) or []),
                 message_enc=enc(""),
                 position=n,
             ))
         db.session.flush()
 
-    # Rebuild members for target lists
     targets = ContactList.query.filter_by(user_id=uid).order_by(ContactList.position, ContactList.id).all()
     if only_public_id:
         targets = [r for r in targets if r.public_id == only_public_id]
 
-    # Refresh contact phone map after upserts
     contacts_by_phone = {}
     for c in Contact.query.filter_by(user_id=uid).all():
         ph = digits(dec(c.phone_enc))
         if ph:
             contacts_by_phone[ph] = c
+            # Backfill names from WA directory when contact still shows as phone digits
+            if name_directory.get(ph) and (not c.name or c.name == ph):
+                c.name = name_directory[ph][:255]
 
     for row in targets:
         labs = [str(x).strip() for x in (row.labels or []) if str(x).strip()]
         found = []
-        # From WA label→phones map
+        found_groups = []
+        seen_gids = set()
         for lab in labs:
             for ph in label_to_phones.get(lab) or []:
                 if ph not in found:
                     found.append(ph)
-        # From local contact labels (always merge)
+            for g in label_to_groups.get(lab) or []:
+                gid = str(g.get("id") or "")
+                if gid and gid not in seen_gids:
+                    seen_gids.add(gid)
+                    found_groups.append(g)
         for ph, c in contacts_by_phone.items():
             cl = c.labels if isinstance(c.labels, list) else []
             if labs and any(lab in cl for lab in labs) and ph not in found:
                 found.append(ph)
-        # Keep previously saved members that still exist
         for ph in (row.members or []):
             d = digits(ph)
             if d and d in contacts_by_phone and d not in found:
                 found.append(d)
+        # Preserve manually kept groups when WA sync didn't return them
+        for g in (row.groups or []) if isinstance(row.groups, list) else []:
+            if not isinstance(g, dict):
+                continue
+            gid = str(g.get("id") or "")
+            if gid and gid not in seen_gids:
+                seen_gids.add(gid)
+                found_groups.append({"id": gid, "name": str(g.get("name") or gid)[:255]})
         row.members = found
-        # If list has no labels yet but name matches a WA label, attach it
+        row.groups = found_groups
         if not labs and source == "whatsapp":
             match = next((w for w in wa_labels if w.lower() == (row.name or "").strip().lower()), None)
             if match:
@@ -690,10 +776,13 @@ def _sync_lists_from_whatsapp(uid, only_public_id=None):
                 for ph in label_to_phones.get(match) or []:
                     if ph not in row.members:
                         row.members.append(ph)
+                for g in label_to_groups.get(match) or []:
+                    gid = str(g.get("id") or "")
+                    if gid and gid not in {str(x.get("id") or "") for x in (row.groups or [])}:
+                        row.groups = list(row.groups or []) + [g]
 
     db.session.commit()
 
-    # Aggregate labels for the editor
     all_labels = set(wa_labels)
     for c in Contact.query.filter_by(user_id=uid).all():
         for lab in (c.labels or []):

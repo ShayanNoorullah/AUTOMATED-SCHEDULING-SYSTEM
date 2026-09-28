@@ -126,6 +126,7 @@ class ContactList(db.Model):
     color = db.Column(db.String(20), default="#0d9488")
     labels = db.Column(db.JSON, default=list)
     members = db.Column(db.JSON, default=list)  # phone digits
+    groups = db.Column(db.JSON, default=list)  # [{id, name}] WhatsApp groups on this label
     message_enc = db.Column(db.Text, default="")
     position = db.Column(db.Integer, default=0)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)

@@ -23,10 +23,10 @@
 </script>
 <link rel="preconnect" href="https://api.fontshare.com">
 <link href="https://api.fontshare.com/v2/css?f[]=satoshi@400,500,700,900&display=swap" rel="stylesheet">
-<link href="{{ url_for('static', filename='css/app.css') }}?v=poc34" rel="stylesheet"/>
-<link href="{{ url_for('static', filename='css/compat.css') }}?v=poc34" rel="stylesheet"/>
-<link href="{{ url_for('static', filename='css/dashboard.css') }}?v=poc34" rel="stylesheet"/>
-<link href="{{ url_for('static', filename='css/components.css') }}?v=poc34" rel="stylesheet"/>
+<link href="{{ url_for('static', filename='css/app.css') }}?v=poc35" rel="stylesheet"/>
+<link href="{{ url_for('static', filename='css/compat.css') }}?v=poc35" rel="stylesheet"/>
+<link href="{{ url_for('static', filename='css/dashboard.css') }}?v=poc35" rel="stylesheet"/>
+<link href="{{ url_for('static', filename='css/components.css') }}?v=poc35" rel="stylesheet"/>
 <script>
 window.SSIES_USER = {{ {"email": email|default(username), "display_name": username, "role": role, "photo_url": photo_url|default(none)} | tojson }};
 </script>
@@ -273,11 +273,11 @@ window.SSIES_USER = {{ {"email": email|default(username), "display_name": userna
       <section class="view" id="view-lists">
         <div class="wa-hero">
           <h3>Lists</h3>
-          <p>Auto-discover contacts from your WhatsApp Business <strong>labels</strong>, curate each list, and send schedules to all or selected contacts.</p>
+          <p>Audiences from WhatsApp Business labels — contacts and groups, ready to send.</p>
         </div>
         <div class="toolbar list-toolbar">
           <button class="btn btn-primary btn-sm" type="button" onclick="newList()">+ New list</button>
-          <button class="btn btn-soft btn-sm" type="button" onclick="syncAllLists()" title="Rebuild every list from its WhatsApp labels">Sync from WhatsApp</button>
+          <button class="btn btn-soft btn-sm" type="button" onclick="syncAllLists()" title="Rebuild lists from WhatsApp Business labels">Sync from WhatsApp</button>
           <div class="seg" id="listModeSeg" style="margin-left:auto">
             <button type="button" data-val="tabs" onclick="setListMode('tabs')">Tabs</button>
             <button type="button" data-val="table" onclick="setListMode('table')">Table</button>
@@ -834,12 +834,12 @@ window.SSIES_USER = {{ {"email": email|default(username), "display_name": userna
   </div>
 </div>
 
-<div class="toast" id="toast"></div>
+<div class="toast" id="toast" role="status" aria-live="polite" aria-atomic="true"></div>
 
-<script src="{{ url_for('static', filename='js/chrome.js') }}?v=poc34"></script>
-<script src="{{ url_for('static', filename='js/theme.js') }}?v=poc34"></script>
-<script src="{{ url_for('static', filename='js/whatsapp.js') }}?v=poc34"></script>
-<script src="{{ url_for('static', filename='js/waha.js') }}?v=poc34"></script>
+<script src="{{ url_for('static', filename='js/chrome.js') }}?v=poc35"></script>
+<script src="{{ url_for('static', filename='js/theme.js') }}?v=poc35"></script>
+<script src="{{ url_for('static', filename='js/whatsapp.js') }}?v=poc35"></script>
+<script src="{{ url_for('static', filename='js/waha.js') }}?v=poc35"></script>
 <script>
 const DAYS = {{ days | tojson }};
 const _asUser = new URLSearchParams(location.search).get("asUser");
@@ -2262,8 +2262,8 @@ async function copyText(t){try{await navigator.clipboard.writeText(t);toast("Cop
 let tt;function toast(m,type="ok"){const e=document.getElementById("toast");e.textContent=m;e.className=`toast ${type} show`;clearTimeout(tt);tt=setTimeout(()=>e.classList.remove("show"),3000);}
 
 </script>
-<script src="{{ url_for('static', filename='js/lists.js') }}?v=poc34"></script>
-<script src="{{ url_for('static', filename='js/features.js') }}?v=poc34"></script>
+<script src="{{ url_for('static', filename='js/lists.js') }}?v=poc35"></script>
+<script src="{{ url_for('static', filename='js/features.js') }}?v=poc35"></script>
 <script>boot();</script>
 </body>
 </html>
