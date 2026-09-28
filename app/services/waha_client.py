@@ -865,6 +865,72 @@ def list_groups(session=None):
     return out
 
 
+def get_group_participants(group, session=None):
+    """
+    Return participants of a WhatsApp group.
+
+    `group` may be a chat id (…@g.us) or a group name. Reuses find_group_chat_id
+    for name lookup. Resolves each participant to {name, phone, admin} using the
+    contact directory + lid map. Additive — does not change send/sync logic.
+    """
+    name = _session_name(session)
+    gid = str(group or "").strip()
+    if gid and not gid.endswith("@g.us"):
+        resolved = find_group_chat_id(gid, session=name)
+        if resolved:
+            gid = resolved
+    if not gid or not gid.endswith("@g.us"):
+        raise WahaError(f"Group not found: {group}")
+
+    data = None
+    for path in (f"/api/{name}/groups/{gid}", f"/api/{name}/groups/{gid}/participants"):
+        try:
+            data = _req("GET", path, session_name=name)
+        except WahaError:
+            data = None
+        if data:
+            break
+    if data is None:
+        return {"id": gid, "subject": "", "size": 0, "participants": []}
+
+    if isinstance(data, list):
+        raw_parts = data
+        subject = ""
+    else:
+        raw_parts = data.get("participants") if isinstance(data.get("participants"), list) else []
+        subject = data.get("subject") or data.get("name") or ""
+
+    lid_map = get_lid_phone_map(session=name)
+    directory = get_contact_directory(session=name, lid_map=lid_map)
+
+    out = []
+    seen = set()
+    for p in raw_parts:
+        if not isinstance(p, dict):
+            continue
+        phone = ""
+        pn = p.get("phoneNumber") or p.get("phone") or ""
+        if pn:
+            phone = "".join(ch for ch in str(pn).split("@")[0] if ch.isdigit())
+        pid = _chat_id(p) or str(p.get("id") or "")
+        if not phone and pid:
+            if pid.endswith("@c.us") or "@s.whatsapp.net" in pid:
+                phone = "".join(ch for ch in pid.split("@")[0] if ch.isdigit())
+            elif lid_map:
+                phone = lid_map.get(pid) or lid_map.get(pid.split("@")[0]) or ""
+        if not phone or phone in seen:
+            continue
+        seen.add(phone)
+        admin = p.get("admin") or p.get("role") or ""
+        out.append({
+            "name": directory.get(phone) or phone,
+            "phone": phone,
+            "admin": str(admin) if admin else "",
+        })
+    out.sort(key=lambda x: (x["admin"] == "", x["name"].lower()))
+    return {"id": gid, "subject": subject, "size": len(out), "participants": out}
+
+
 def find_group_chat_id(name, session=None, items=None):
     session = _session_name(session)
     if items is None:

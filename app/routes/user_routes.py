@@ -990,6 +990,24 @@ def whatsapp_waha_groups():
         return jsonify({"error": str(e)}), 400
 
 
+@bp.route("/api/whatsapp/groups/participants", methods=["GET"])
+@login_required
+def whatsapp_group_participants():
+    """Members of a WhatsApp group (by id ?id=…@g.us or name ?name=…)."""
+    from app.services.whatsapp_provider import get_provider
+    if get_provider() != "waha":
+        return jsonify({"error": "Available only when WAHA provider is active"}), 400
+    from app.services.waha_client import WahaError, get_group_participants, use_waha_user
+    ref = (request.args.get("id") or request.args.get("name") or "").strip()
+    if not ref:
+        return jsonify({"error": "Group id or name required"}), 400
+    try:
+        with use_waha_user(_effective_user_id(), assign=False):
+            return jsonify(get_group_participants(ref))
+    except WahaError as e:
+        return jsonify({"error": str(e)}), 400
+
+
 @bp.route("/api/whatsapp/links", methods=["GET", "POST"])
 @login_required
 def whatsapp_links():

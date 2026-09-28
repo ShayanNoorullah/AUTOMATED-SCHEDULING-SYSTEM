@@ -122,26 +122,26 @@ function memberRow(list, c) {
   const labels = (c.labels || []).map(labelChip).join("");
   const pic = typeof entityPic === "function" ? entityPic(c) : (c.photoUrl || c.pic || "");
   const display = (c.name && c.name !== c.phone) ? c.name : (c.name || c.phone);
-  return `<tr>
-    <td class="lists-check"><input type="checkbox" ${sel ? "checked" : ""} onchange="toggleListSel('${list.id}','${escA(key)}',this.checked)"/></td>
+  return `<tr class="lists-clickrow" onclick="openListEntity('${list.id}','c','${escA(c.phone)}')">
+    <td class="lists-check" onclick="event.stopPropagation()"><input type="checkbox" ${sel ? "checked" : ""} onchange="toggleListSel('${list.id}','${escA(key)}',this.checked)"/></td>
     <td><div class="grid-name"><div class="av small${pic ? " has-img" : ""}">${avatarInner(display, pic)}${c.waLinked ? '<span class="wa-badge"></span>' : ""}</div><b>${esc(display)}</b></div></td>
     <td class="lists-type"><span class="lists-type-tag">Contact</span></td>
     <td>+${esc(c.phone)}</td>
     <td><div class="lbl-row">${labels || '<span class="hint" style="margin:0">—</span>'}</div></td>
-    <td class="grid-go"><button class="btn btn-soft btn-sm" type="button" onclick="event.stopPropagation();sendListContact('${list.id}','${escA(c.phone)}')">Send</button></td>
+    <td class="grid-go" onclick="event.stopPropagation()"><button class="btn btn-soft btn-sm" type="button" onclick="sendListContact('${list.id}','${escA(c.phone)}')">Send</button></td>
   </tr>`;
 }
 function groupRow(list, g) {
   const key = "g:" + (g.id || g.name);
   const sel = !!listSelSet(list.id)[key];
   const gname = g.name || g.id || "Group";
-  return `<tr>
-    <td class="lists-check"><input type="checkbox" ${sel ? "checked" : ""} onchange="toggleListSel('${list.id}','${escA(key)}',this.checked)"/></td>
+  return `<tr class="lists-clickrow" onclick="openListEntity('${list.id}','g','${escA(g.id || "")}','${escA(gname)}')">
+    <td class="lists-check" onclick="event.stopPropagation()"><input type="checkbox" ${sel ? "checked" : ""} onchange="toggleListSel('${list.id}','${escA(key)}',this.checked)"/></td>
     <td><div class="grid-name"><div class="av small lists-av-group">${avatarInner(gname, "")}</div><b>${esc(gname)}</b></div></td>
     <td class="lists-type"><span class="lists-type-tag is-group">Group</span></td>
     <td><span class="hint" style="margin:0">${esc((g.id || "").replace(/@g\.us$/, "") || "—")}</span></td>
     <td><span class="hint" style="margin:0">—</span></td>
-    <td class="grid-go"><button class="btn btn-soft btn-sm" type="button" onclick="event.stopPropagation();sendListGroup('${list.id}','${escA(g.id || "")}','${escA(gname)}')">Send</button></td>
+    <td class="grid-go" onclick="event.stopPropagation()"><button class="btn btn-soft btn-sm" type="button" onclick="sendListGroup('${list.id}','${escA(g.id || "")}','${escA(gname)}')">Send</button></td>
   </tr>`;
 }
 function memberCard(list, c) {
@@ -149,22 +149,22 @@ function memberCard(list, c) {
   const sel = !!listSelSet(list.id)[key];
   const pic = typeof entityPic === "function" ? entityPic(c) : (c.photoUrl || c.pic || "");
   const display = (c.name && c.name !== c.phone) ? c.name : (c.name || c.phone);
-  return `<div class="lmember${sel ? " on" : ""}">
-    <input type="checkbox" ${sel ? "checked" : ""} onchange="toggleListSel('${list.id}','${escA(key)}',this.checked)"/>
+  return `<div class="lmember lists-clickrow${sel ? " on" : ""}" onclick="openListEntity('${list.id}','c','${escA(c.phone)}')">
+    <input type="checkbox" ${sel ? "checked" : ""} onclick="event.stopPropagation()" onchange="toggleListSel('${list.id}','${escA(key)}',this.checked)"/>
     <div class="av small${pic ? " has-img" : ""}">${avatarInner(display, pic)}</div>
     <div class="lmember-body"><b>${esc(display)}</b><div class="hint" style="margin:0">+${esc(c.phone)}</div></div>
-    <button class="btn btn-soft btn-sm" type="button" onclick="sendListContact('${list.id}','${escA(c.phone)}')">Send</button>
+    <button class="btn btn-soft btn-sm" type="button" onclick="event.stopPropagation();sendListContact('${list.id}','${escA(c.phone)}')">Send</button>
   </div>`;
 }
 function groupCard(list, g) {
   const key = "g:" + (g.id || g.name);
   const sel = !!listSelSet(list.id)[key];
   const gname = g.name || g.id || "Group";
-  return `<div class="lmember${sel ? " on" : ""}">
-    <input type="checkbox" ${sel ? "checked" : ""} onchange="toggleListSel('${list.id}','${escA(key)}',this.checked)"/>
+  return `<div class="lmember lists-clickrow${sel ? " on" : ""}" onclick="openListEntity('${list.id}','g','${escA(g.id || "")}','${escA(gname)}')">
+    <input type="checkbox" ${sel ? "checked" : ""} onclick="event.stopPropagation()" onchange="toggleListSel('${list.id}','${escA(key)}',this.checked)"/>
     <div class="av small lists-av-group">${avatarInner(gname, "")}</div>
     <div class="lmember-body"><b>${esc(gname)}</b><div class="hint" style="margin:0">WhatsApp group</div></div>
-    <button class="btn btn-soft btn-sm" type="button" onclick="sendListGroup('${list.id}','${escA(g.id || "")}','${escA(gname)}')">Send</button>
+    <button class="btn btn-soft btn-sm" type="button" onclick="event.stopPropagation();sendListGroup('${list.id}','${escA(g.id || "")}','${escA(gname)}')">Send</button>
   </div>`;
 }
 
@@ -210,20 +210,36 @@ function renderListTabs(wrap) {
   updateListSelCount(list.id);
 }
 
+function listMemberAvatars(l, max) {
+  const people = listMembers(l).slice(0, max);
+  const extra = listContactCount(l) - people.length;
+  if (!people.length && !listGroupCount(l)) return '<span class="hint" style="margin:0">Empty</span>';
+  const avs = people.map((c) => {
+    const display = (c.name && c.name !== c.phone) ? c.name : c.phone;
+    return `<span class="lists-stack-av av small" title="${escA(display)}">${avatarInner(display, "")}</span>`;
+  }).join("");
+  const more = extra > 0 ? `<span class="lists-stack-more">+${extra}</span>` : "";
+  const grp = listGroupCount(l) ? `<span class="lists-stack-grp">${listGroupCount(l)} group${listGroupCount(l) === 1 ? "" : "s"}</span>` : "";
+  return `<div class="lists-stack">${avs}${more}${grp}</div>`;
+}
+
 function renderListTable(wrap) {
   wrap.innerHTML = `<div class="tbl-wrap"><table class="data grid-table lists-overview"><thead><tr>
-    <th>List</th><th>Labels</th><th>Contacts</th><th>Groups</th><th></th>
+    <th>List</th><th class="lists-memcol">Members</th><th>Labels</th><th class="lists-num">Contacts</th><th class="lists-num">Groups</th><th class="lists-actcol">Actions</th>
   </tr></thead><tbody>${lists.map((l) => {
     const labs = (l.labels || []).map(labelChip).join("") || '<span class="hint" style="margin:0">—</span>';
     return `<tr onclick="setListMode('tabs');setListActive('${l.id}')">
       <td><div class="grid-name"><span class="list-dot" style="background:${l.color || "var(--accent)"}"></span><b>${esc(l.name)}</b></div></td>
+      <td class="lists-memcol">${listMemberAvatars(l, 4)}</td>
       <td><div class="lbl-row">${labs}</div></td>
-      <td>${listContactCount(l)}</td>
-      <td>${listGroupCount(l)}</td>
-      <td class="grid-go" onclick="event.stopPropagation()">
-        <button class="btn btn-ghost btn-sm" type="button" onclick="syncList('${l.id}')">Sync</button>
-        <button class="btn btn-ghost btn-sm" type="button" onclick="editList('${l.id}')">Edit</button>
-        <button class="btn btn-primary btn-sm" type="button" onclick="sendList('${l.id}',false)">Send</button>
+      <td class="lists-num"><span class="lists-count">${listContactCount(l)}</span></td>
+      <td class="lists-num"><span class="lists-count">${listGroupCount(l)}</span></td>
+      <td class="lists-actcol" onclick="event.stopPropagation()">
+        <div class="lists-rowact">
+          <button class="btn btn-ghost btn-sm" type="button" onclick="syncList('${l.id}')" title="Sync from WhatsApp">Sync</button>
+          <button class="btn btn-ghost btn-sm" type="button" onclick="editList('${l.id}')" title="Edit list">Edit</button>
+          <button class="btn btn-primary btn-sm" type="button" onclick="sendList('${l.id}',false)">Send all</button>
+        </div>
       </td>
     </tr>`;
   }).join("")}</tbody></table></div>`;
@@ -453,6 +469,109 @@ function sendList(id, selectedOnly) {
   if (typeof doRelease === "function") doRelease(targets, "relAllSpin", "relAllBtn", "relAllTxt", "Send list");
   else toast("Send unavailable", "err");
 }
+/* ── Entity detail: click a contact/group in a list to view + send directly ── */
+let leCtx = null;
+
+function _leContactInfo(list, phone) {
+  const key = phoneKey(phone);
+  const srv = (list.memberNames || {});
+  const c = (typeof contacts !== "undefined" ? contacts : []).find((x) => phoneKey(x.phone) === key);
+  const name = (c && c.name && c.name !== c.phone) ? c.name : (srv[key] || (c && c.name) || phone);
+  return {
+    name, phone: key || phone,
+    labels: (c && c.labels) || [],
+    waLinked: c ? !!c.waLinked : !!srv[key],
+    message: (c && c.message && c.message.trim()) ? c.message : "",
+    pic: (typeof entityPic === "function" && c) ? entityPic(c) : "",
+  };
+}
+
+function openListEntity(listId, type, key, gname) {
+  const list = listById(listId);
+  if (!list) return;
+  const modal = document.getElementById("listEntityModal");
+  if (!modal) return;
+  const body = document.getElementById("leBody");
+  if (type === "c") {
+    const info = _leContactInfo(list, key);
+    leCtx = { listId, type, phone: info.phone, name: info.name };
+    const labels = (info.labels || []).map(labelChip).join("") || '<span class="hint" style="margin:0">No labels</span>';
+    document.getElementById("leTitle").textContent = "Contact";
+    body.innerHTML = `
+      <div class="le-hero">
+        <div class="av lg${info.pic ? " has-img" : ""}">${avatarInner(info.name, info.pic)}${info.waLinked ? '<span class="wa-badge"></span>' : ""}</div>
+        <div class="le-hero-body">
+          <h3>${esc(info.name)}</h3>
+          <div class="le-phone">+${esc(info.phone)}</div>
+          <div class="le-badges">${info.waLinked ? '<span class="chip chip-default">On WhatsApp</span>' : '<span class="chip">Not verified</span>'}</div>
+        </div>
+      </div>
+      <div class="le-field"><div class="le-label">Labels</div><div class="lbl-row">${labels}</div></div>
+      <div class="le-field"><div class="le-label">Message</div>
+        <textarea class="field" id="leMsg" style="min-height:130px">${esc(info.message || listMsg(list))}</textarea>
+        <div class="hint" style="margin:6px 0 0">Wrap *text* for bold. {date} / {weekday} are replaced when sent.</div>
+      </div>`;
+    document.getElementById("leOpenGroup").style.display = "none";
+  } else {
+    const gname2 = gname || key || "Group";
+    leCtx = { listId, type, gid: key, name: gname2 };
+    document.getElementById("leTitle").textContent = "Group";
+    body.innerHTML = `
+      <div class="le-hero">
+        <div class="av lg lists-av-group">${avatarInner(gname2, "")}</div>
+        <div class="le-hero-body">
+          <h3>${esc(gname2)}</h3>
+          <div class="le-phone">${esc((key || "").replace(/@g\.us$/, "")) || "WhatsApp group"}</div>
+          <div class="le-badges"><span class="chip chip-default">WhatsApp group</span></div>
+        </div>
+      </div>
+      <div class="le-field"><div class="le-label">Message</div>
+        <textarea class="field" id="leMsg" style="min-height:130px">${esc(listMsg(list))}</textarea>
+        <div class="hint" style="margin:6px 0 0">Sent to the whole group. Open the Groups page to see members and manage it.</div>
+      </div>`;
+    const og = document.getElementById("leOpenGroup");
+    og.style.display = "";
+  }
+  modal.classList.add("show");
+}
+
+function closeListEntity() {
+  const m = document.getElementById("listEntityModal");
+  if (m) m.classList.remove("show");
+  leCtx = null;
+}
+
+function listEntitySend() {
+  if (!leCtx) return;
+  const list = listById(leCtx.listId);
+  if (!list) return;
+  const raw = (document.getElementById("leMsg").value || "").trim();
+  if (!raw) { toast("Enter a message", "err"); return; }
+  const msg = typeof replaceTokens === "function" ? replaceTokens(raw) : raw;
+  let targets;
+  if (leCtx.type === "c") targets = [{ name: leCtx.name, phone: String(leCtx.phone), message: msg }];
+  else targets = [{ name: leCtx.name, message: msg }];
+  closeListEntity();
+  if (typeof doRelease === "function") doRelease(targets, "relAllSpin", "relAllBtn", "relAllTxt", "Send");
+  else toast("Send unavailable", "err");
+}
+
+function listEntityOpenGroup() {
+  if (!leCtx || leCtx.type !== "g") return;
+  const name = leCtx.name;
+  closeListEntity();
+  if (typeof openGroupDetailByName === "function" && typeof groups !== "undefined" && groups.some((g) => g.name === name)) {
+    openGroupDetailByName(name);
+  } else if (typeof newGroupDetail === "function") {
+    // Not yet a scheduler group — open the Groups page prefilled with this WhatsApp group name.
+    newGroupDetail();
+    if (typeof gdWorking !== "undefined" && gdWorking) { gdWorking.name = name; if (typeof renderGroupDetail === "function") renderGroupDetail(); }
+    toast("Add a schedule to manage this group");
+  } else if (typeof showView === "function") {
+    showView("groups");
+  }
+}
+
 function sendListContact(id, phone) {
   const list = listById(id); if (!list) return;
   const targets = sendListTargets(list, [phone]);

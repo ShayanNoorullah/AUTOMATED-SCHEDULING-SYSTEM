@@ -23,10 +23,10 @@
 </script>
 <link rel="preconnect" href="https://api.fontshare.com">
 <link href="https://api.fontshare.com/v2/css?f[]=satoshi@400,500,700,900&display=swap" rel="stylesheet">
-<link href="{{ url_for('static', filename='css/app.css') }}?v=poc35" rel="stylesheet"/>
-<link href="{{ url_for('static', filename='css/compat.css') }}?v=poc35" rel="stylesheet"/>
-<link href="{{ url_for('static', filename='css/dashboard.css') }}?v=poc35" rel="stylesheet"/>
-<link href="{{ url_for('static', filename='css/components.css') }}?v=poc35" rel="stylesheet"/>
+<link href="{{ url_for('static', filename='css/app.css') }}?v=poc36" rel="stylesheet"/>
+<link href="{{ url_for('static', filename='css/compat.css') }}?v=poc36" rel="stylesheet"/>
+<link href="{{ url_for('static', filename='css/dashboard.css') }}?v=poc36" rel="stylesheet"/>
+<link href="{{ url_for('static', filename='css/components.css') }}?v=poc36" rel="stylesheet"/>
 <script>
 window.SSIES_USER = {{ {"email": email|default(username), "display_name": username, "role": role, "photo_url": photo_url|default(none)} | tojson }};
 </script>
@@ -834,12 +834,25 @@ window.SSIES_USER = {{ {"email": email|default(username), "display_name": userna
   </div>
 </div>
 
+<!-- List entity (contact/group) detail + quick send -->
+<div class="modal-scrim" id="listEntityModal">
+  <div class="modal">
+    <div class="modal-h"><span id="leTitle">Details</span><button class="modal-x" type="button" onclick="closeListEntity()">✕</button></div>
+    <div class="modal-b" id="leBody"></div>
+    <div class="modal-f">
+      <button class="btn btn-soft" type="button" onclick="closeListEntity()">Close</button>
+      <button class="btn btn-soft" type="button" id="leOpenGroup" style="display:none" onclick="listEntityOpenGroup()">Open in Groups page</button>
+      <button class="btn btn-primary" type="button" onclick="listEntitySend()">Send message</button>
+    </div>
+  </div>
+</div>
+
 <div class="toast" id="toast" role="status" aria-live="polite" aria-atomic="true"></div>
 
-<script src="{{ url_for('static', filename='js/chrome.js') }}?v=poc35"></script>
-<script src="{{ url_for('static', filename='js/theme.js') }}?v=poc35"></script>
-<script src="{{ url_for('static', filename='js/whatsapp.js') }}?v=poc35"></script>
-<script src="{{ url_for('static', filename='js/waha.js') }}?v=poc35"></script>
+<script src="{{ url_for('static', filename='js/chrome.js') }}?v=poc36"></script>
+<script src="{{ url_for('static', filename='js/theme.js') }}?v=poc36"></script>
+<script src="{{ url_for('static', filename='js/whatsapp.js') }}?v=poc36"></script>
+<script src="{{ url_for('static', filename='js/waha.js') }}?v=poc36"></script>
 <script>
 const DAYS = {{ days | tojson }};
 const _asUser = new URLSearchParams(location.search).get("asUser");
@@ -1562,8 +1575,35 @@ function renderGroupDetail(){
         ${gdEdit?`<div class="g-field" style="margin-bottom:14px"><div class="flabel">Invite link <span class="flabel-soft">optional</span></div><input class="field" value="${escA(g.inviteLink||"")}" oninput="gdSetField('inviteLink',this.value)" placeholder="https://chat.whatsapp.com/…"/></div><div class="g-field" style="margin-bottom:10px"><div class="flabel">Message</div><textarea class="field" style="min-height:150px" oninput="gdSetField('message',this.value)">${esc(messageFor(g))}</textarea></div>`:(g.inviteLink?'<div class="hint" style="margin:0 0 10px">Invite link set · opens the group directly.</div>':"")}
         <div class="msg-preview" id="gdPreview"></div>
       </div></div>
-    </div>`;
+    </div>
+    ${gdEdit?"":`<div class="sec" style="margin-top:16px"><div class="sec-h">Members <span id="gdMemberCount" class="hint" style="margin:0 0 0 auto"></span></div>
+      <div class="sec-b" id="gdMembersBox">
+        <div class="gd-members-empty"><p class="hint" style="margin:0 0 12px">Load the current members of this WhatsApp group.</p>
+          <button class="btn btn-soft btn-sm" type="button" onclick="gdLoadMembers()">Load group members</button></div>
+      </div></div>`}`;
   gdPreview();
+}
+let gdMembersCache = {};
+async function gdLoadMembers(){
+  const box=document.getElementById("gdMembersBox"); if(!box) return;
+  const g=gdWorking; if(!g||!g.name){ box.innerHTML='<p class="hint">Group name required.</p>'; return; }
+  box.innerHTML='<div class="gd-members-empty"><div class="spinner"></div><p class="hint" style="margin:8px 0 0">Fetching members from WhatsApp…</p></div>';
+  try{
+    const ref=g.waId||g.name;
+    const d=await (await fetch(`/api/whatsapp/groups/participants?${g.waId?"id":"name"}=${encodeURIComponent(ref)}`)).json();
+    if(d.error) throw new Error(d.error);
+    const parts=d.participants||[];
+    const cnt=document.getElementById("gdMemberCount"); if(cnt) cnt.textContent=parts.length?`${parts.length} member${parts.length===1?"":"s"}`:"";
+    if(!parts.length){ box.innerHTML='<p class="hint" style="margin:0">No members found — make sure the group name matches your WhatsApp group exactly, or link WhatsApp in Automated Send.</p>'; return; }
+    box.innerHTML=`<div class="gd-members">`+parts.map((p)=>`
+      <div class="gd-mrow">
+        <div class="av small">${avatarInner(p.name||p.phone,"")}</div>
+        <div class="gd-mrow-body"><b>${esc(p.name||p.phone)}</b><div class="hint" style="margin:0">+${esc(p.phone)}</div></div>
+        ${p.admin?`<span class="gd-admin">${esc(p.admin==="superadmin"?"Owner":"Admin")}</span>`:""}
+      </div>`).join("")+`</div>`;
+  }catch(e){
+    box.innerHTML=`<div class="gd-members-empty"><p class="hint" style="margin:0 0 12px">${esc(e.message||"Could not load members")}</p><button class="btn btn-soft btn-sm" type="button" onclick="gdLoadMembers()">Retry</button></div>`;
+  }
 }
 
 /* ════ CONTACTS: table / cards + detail ════ */
@@ -2262,8 +2302,8 @@ async function copyText(t){try{await navigator.clipboard.writeText(t);toast("Cop
 let tt;function toast(m,type="ok"){const e=document.getElementById("toast");e.textContent=m;e.className=`toast ${type} show`;clearTimeout(tt);tt=setTimeout(()=>e.classList.remove("show"),3000);}
 
 </script>
-<script src="{{ url_for('static', filename='js/lists.js') }}?v=poc35"></script>
-<script src="{{ url_for('static', filename='js/features.js') }}?v=poc35"></script>
+<script src="{{ url_for('static', filename='js/lists.js') }}?v=poc36"></script>
+<script src="{{ url_for('static', filename='js/features.js') }}?v=poc36"></script>
 <script>boot();</script>
 </body>
 </html>
