@@ -134,10 +134,11 @@ def delete_user(target, actor):
 
     # Clear dependent rows before profile delete (DB FKs are RESTRICT, not CASCADE).
     from app.models import (
-        Group, Contact, Template, ReleaseLog, ScheduledJob,
+        Group, Contact, ContactList, Template, ReleaseLog, ScheduledJob,
         Notification, PasswordRequest, WebAuthnCredential, AuditLog,
     )
     Group.query.filter_by(user_id=target.id).delete(synchronize_session=False)
+    ContactList.query.filter_by(user_id=target.id).delete(synchronize_session=False)
     Contact.query.filter_by(user_id=target.id).delete(synchronize_session=False)
     Template.query.filter_by(user_id=target.id).delete(synchronize_session=False)
     ReleaseLog.query.filter_by(user_id=target.id).delete(synchronize_session=False)

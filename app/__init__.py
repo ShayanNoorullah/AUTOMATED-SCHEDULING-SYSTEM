@@ -223,10 +223,12 @@ def _ensure_poc_parity_columns():
         add_cols("groups", [
             ("photo_path", "photo_path TEXT"),
             ("wa_linked", "wa_linked BOOLEAN DEFAULT 0"),
+            ("nickname", "nickname VARCHAR(120) DEFAULT ''"),
         ])
         add_cols("contacts", [
             ("photo_path", "photo_path TEXT"),
             ("wa_linked", "wa_linked BOOLEAN DEFAULT 0"),
+            ("labels", "labels JSONB DEFAULT '[]'::jsonb" if db.engine.dialect.name == "postgresql" else "labels JSON DEFAULT '[]'"),
         ])
         db.session.commit()
     except Exception:

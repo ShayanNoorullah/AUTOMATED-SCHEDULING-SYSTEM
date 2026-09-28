@@ -80,6 +80,7 @@ class Group(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(GUID(), db.ForeignKey("profiles.id"), index=True, nullable=False)
     name = db.Column(db.String(255), nullable=False)
+    nickname = db.Column(db.String(120), default="")
     schedule = db.Column(db.JSON, default=list)
     message_enc = db.Column(db.Text, default="")
     last_released = db.Column(db.String(40), default="")
@@ -110,7 +111,24 @@ class Contact(db.Model):
     last_released = db.Column(db.String(40), default="")
     photo_path = db.Column(db.Text)
     wa_linked = db.Column(db.Boolean, default=False, nullable=False)
+    labels = db.Column(db.JSON, default=list)
     position = db.Column(db.Integer, default=0)
+
+
+class ContactList(db.Model):
+    """WhatsApp Business label-based audience lists (per user)."""
+    __tablename__ = "contact_lists"
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(GUID(), db.ForeignKey("profiles.id"), index=True, nullable=False)
+    public_id = db.Column(db.String(40), nullable=False)
+    name = db.Column(db.String(255), nullable=False)
+    color = db.Column(db.String(20), default="#0d9488")
+    labels = db.Column(db.JSON, default=list)
+    members = db.Column(db.JSON, default=list)  # phone digits
+    message_enc = db.Column(db.Text, default="")
+    position = db.Column(db.Integer, default=0)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
 
 class AuditLog(db.Model):

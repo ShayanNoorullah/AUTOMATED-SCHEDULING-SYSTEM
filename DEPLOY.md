@@ -238,6 +238,15 @@ Distribution is private (no Play Store).
 
 ### Updates
 
+Stay on the existing Always Free VM — rebuild **app only** when code changes (no new OCI instances):
+
+```bash
+cd ~/ssies
+docker compose -f docker-compose.prod.yml up -d --build app
+```
+
+Full stack (app + WAHA + Caddy) only when compose/infra files change:
+
 ```bash
 cd ~/ssies
 git pull

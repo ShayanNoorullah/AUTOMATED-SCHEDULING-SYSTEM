@@ -173,6 +173,8 @@ docker compose -f docker-compose.prod.yml restart caddy
 
 ### Update production (deploy new code)
 
+**Cost note:** Stay on the existing Always Free VM. Copy code and rebuild **only the `app` image** — do not create new OCI instances, volumes, or shapes.
+
 **On your Windows PC** — copy changed files to the VM:
 
 ```powershell
@@ -180,21 +182,29 @@ $key = "C:\Users\Asus\Downloads\ssh-key-2026-06-25.key"
 $vm = "ubuntu@161.118.253.199"
 $src = "D:\SSIES Schedule Automation"
 
-scp -i $key -r "$src\app" "$src\templates" "$src\static" "$src\docker" "$src\app.py" "$src\requirements.txt" "$src\Dockerfile" "$src\docker-compose.prod.yml" "${vm}:~/ssies/"
+scp -i $key -r "$src\app" "$src\templates" "$src\static" "$src\docker" "$src\supabase" "$src\app.py" "$src\requirements.txt" "$src\Dockerfile" "$src\docker-compose.prod.yml" "${vm}:~/ssies/"
 ```
 
-**On the VM** — rebuild and restart:
+**On the VM** — rebuild and restart **app only** (WAHA/Caddy keep running; no extra OCI resources):
 
 ```bash
 cd ~/ssies
-docker compose -f docker-compose.prod.yml up -d --build
+docker compose -f docker-compose.prod.yml up -d --build app
 docker compose -f docker-compose.prod.yml ps
 ```
+
+Schema extras (group `nickname`, contact `labels`, `contact_lists`) are applied automatically on app start via `db.create_all()` + `_ensure_poc_parity_columns()`. Optional SQL mirror: `supabase/migrations/004_sched_lists.sql`.
 
 If only `.env` changed (no code):
 
 ```bash
 docker compose -f docker-compose.prod.yml up -d --force-recreate app
+```
+
+Full stack rebuild (only if you intentionally changed WAHA/Caddy too):
+
+```bash
+docker compose -f docker-compose.prod.yml up -d --build
 ```
 
 ### Upload mobile APK to server

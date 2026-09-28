@@ -30,6 +30,7 @@ def format_message(schedule):
 def group_dict(g):
     return {
         "name": g.name,
+        "nickname": getattr(g, "nickname", None) or "",
         "schedule": g.schedule or [],
         "message": dec(g.message_enc),
         "lastReleased": g.last_released or "",
@@ -42,11 +43,15 @@ def template_dict(t):
 
 
 def contact_dict(c):
+    labels = getattr(c, "labels", None) or []
+    if not isinstance(labels, list):
+        labels = []
     return {
         "name": c.name,
         "phone": dec(c.phone_enc),
         "message": dec(c.message_enc),
         "lastReleased": c.last_released or "",
+        "labels": [str(x) for x in labels if str(x).strip()],
     }
 
 

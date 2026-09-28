@@ -29,10 +29,14 @@ Public self-registration is **disabled**. Admins create accounts via the admin p
 | Area | What it does |
 |------|----------------|
 | **Groups / Schedule table** | Manage weekly schedules, per-group messages, and local notes under the table |
+| **Scheduler extras** | Full group names by default with expand/collapse columns, optional nicknames, and clash highlighting for overlapping class times |
+| **Lists** | Discover audiences from WhatsApp Business labels, manage members, view as tabs/table/board, send to all / selected / one |
+| **Status Log** | Collapse / clear controls that stay in sync with the log panel |
+| **Navbar layout** | In navbar mode, page content uses the full width (no narrow max-width column) |
 | **Open in WhatsApp** | Client-side `wa.me` and group invite links — no session linking |
 | **Automated Send** | WAHA or Selenium — each account links **its own** WhatsApp, then bulk-sends |
 | **Templates** | Reusable message templates (default weekly schedule seeded for new users) |
-| **Profile** (`/profile`) | Display name, password, account info |
+| **Profile** (`/profile`) | Display name, password, passkeys, account info |
 
 Default automated message format:
 

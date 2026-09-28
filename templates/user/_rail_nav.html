@@ -4,7 +4,7 @@
   <span class="ico"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg></span>
   <span class="lbl">Dashboard</span>
 </button>
-<div class="nav-group{% if active_view in ('groups','contacts','table','board','group-detail','contact-detail') %} open has-active{% endif %}" id="navSchedGroup">
+<div class="nav-group{% if active_view in ('groups','contacts','table','board','lists','group-detail','contact-detail') %} open has-active{% endif %}" id="navSchedGroup">
   <button class="nav-item nav-group-btn" onclick="toggleNavGroup(this)" title="Scheduler" type="button">
     <span class="ico"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg></span>
     <span class="lbl">Scheduler</span>
@@ -15,6 +15,7 @@
     <button class="nav-item nav-sub{% if active_view in ('contacts','contact-detail') %} active{% endif %}" data-view="contacts" onclick="{% if profile_mode %}location.href='/?view=contacts'{% else %}navGo('contacts'){% endif %}" type="button"><span class="ico"><svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></span><span class="lbl">Contacts</span></button>
     <button class="nav-item nav-sub{% if active_view == 'table' %} active{% endif %}" data-view="table" data-sched="table" onclick="{% if profile_mode %}location.href='/?view=table'{% else %}navSched('table'){% endif %}" type="button"><span class="ico"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M3 15h18M9 3v18"/></svg></span><span class="lbl">Table view</span></button>
     <button class="nav-item nav-sub" data-view="table" data-sched="board" onclick="{% if profile_mode %}location.href='/?view=table&sched=board'{% else %}navSched('board'){% endif %}" type="button"><span class="ico"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="18" rx="1.5"/><rect x="14" y="3" width="7" height="18" rx="1.5"/></svg></span><span class="lbl">Board view</span></button>
+    <button class="nav-item nav-sub{% if active_view == 'lists' %} active{% endif %}" data-view="lists" onclick="{% if profile_mode %}location.href='/?view=lists'{% else %}navGo('lists'){% endif %}" type="button"><span class="ico"><svg viewBox="0 0 24 24"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg></span><span class="lbl">Lists</span></button>
   </div>
 </div>
 <div class="nav-group{% if active_view in ('wa-direct','wa-auto','templates','history') %} open has-active{% endif %}" id="navMsgGroup">

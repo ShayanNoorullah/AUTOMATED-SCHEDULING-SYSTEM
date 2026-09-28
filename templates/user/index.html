@@ -23,10 +23,10 @@
 </script>
 <link rel="preconnect" href="https://api.fontshare.com">
 <link href="https://api.fontshare.com/v2/css?f[]=satoshi@400,500,700,900&display=swap" rel="stylesheet">
-<link href="{{ url_for('static', filename='css/app.css') }}?v=poc31" rel="stylesheet"/>
-<link href="{{ url_for('static', filename='css/compat.css') }}?v=poc31" rel="stylesheet"/>
-<link href="{{ url_for('static', filename='css/dashboard.css') }}?v=poc31" rel="stylesheet"/>
-<link href="{{ url_for('static', filename='css/components.css') }}?v=poc31" rel="stylesheet"/>
+<link href="{{ url_for('static', filename='css/app.css') }}?v=poc32" rel="stylesheet"/>
+<link href="{{ url_for('static', filename='css/compat.css') }}?v=poc32" rel="stylesheet"/>
+<link href="{{ url_for('static', filename='css/dashboard.css') }}?v=poc32" rel="stylesheet"/>
+<link href="{{ url_for('static', filename='css/components.css') }}?v=poc32" rel="stylesheet"/>
 <script>
 window.SSIES_USER = {{ {"email": email|default(username), "display_name": username, "role": role, "photo_url": photo_url|default(none)} | tojson }};
 </script>
@@ -55,6 +55,7 @@ window.SSIES_USER = {{ {"email": email|default(username), "display_name": userna
           <button class="nav-item nav-sub" data-view="contacts" onclick="navGo('contacts')"><span class="ico"><svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></span><span class="lbl">Contacts</span></button>
           <button class="nav-item nav-sub" data-view="table" data-sched="table" onclick="navSched('table')"><span class="ico"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M3 15h18M9 3v18"/></svg></span><span class="lbl">Table view</span></button>
           <button class="nav-item nav-sub" data-view="table" data-sched="board" onclick="navSched('board')"><span class="ico"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="18" rx="1.5"/><rect x="14" y="3" width="7" height="18" rx="1.5"/></svg></span><span class="lbl">Board view</span></button>
+          <button class="nav-item nav-sub" data-view="lists" onclick="navGo('lists')"><span class="ico"><svg viewBox="0 0 24 24"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg></span><span class="lbl">Lists</span></button>
         </div>
       </div>
       <div class="nav-group" id="navMsgGroup">
@@ -222,6 +223,9 @@ window.SSIES_USER = {{ {"email": email|default(username), "display_name": userna
             <div class="sched-sel-actions">
               <button class="btn btn-ghost btn-sm" type="button" onclick="selectAllCols(true)">Select all</button>
               <button class="btn btn-ghost btn-sm" type="button" onclick="selectAllCols(false)">Clear</button>
+              <button class="btn btn-ghost btn-sm sched-cols-only" type="button" onclick="expandAllCols(true)" title="Show full group names">Expand</button>
+              <button class="btn btn-ghost btn-sm sched-cols-only" type="button" onclick="expandAllCols(false)" title="Show short names / nicknames">Collapse</button>
+              <button class="btn btn-ghost btn-sm clash-toggle" type="button" id="clashBtn" onclick="toggleClash()" title="Highlight overlapping class times"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><path d="M12 9v4M12 17h.01"/></svg><span>Clashes</span></button>
             </div>
           </div>
           <div class="sched-toolbar-right">
@@ -232,6 +236,7 @@ window.SSIES_USER = {{ {"email": email|default(username), "display_name": userna
             </button>
           </div>
         </div>
+        <div id="clashBanner"></div>
         <div class="view-pad table-view-pad">
           <div id="tableWrap" class="sched-canvas"></div>
         </div>
@@ -262,6 +267,24 @@ window.SSIES_USER = {{ {"email": email|default(username), "display_name": userna
             </div>
           </div>
         </div>
+      </section>
+
+      <!-- ════ LISTS ════ -->
+      <section class="view" id="view-lists">
+        <div class="wa-hero">
+          <h3>Lists</h3>
+          <p>Auto-discover contacts from your WhatsApp Business <strong>labels</strong>, curate each list, and send schedules to all or selected contacts.</p>
+        </div>
+        <div class="toolbar list-toolbar">
+          <button class="btn btn-primary btn-sm" type="button" onclick="newList()">+ New list</button>
+          <button class="btn btn-soft btn-sm" type="button" onclick="syncAllLists()" title="Rebuild every list from its WhatsApp labels">Sync from WhatsApp</button>
+          <div class="seg" id="listModeSeg" style="margin-left:auto">
+            <button type="button" data-val="tabs" onclick="setListMode('tabs')">Tabs</button>
+            <button type="button" data-val="table" onclick="setListMode('table')">Table</button>
+            <button type="button" data-val="board" onclick="setListMode('board')">Board</button>
+          </div>
+        </div>
+        <div id="listsWrap"></div>
       </section>
 
       <!-- ════ TEMPLATES ════ -->
@@ -685,7 +708,13 @@ window.SSIES_USER = {{ {"email": email|default(username), "display_name": userna
 
     <!-- Status log -->
     <div class="status-log hidden" id="statusPanel">
-      <div class="lh"><span>Status Log</span><span><span class="toggle-log" onclick="document.getElementById('statusPanel').classList.toggle('collapsed')">collapse</span> · <span class="clr" onclick="document.getElementById('logLines').innerHTML=''">clear</span></span></div>
+      <div class="lh">
+        <span class="lh-title">Status Log</span>
+        <span class="lh-actions">
+          <button class="log-btn" id="logCollapseBtn" type="button" onclick="toggleStatusLog()" title="Collapse log"><svg class="log-caret" viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M6 9l6 6 6-6"/></svg></button>
+          <button class="log-btn" type="button" onclick="clearStatusLog()" title="Clear log"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/></svg></button>
+        </span>
+      </div>
       <div id="logLines"></div>
     </div>
   </div>
@@ -763,12 +792,54 @@ window.SSIES_USER = {{ {"email": email|default(username), "display_name": userna
 </div>
 
 <datalist id="timeOptions"></datalist>
+
+<!-- Column name / nickname editor -->
+<div class="modal-scrim" id="colMetaModal">
+  <div class="modal">
+    <div class="modal-h"><span>Group name &amp; nickname</span><button class="modal-x" type="button" onclick="closeColMeta()">✕</button></div>
+    <div class="modal-b">
+      <div class="profile-field"><label>WhatsApp group name</label><input id="cmName" placeholder="Full group name" onkeydown="if(event.key==='Enter')saveColMeta()"/></div>
+      <div class="profile-field"><label>Nickname <span class="field-hint" style="display:inline">short label shown in tables</span></label><input id="cmNick" placeholder="e.g. Batch AM" onkeydown="if(event.key==='Enter')saveColMeta()"/></div>
+    </div>
+    <div class="modal-f"><button class="btn btn-soft" type="button" onclick="closeColMeta()">Cancel</button><button class="btn btn-primary" type="button" onclick="saveColMeta()">Save</button></div>
+  </div>
+</div>
+
+<!-- List create / edit -->
+<div class="modal-scrim" id="listModal">
+  <div class="modal">
+    <div class="modal-h"><span id="listModalTitle">New list</span><button class="modal-x" type="button" onclick="closeListModal()">✕</button></div>
+    <div class="modal-b">
+      <div class="profile-field"><label>List name</label><input id="lmName" placeholder="e.g. Physics Batch 2025"/></div>
+      <div class="profile-field"><label>Accent color</label><input id="lmColor" type="color" value="#0d9488" style="width:56px;height:38px;padding:2px;border:1px solid var(--border);border-radius:var(--r-sm);background:none;cursor:pointer"/></div>
+      <div class="profile-field"><label>WhatsApp labels <span class="field-hint" style="display:inline">contacts with these labels are auto-discovered</span></label><div class="perm-grid" id="lmLabels"></div></div>
+      <div class="profile-field"><label>Default message</label><textarea class="field" id="lmMessage" style="min-height:96px" placeholder="*Reminder*&#10;Dear parent, please note the updated schedule."></textarea></div>
+    </div>
+    <div class="modal-f"><button class="btn btn-soft" type="button" onclick="closeListModal()">Cancel</button><button class="btn btn-primary" type="button" id="lmSaveBtn" onclick="saveList()">Create list</button></div>
+  </div>
+</div>
+
+<!-- Manage list members -->
+<div class="modal-scrim" id="listMembersModal">
+  <div class="modal modal-lg">
+    <div class="modal-h"><span id="lmemTitle">Manage contacts</span><button class="modal-x" type="button" onclick="closeListMembers()">✕</button></div>
+    <div class="modal-b">
+      <div class="search-wrap" style="margin-bottom:12px">
+        <svg class="search-ico" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+        <input class="field search" id="lmemSearch" placeholder="Search contacts…" oninput="renderListMembers()"/>
+      </div>
+      <div id="lmemList" class="lmem-list"></div>
+    </div>
+    <div class="modal-f"><button class="btn btn-soft" type="button" onclick="closeListMembers()">Done</button></div>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 
-<script src="{{ url_for('static', filename='js/chrome.js') }}?v=poc31"></script>
-<script src="{{ url_for('static', filename='js/theme.js') }}?v=poc31"></script>
-<script src="{{ url_for('static', filename='js/whatsapp.js') }}?v=poc31"></script>
-<script src="{{ url_for('static', filename='js/waha.js') }}?v=poc31"></script>
+<script src="{{ url_for('static', filename='js/chrome.js') }}?v=poc32"></script>
+<script src="{{ url_for('static', filename='js/theme.js') }}?v=poc32"></script>
+<script src="{{ url_for('static', filename='js/whatsapp.js') }}?v=poc32"></script>
+<script src="{{ url_for('static', filename='js/waha.js') }}?v=poc32"></script>
 <script>
 const DAYS = {{ days | tojson }};
 const _asUser = new URLSearchParams(location.search).get("asUser");
@@ -785,7 +856,14 @@ let groups = [], templates = [], contacts = [], settings = {headless:false,delay
 let gSel = null, gMsgEdited = false;
 let cSel = null;
 let tplSel = null;
-let tableSelected = {}, colWidths = {};
+let tableSelected = {}, colWidths = {}, colCollapsed = {};
+let clashOn = localStorage.getItem("sched-clash") !== "off";
+let cmIdx = null;
+const ICO_EXPAND = '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg>';
+const ICO_COLLAPSE = '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><polyline points="4 14 10 14 10 20"/><polyline points="20 10 14 10 14 4"/><line x1="14" y1="10" x2="21" y2="3"/><line x1="3" y1="21" x2="10" y2="14"/></svg>';
+const ICO_PENCIL = '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>';
+function colDisplay(g){ return (g.nickname && g.nickname.trim()) ? g.nickname : g.name; }
+function parseTimeMin(s){ if(!s) return null; const m=String(s).trim().toLowerCase().match(/^(\d{1,2})(?::(\d{2}))?\s*(am|pm)?$/); if(!m) return null; let h=parseInt(m[1],10); const min=m[2]?parseInt(m[2],10):0; const ap=m[3]; if(h>23||min>59) return null; if(ap==='pm'&&h<12) h+=12; if(ap==='am'&&h===12) h=0; return h*60+min; }
 let tableDirty = true;
 let scheduleViewMode = null;
 let schedDragFrom = null;
@@ -801,6 +879,7 @@ const VIEW_META = {
   "contact-detail":{t:"Contact",d:"Contact overview and message"},
   groups:{t:"Groups",d:"Manage your WhatsApp groups and weekly schedules"},
   table:{t:"Scheduler",d:"Edit weekly timings in table or board view, then save or send selected groups"},
+  lists:{t:"Lists",d:"Discover contacts from WhatsApp labels and send to whole or selected lists"},
   "wa-direct":{t:"Open in WhatsApp",d:"Manual deep links — copy message and open WhatsApp in browser"},
   "wa-auto":{t:"Automated Send",d:"Link session and send schedules automatically"},
   templates:{t:"Templates",d:"Reusable message templates with tokens and customization"},
@@ -913,7 +992,9 @@ function showView(v){
   if (v==="contacts") renderContactTable();
   if (v==="group-detail") renderGroupDetail();
   if (v==="contact-detail") renderContactDetail();
+  if (v==="lists" && typeof renderLists==="function") renderLists();
   if (v==="table" && tableDirty) { renderTable(); tableDirty = false; }
+  if (v==="table" && typeof syncClashBtn==="function") syncClashBtn();
   if (v==="templates") renderTemplates();
   if (v==="wa-direct") renderDirectPanel();
   if (v==="wa-auto") renderAutoSendPanel();
@@ -1141,7 +1222,7 @@ async function boot(){
     document.getElementById("shell").classList.add("rail-collapsed");
     updateLogoChevron();
   }
-  await Promise.all([loadGroups(), loadTemplates(), loadContacts(), loadSettings()]);
+  await Promise.all([loadGroups(), loadTemplates(), loadContacts(), loadSettings(), typeof loadLists==="function"?loadLists():Promise.resolve()]);
   fetchSessionStatusCached(true);
   startSSE();
   /* Profile / deep links use ?view=&sched= (same as POC dashboard.html) */
@@ -1391,7 +1472,7 @@ function openGroupDetail(i){
 function openGroupDetailByName(name){ const i=groups.findIndex((g)=>g.name===name); if(i>=0) openGroupDetail(i); }
 function newGroupDetail(){
   gdIdx=null; gdPendingFile=null;
-  gdWorking={name:"",schedule:[],message:"",inviteLink:"",pic:"",waLinked:false,lastReleased:""};
+  gdWorking={name:"",nickname:"",schedule:[],message:"",inviteLink:"",pic:"",waLinked:false,lastReleased:""};
   gdEdit=true; showView("group-detail");
 }
 function backToGroups(){ showView("groups"); }
@@ -1471,7 +1552,7 @@ function renderGroupDetail(){
     <div class="detail-hero">
       <div class="detail-av-wrap"><div class="editor-av${pic?" has-img":""}" id="gdAvatar">${avatarInner(g.name,pic)}</div>${gdEdit?`<button class="editor-av-edit" type="button" onclick="document.getElementById('gdImg').click()" title="Change photo"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg></button><input id="gdImg" type="file" accept="image/*" hidden onchange="gdPickImage(this)"/>`:""}</div>
       <div class="detail-hero-body">
-        ${gdEdit?`<input class="field detail-name-input" value="${escA(g.name)}" oninput="gdSetField('name',this.value)" placeholder="WhatsApp group name"/>`:`<h2>${esc(g.name||"Untitled group")}</h2>`}
+        ${gdEdit?`<input class="field detail-name-input" value="${escA(g.name)}" oninput="gdSetField('name',this.value)" placeholder="WhatsApp group name"/><input class="field detail-nick-input" value="${escA(g.nickname||"")}" oninput="gdSetField('nickname',this.value)" placeholder="Short nickname for tables (optional)"/>`:`<h2>${esc(g.name||"Untitled group")}</h2>`}
         <div class="detail-badges"><span class="chip">${(g.schedule||[]).length} day${(g.schedule||[]).length===1?"":"s"}</span>${g.waLinked?'<span class="chip chip-default">On WhatsApp</span>':""}${g.lastReleased?`<span class="chip">Sent ${relTime(g.lastReleased)}</span>`:""}</div>
       </div>
     </div>
@@ -1659,12 +1740,17 @@ function renderTable(){
 function renderScheduleGrid(w){
   let h='<div class="sched-scroll"><table class="sched"><thead><tr><th class="day-col">Day</th>';
   groups.forEach((g,ci)=>{
-    const wd=colWidths[ci]?`width:${colWidths[ci]}px`:"width:168px";
-    h+=`<th style="${wd}" data-gi="${ci}" ondragover="schedDragOver(event,${ci})" ondrop="schedDrop(event,${ci})" ondragenter="schedDragEnter(event,${ci})" ondragleave="schedDragLeave(event)">
+    const wd=colWidths[ci]?`width:${colWidths[ci]}px`:"";
+    const dim=tableSelected[ci]===false;
+    const collapsed=colCollapsed[ci]===true;
+    const hasNick=!!(g.nickname&&g.nickname.trim());
+    h+=`<th class="schcol ${dim?"col-dim-head":""} ${collapsed?"col-collapsed":"col-expanded"}" style="${wd}" ondragover="schedDragOver(event,${ci})" ondrop="schedDrop(event,${ci})" ondragenter="schedDragEnter(event,${ci})" ondragleave="schedDragLeave(event)">
       <div class="ch"><div class="top">
       <span class="drag-handle" draggable="true" title="Drag to reorder" ondragstart="schedDragStart(event,${ci})" ondragend="schedDragEnd(event)">${GRIP_ICO}</span>
-      <input type="checkbox" aria-label="Select ${escA(g.name)}" ${tableSelected[ci]?"checked":""} onchange="tableSelected[${ci}]=this.checked;updateSchedSelCount()"/>
-      <input class="gn" value="${escA(g.name)}" aria-label="Group name" onchange="groups[${ci}].name=this.value.trim();tableDirty=true"/>
+      <input type="checkbox" aria-label="Select ${escA(g.name)}" ${dim?"":"checked"} onchange="tableSelected[${ci}]=this.checked;updateSchedSelCount();renderTable()"/>
+      <span class="gn-box" title="${escA(g.name)}"><span class="gn-name">${esc(colDisplay(g))}</span>${hasNick?`<span class="gn-full">${esc(g.name)}</span>`:""}</span>
+      <button class="col-icn" type="button" title="${collapsed?"Expand column":"Collapse column"}" onclick="toggleColExpand(${ci})">${collapsed?ICO_EXPAND:ICO_COLLAPSE}</button>
+      <button class="col-icn" type="button" title="Rename / nickname" onclick="editColMeta(${ci})">${ICO_PENCIL}</button>
       <button class="rc" type="button" title="Remove group" onclick="removeColumn(${ci})">${TRASH_ICO}</button></div></div>
       <div class="resizer" onmousedown="startResize(event,${ci})"></div></th>`;
   });
@@ -1672,43 +1758,49 @@ function renderScheduleGrid(w){
   DAYS.forEach(day=>{
     h+=`<tr><td class="day-col"><span class="day-short">${day.slice(0,3)}</span><span class="day-full">${day}</span></td>`;
     groups.forEach((g,ci)=>{
-      const e=g.schedule.find(x=>x.day===day)||{}; const f=e.from||"", t=e.to||"";
-      h+=`<td class="${(f||t)?'filled':''}"><div class="crange">
-        <input class="cell" list="timeOptions" value="${escA(f)}" placeholder="From" aria-label="${escA(g.name)} ${day} from" oninput="updateCell(${ci},'${day}','from',this)"/>
+      const e=g.schedule.find(x=>x.day===day)||{}; const f=e.from||"", tv=e.to||"";
+      const dim=tableSelected[ci]===false;
+      h+=`<td class="${(f||tv)?'filled ':''}${dim?'col-dim':''}" data-cell="${ci}|${day}"><div class="crange">
+        <input class="cell" list="timeOptions" value="${escA(f)}" placeholder="From" ${dim?"disabled":""} aria-label="${escA(g.name)} ${day} from" oninput="updateCell(${ci},'${day}','from',this)"/>
         <span class="dash" aria-hidden="true">–</span>
-        <input class="cell" list="timeOptions" value="${escA(t)}" placeholder="To" aria-label="${escA(g.name)} ${day} to" oninput="updateCell(${ci},'${day}','to',this)"/></div></td>`;
+        <input class="cell" list="timeOptions" value="${escA(tv)}" placeholder="To" ${dim?"disabled":""} aria-label="${escA(g.name)} ${day} to" oninput="updateCell(${ci},'${day}','to',this)"/></div></td>`;
     });
     h+='</tr>';
   });
   w.innerHTML=h+'</tbody></table></div>';
+  refreshClashes();
 }
 function renderScheduleBoard(w){
   let h='<div class="sched-board">';
   groups.forEach((g,ci)=>{
     const activeDays=g.schedule.filter(e=>(e.from||"").trim()||(e.to||"").trim()).length;
-    h+=`<article class="sb-card${tableSelected[ci]!==false?"":" is-dim"}" data-gi="${ci}" ondragover="schedDragOver(event,${ci})" ondrop="schedDrop(event,${ci})" ondragenter="schedDragEnter(event,${ci})" ondragleave="schedDragLeave(event)">
+    const dim=tableSelected[ci]===false;
+    const hasNick=!!(g.nickname&&g.nickname.trim());
+    h+=`<article class="sb-card${dim?" is-dim":""}" data-gi="${ci}" ondragover="schedDragOver(event,${ci})" ondrop="schedDrop(event,${ci})" ondragenter="schedDragEnter(event,${ci})" ondragleave="schedDragLeave(event)">
       <header class="sb-head">
         <span class="drag-handle" draggable="true" title="Drag to reorder" ondragstart="schedDragStart(event,${ci})" ondragend="schedDragEnd(event)">${GRIP_ICO}</span>
-        <label class="sb-check"><input type="checkbox" ${tableSelected[ci]?"checked":""} onchange="tableSelected[${ci}]=this.checked;updateSchedSelCount();this.closest('.sb-card').classList.toggle('is-dim',!this.checked)"/><span class="sr-only">Select</span></label>
-        <input class="gn" value="${escA(g.name)}" aria-label="Group name" onchange="groups[${ci}].name=this.value.trim();tableDirty=true"/>
+        <label class="sb-check"><input type="checkbox" ${dim?"":"checked"} onchange="tableSelected[${ci}]=this.checked;updateSchedSelCount();renderTable()"/><span class="sr-only">Select</span></label>
+        <span class="sb-title"><span class="sb-name" title="${escA(g.name)}">${esc(g.name)}</span>${hasNick?`<span class="sb-nick">${esc(g.nickname)}</span>`:""}</span>
+        <button class="col-icn" type="button" title="Rename / nickname" onclick="editColMeta(${ci})">${ICO_PENCIL}</button>
         <span class="sb-meta">${activeDays} day${activeDays===1?"":"s"}</span>
         <button class="rc" type="button" title="Remove group" onclick="removeColumn(${ci})">${TRASH_ICO}</button>
       </header>
       <div class="sb-days">`;
     DAYS.forEach(day=>{
-      const e=g.schedule.find(x=>x.day===day)||{}; const f=e.from||"", t=e.to||"";
-      h+=`<div class="sb-day${(f||t)?" filled":""}" data-day="${day}">
+      const e=g.schedule.find(x=>x.day===day)||{}; const f=e.from||"", tv=e.to||"";
+      h+=`<div class="sb-day${(f||tv)?" filled":""}" data-cell="${ci}|${day}" data-day="${day}">
         <span class="sb-day-name">${day.slice(0,3)}</span>
         <div class="crange">
-          <input class="cell" list="timeOptions" value="${escA(f)}" placeholder="From" aria-label="${escA(g.name)} ${day} from" oninput="updateCell(${ci},'${day}','from',this)"/>
+          <input class="cell" list="timeOptions" value="${escA(f)}" placeholder="From" ${dim?"disabled":""} aria-label="${escA(g.name)} ${day} from" oninput="updateCell(${ci},'${day}','from',this)"/>
           <span class="dash" aria-hidden="true">–</span>
-          <input class="cell" list="timeOptions" value="${escA(t)}" placeholder="To" aria-label="${escA(g.name)} ${day} to" oninput="updateCell(${ci},'${day}','to',this)"/>
+          <input class="cell" list="timeOptions" value="${escA(tv)}" placeholder="To" ${dim?"disabled":""} aria-label="${escA(g.name)} ${day} to" oninput="updateCell(${ci},'${day}','to',this)"/>
         </div>
       </div>`;
     });
     h+=`</div></article>`;
   });
   w.innerHTML=h+'</div>';
+  refreshClashes();
 }
 function schedDragStart(e,ci){
   schedDragFrom=ci;
@@ -1781,7 +1873,20 @@ function updateCell(ci,day,field,inp){const g=groups[ci];let e=g.schedule.find(x
     const meta=card.querySelector(".sb-meta");
     if(meta) meta.textContent=`${n} day${n===1?"":"s"}`;
   }
-  tableDirty=true;}
+  tableDirty=true; if(clashOn) refreshClashes();}
+function toggleColExpand(ci){ colCollapsed[ci]=!colCollapsed[ci]; renderTable(); }
+function expandAllCols(expand){ groups.forEach((_,ci)=>{ colCollapsed[ci]=!expand; }); renderTable(); }
+function editColMeta(ci){ cmIdx=ci; const g=groups[ci]; document.getElementById("cmName").value=g.name||""; document.getElementById("cmNick").value=g.nickname||""; document.getElementById("colMetaModal").classList.add("show"); setTimeout(()=>document.getElementById("cmName").focus(),30); }
+function closeColMeta(){ document.getElementById("colMetaModal").classList.remove("show"); }
+async function saveColMeta(){ if(cmIdx==null) return; const name=document.getElementById("cmName").value.trim(); if(!name){ toast("Group name is required","err"); return; } groups[cmIdx].name=name; groups[cmIdx].nickname=document.getElementById("cmNick").value.trim(); tableDirty=true; closeColMeta(); if(await saveTable()) toast("Group updated ✓"); else renderTable(); }
+function toggleClash(){ clashOn=!clashOn; localStorage.setItem("sched-clash", clashOn?"on":"off"); syncClashBtn(); refreshClashes(); }
+function syncClashBtn(){ const b=document.getElementById("clashBtn"); if(b) b.classList.toggle("on", clashOn); }
+function computeClashes(){ const cells=new Set(), pairs=[]; DAYS.forEach((day)=>{ const items=[]; groups.forEach((g,ci)=>{ const e=g.schedule.find((x)=>x.day===day); if(!e) return; const a=parseTimeMin(e.from); if(a==null) return; let b=parseTimeMin(e.to); if(b==null||b<=a) b=a+30; items.push({ci,a,b}); }); for(let i=0;i<items.length;i++) for(let j=i+1;j<items.length;j++){ if(items[i].a<items[j].b && items[j].a<items[i].b){ cells.add(items[i].ci+"|"+day); cells.add(items[j].ci+"|"+day); pairs.push({day,a:items[i].ci,b:items[j].ci}); } } }); return {cells,pairs}; }
+function refreshClashes(){ syncClashBtn(); document.querySelectorAll("[data-cell].cell-clash").forEach((el)=>el.classList.remove("cell-clash")); const banner=document.getElementById("clashBanner"); if(!clashOn){ if(banner) banner.innerHTML=""; return; } const {cells,pairs}=computeClashes(); cells.forEach((key)=>{ const el=document.querySelector(`[data-cell="${key}"]`); if(el) el.classList.add("cell-clash"); }); if(!banner) return; if(!pairs.length){ banner.innerHTML=`<div class="clash-bar ok"><span class="clash-ico">✓</span><span>No time clashes — every class has a distinct slot.</span></div>`; } else { const lines=pairs.map((p)=>`<span class="clash-pill">${esc(p.day.slice(0,3))}: ${esc(colDisplay(groups[p.a]))} ↔ ${esc(colDisplay(groups[p.b]))}</span>`).join(""); banner.innerHTML=`<div class="clash-bar warn"><span class="clash-ico">⚠</span><div class="clash-body"><b>${pairs.length} time clash${pairs.length===1?"":"es"} detected</b><div class="clash-pills">${lines}</div></div></div>`; } }
+function showLog(){ const p=document.getElementById("statusPanel"); p.classList.remove("hidden"); p.classList.remove("collapsed"); syncLogCollapseBtn(); }
+function toggleStatusLog(){ const p=document.getElementById("statusPanel"); p.classList.toggle("collapsed"); syncLogCollapseBtn(); }
+function clearStatusLog(){ const l=document.getElementById("logLines"); if(l) l.innerHTML=""; toast("Status log cleared"); }
+function syncLogCollapseBtn(){ const b=document.getElementById("logCollapseBtn"); if(!b) return; const collapsed=document.getElementById("statusPanel").classList.contains("collapsed"); b.title=collapsed?"Expand log":"Collapse log"; }
 function selectAllCols(v){groups.forEach((g,ci)=>tableSelected[ci]=v);renderTable();}
 function addColumn(){const n=prompt("WhatsApp group name (exact):");if(!n||!n.trim())return;
   groups.push({name:n.trim(),schedule:[],message:""});tableSelected[groups.length-1]=true;tableDirty=true;renderTable();}
@@ -2104,7 +2209,7 @@ function resetBusy(){["relAll","relTbl","relCAll","auto"].forEach(p=>{const b=do
   for(const k in m){const e=document.getElementById(k);if(e)e.textContent=m[k];}
   if(ssPhase==="running"){ ssPhase="done"; ssStatus=ssStatus.map((s)=>s==="queued"||s==="sending"?"success":s); renderSendStatus(); }
 }
-function showLog(){document.getElementById("statusPanel").classList.remove("hidden");}
+
 function startSSE(){const es=new EventSource("/api/status");es.onmessage=e=>{if(e.data==="ping")return;
   const[type,...r]=e.data.split(":");appendLog(type,r.join(":"));
   if(type==="done"){resetBusy();loadGroups();loadContacts();if(typeof loadReleaseHistory==="function")loadReleaseHistory();} if(type==="error"){resetBusy(); if(ssPhase==="running"){ ssPhase="done"; renderSendStatus(); }}}; }
@@ -2137,7 +2242,8 @@ async function copyText(t){try{await navigator.clipboard.writeText(t);toast("Cop
 let tt;function toast(m,type="ok"){const e=document.getElementById("toast");e.textContent=m;e.className=`toast ${type} show`;clearTimeout(tt);tt=setTimeout(()=>e.classList.remove("show"),3000);}
 
 </script>
-<script src="{{ url_for('static', filename='js/features.js') }}?v=poc31"></script>
+<script src="{{ url_for('static', filename='js/lists.js') }}?v=poc32"></script>
+<script src="{{ url_for('static', filename='js/features.js') }}?v=poc32"></script>
 <script>boot();</script>
 </body>
 </html>

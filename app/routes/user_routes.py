@@ -6,7 +6,7 @@ import queue
 from app.auth.decorators import login_required, superadmin_required
 from app.config import Config, DAYS
 from app.crypto import enc, dec
-from app.models import Group, Template, Contact, Profile, AuditLog, ReleaseLog, ScheduledJob, db
+from app.models import Group, Template, Contact, ContactList, Profile, AuditLog, ReleaseLog, ScheduledJob, db
 from app.services.audit import audit
 from app.services.users import maintenance_mode
 from app.services.whatsapp import (
@@ -199,7 +199,8 @@ def add_group():
     except ValueError as e:
         return jsonify({"error": str(e)}), 400
     n = Group.query.filter_by(user_id=uid).count()
-    db.session.add(Group(user_id=uid, name=data["name"], schedule=data["schedule"],
+    db.session.add(Group(user_id=uid, name=data["name"], nickname=(data.get("nickname") or "").strip()[:120],
+                         schedule=data["schedule"],
                          message_enc=enc(data.get("message", "")),
                          last_released=data.get("lastReleased", ""), invite_link=invite,
                          wa_linked=bool(invite), position=n))
@@ -217,6 +218,8 @@ def update_group(idx):
         return jsonify({"error": "Not found"}), 404
     g_row = rows[idx]
     g_row.name = data["name"]
+    if "nickname" in data:
+        g_row.nickname = (data.get("nickname") or "").strip()[:120]
     g_row.schedule = data["schedule"]
     g_row.message_enc = enc(data.get("message", ""))
     g_row.last_released = data.get("lastReleased", g_row.last_released)
@@ -246,7 +249,9 @@ def replace_all_groups():
             inv = _parse_invite_link(g_item)
         except ValueError:
             inv = ""
-        db.session.add(Group(user_id=uid, name=g_item.get("name", ""), schedule=g_item.get("schedule", []),
+        db.session.add(Group(user_id=uid, name=g_item.get("name", ""),
+                             nickname=(g_item.get("nickname") or "").strip()[:120],
+                             schedule=g_item.get("schedule", []),
                              message_enc=enc(g_item.get("message", "")), last_released=g_item.get("lastReleased", ""),
                              invite_link=inv, position=i))
     db.session.commit()
@@ -340,8 +345,10 @@ def add_contact():
     if not data.get("name") or not digits(data.get("phone")):
         return jsonify({"error": "Contact name and phone required"}), 400
     n = Contact.query.filter_by(user_id=uid).count()
+    labels = data.get("labels") if isinstance(data.get("labels"), list) else []
+    labels = [str(x).strip() for x in labels if str(x).strip()]
     db.session.add(Contact(user_id=uid, name=data["name"], phone_enc=enc(digits(data.get("phone"))),
-                          message_enc=enc(data.get("message", "")), position=n))
+                          message_enc=enc(data.get("message", "")), labels=labels, position=n))
     db.session.commit()
     return jsonify({"ok": True})
 
@@ -359,6 +366,9 @@ def update_contact(idx):
     c.phone_enc = enc(digits(data.get("phone")))
     c.message_enc = enc(data.get("message", ""))
     c.last_released = data.get("lastReleased", c.last_released)
+    if "labels" in data:
+        labels = data.get("labels") if isinstance(data.get("labels"), list) else []
+        c.labels = [str(x).strip() for x in labels if str(x).strip()]
     db.session.commit()
     return jsonify({"ok": True})
 
@@ -373,6 +383,164 @@ def delete_contact(idx):
     db.session.delete(rows[idx])
     db.session.commit()
     return jsonify({"ok": True})
+
+
+def _list_dict(row):
+    return {
+        "id": row.public_id,
+        "dbId": row.id,
+        "name": row.name,
+        "color": row.color or "#0d9488",
+        "labels": row.labels if isinstance(row.labels, list) else [],
+        "members": row.members if isinstance(row.members, list) else [],
+        "message": dec(row.message_enc) if row.message_enc else "",
+    }
+
+
+@bp.route("/api/lists", methods=["GET"])
+@login_required
+def get_lists():
+    uid = _effective_user_id()
+    rows = ContactList.query.filter_by(user_id=uid).order_by(ContactList.position, ContactList.id).all()
+    # Aggregate known WhatsApp labels from contacts for the list editor
+    labels = set()
+    for c in Contact.query.filter_by(user_id=uid).all():
+        for lab in (c.labels or []):
+            if str(lab).strip():
+                labels.add(str(lab).strip())
+    for row in rows:
+        for lab in (row.labels or []):
+            if str(lab).strip():
+                labels.add(str(lab).strip())
+    return jsonify({"lists": [_list_dict(r) for r in rows], "waLabels": sorted(labels)})
+
+
+@bp.route("/api/lists", methods=["POST"])
+@login_required
+def create_list():
+    data = request.json or {}
+    uid = _effective_user_id()
+    name = (data.get("name") or "").strip()
+    if not name:
+        return jsonify({"error": "List name required"}), 400
+    public_id = (data.get("id") or "").strip() or ("l-" + uuid.uuid4().hex[:8])
+    labels = data.get("labels") if isinstance(data.get("labels"), list) else []
+    labels = [str(x).strip() for x in labels if str(x).strip()]
+    members = data.get("members") if isinstance(data.get("members"), list) else []
+    members = [digits(x) for x in members if digits(x)]
+    # Auto-discover members from contact labels if not provided
+    if not members and labels:
+        for c in Contact.query.filter_by(user_id=uid).all():
+            cl = c.labels or []
+            if any(lab in cl for lab in labels):
+                ph = digits(dec(c.phone_enc))
+                if ph and ph not in members:
+                    members.append(ph)
+    n = ContactList.query.filter_by(user_id=uid).count()
+    row = ContactList(
+        user_id=uid, public_id=public_id, name=name,
+        color=(data.get("color") or "#0d9488")[:20],
+        labels=labels, members=members,
+        message_enc=enc(data.get("message") or ""),
+        position=n,
+    )
+    db.session.add(row)
+    db.session.commit()
+    return jsonify({"ok": True, "list": _list_dict(row)})
+
+
+@bp.route("/api/lists/<public_id>", methods=["PUT"])
+@login_required
+def update_list(public_id):
+    data = request.json or {}
+    uid = _effective_user_id()
+    row = ContactList.query.filter_by(user_id=uid, public_id=public_id).first()
+    if not row:
+        return jsonify({"error": "Not found"}), 404
+    if "name" in data:
+        name = (data.get("name") or "").strip()
+        if not name:
+            return jsonify({"error": "List name required"}), 400
+        row.name = name
+    if "color" in data:
+        row.color = (data.get("color") or "#0d9488")[:20]
+    if "labels" in data:
+        labels = data.get("labels") if isinstance(data.get("labels"), list) else []
+        row.labels = [str(x).strip() for x in labels if str(x).strip()]
+    if "members" in data:
+        members = data.get("members") if isinstance(data.get("members"), list) else []
+        row.members = [digits(x) for x in members if digits(x)]
+    if "message" in data:
+        row.message_enc = enc(data.get("message") or "")
+    db.session.commit()
+    return jsonify({"ok": True, "list": _list_dict(row)})
+
+
+@bp.route("/api/lists/<public_id>", methods=["DELETE"])
+@login_required
+def delete_list(public_id):
+    uid = _effective_user_id()
+    row = ContactList.query.filter_by(user_id=uid, public_id=public_id).first()
+    if not row:
+        return jsonify({"error": "Not found"}), 404
+    db.session.delete(row)
+    db.session.commit()
+    return jsonify({"ok": True})
+
+
+@bp.route("/api/lists/<public_id>/sync", methods=["POST"])
+@login_required
+def sync_list(public_id):
+    """Rebuild list members from contacts that carry any of the list's labels."""
+    uid = _effective_user_id()
+    row = ContactList.query.filter_by(user_id=uid, public_id=public_id).first()
+    if not row:
+        return jsonify({"error": "Not found"}), 404
+    labels = row.labels if isinstance(row.labels, list) else []
+    found = []
+    for c in Contact.query.filter_by(user_id=uid).all():
+        cl = c.labels or []
+        if labels and any(lab in cl for lab in labels):
+            ph = digits(dec(c.phone_enc))
+            if ph and ph not in found:
+                found.append(ph)
+    # Merge (don't drop manually added members that still exist as contacts)
+    existing_phones = {digits(dec(c.phone_enc)) for c in Contact.query.filter_by(user_id=uid).all()}
+    merged = []
+    for ph in (row.members or []) + found:
+        d = digits(ph)
+        if d and d in existing_phones and d not in merged:
+            merged.append(d)
+    row.members = merged
+    db.session.commit()
+    return jsonify({"ok": True, "list": _list_dict(row), "added": len(found)})
+
+
+@bp.route("/api/lists/sync-all", methods=["POST"])
+@login_required
+def sync_all_lists():
+    uid = _effective_user_id()
+    rows = ContactList.query.filter_by(user_id=uid).all()
+    out = []
+    for row in rows:
+        labels = row.labels if isinstance(row.labels, list) else []
+        found = []
+        for c in Contact.query.filter_by(user_id=uid).all():
+            cl = c.labels or []
+            if labels and any(lab in cl for lab in labels):
+                ph = digits(dec(c.phone_enc))
+                if ph and ph not in found:
+                    found.append(ph)
+        existing_phones = {digits(dec(c.phone_enc)) for c in Contact.query.filter_by(user_id=uid).all()}
+        merged = []
+        for ph in (row.members or []) + found:
+            d = digits(ph)
+            if d and d in existing_phones and d not in merged:
+                merged.append(d)
+        row.members = merged
+        out.append(_list_dict(row))
+    db.session.commit()
+    return jsonify({"ok": True, "lists": out})
 
 
 @bp.route("/api/settings", methods=["GET"])
@@ -447,14 +615,18 @@ def import_config():
             inv = _parse_invite_link(g_item)
         except ValueError:
             inv = g_item.get("inviteLink") or ""
-        db.session.add(Group(user_id=uid, name=g_item.get("name", ""), schedule=g_item.get("schedule", []),
+        db.session.add(Group(user_id=uid, name=g_item.get("name", ""),
+                             nickname=(g_item.get("nickname") or "").strip()[:120],
+                             schedule=g_item.get("schedule", []),
                              message_enc=enc(g_item.get("message", "")), last_released=g_item.get("lastReleased", ""),
                              invite_link=inv, position=i))
     for i, t in enumerate(data.get("templates", [])):
         db.session.add(Template(user_id=uid, name=t.get("name", ""), content_enc=enc(t.get("content", "")), position=i))
     for i, c in enumerate(data.get("contacts", [])):
+        labels = c.get("labels") if isinstance(c.get("labels"), list) else []
+        labels = [str(x).strip() for x in labels if str(x).strip()]
         db.session.add(Contact(user_id=uid, name=c.get("name", ""), phone_enc=enc(digits(c.get("phone"))),
-                              message_enc=enc(c.get("message", "")), position=i))
+                              message_enc=enc(c.get("message", "")), labels=labels, position=i))
     s = data.get("settings", {})
     u = db.session.get(Profile, uid)
     u.headless = bool(s.get("headless", u.headless))
