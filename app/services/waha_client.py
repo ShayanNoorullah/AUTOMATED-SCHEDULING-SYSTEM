@@ -392,6 +392,48 @@ def phone_chat_id(phone):
     return f"{p}@c.us" if p else ""
 
 
+def get_labels(session=None):
+    """WhatsApp Business labels for the linked session."""
+    name = _session_name(session)
+    data = _req("GET", f"/api/{name}/labels", session_name=name)
+    return _normalize_waha_items(data)
+
+
+def get_chats_for_label(label_id, session=None):
+    """Chats that carry a given WhatsApp Business label."""
+    name = _session_name(session)
+    lid = str(label_id or "").strip()
+    if not lid:
+        return []
+    try:
+        data = _req("GET", f"/api/{name}/labels/{lid}/chats", session_name=name)
+    except WahaError:
+        # Alternate path used by some WAHA builds / docs
+        data = _req("GET", f"/api/{name}/chats/label/{lid}", session_name=name)
+    return _normalize_waha_items(data)
+
+
+def phone_from_chat(chat):
+    """Extract E.164-ish digits from a WAHA chat/contact payload (skip groups)."""
+    if not isinstance(chat, dict):
+        return ""
+    gid = _chat_id(chat)
+    if _is_group_chat(chat, gid):
+        return ""
+    for key in ("phone", "number", "phoneNumber"):
+        val = chat.get(key)
+        if val:
+            p = "".join(ch for ch in str(val) if ch.isdigit())
+            if len(p) >= 8:
+                return p
+    if isinstance(gid, str) and gid:
+        user = gid.split("@")[0].split(":")[0]
+        p = "".join(ch for ch in user if ch.isdigit())
+        if len(p) >= 8 and not gid.endswith("@g.us"):
+            return p
+    return ""
+
+
 _chat_cache = {}
 
 

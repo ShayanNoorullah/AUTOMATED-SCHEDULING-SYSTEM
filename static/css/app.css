@@ -1283,10 +1283,12 @@ table.sched.detail-sched td:not(.day-col){padding:5px 6px;}
 .sched .gn-name{font-weight:700;font-size:.86rem;line-height:1.25;}
 .sched .gn-full{font-size:.72rem;color:var(--text-soft);font-weight:500;}
 .schcol.col-expanded .gn-name{white-space:normal;overflow-wrap:anywhere;}
-.schcol.col-expanded{min-width:170px;max-width:280px;}
-.schcol.col-collapsed .gn-name{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:120px;}
+.schcol.col-expanded{min-width:0;}
+.schcol.col-collapsed .gn-name{white-space:nowrap;overflow:visible;text-overflow:clip;max-width:none;}
 .schcol.col-collapsed .gn-full{display:none;}
-.schcol.col-collapsed{max-width:150px;}
+.schcol.col-collapsed{min-width:0;max-width:none;}
+/* Expand/Collapse toolbar only for table (column) view */
+html[data-sched-view="board"] .sched-cols-only{display:none !important;}
 .col-icn{width:26px;height:26px;flex-shrink:0;border:none;background:none;color:var(--text-soft);cursor:pointer;border-radius:var(--r-xs);display:grid;place-items:center;transition:all .16s;}
 .col-icn:hover{color:var(--accent-hover);background:var(--surface-3);}
 .col-icn svg{width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:2;}

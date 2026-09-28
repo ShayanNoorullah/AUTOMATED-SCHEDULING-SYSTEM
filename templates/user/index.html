@@ -23,10 +23,10 @@
 </script>
 <link rel="preconnect" href="https://api.fontshare.com">
 <link href="https://api.fontshare.com/v2/css?f[]=satoshi@400,500,700,900&display=swap" rel="stylesheet">
-<link href="{{ url_for('static', filename='css/app.css') }}?v=poc32" rel="stylesheet"/>
-<link href="{{ url_for('static', filename='css/compat.css') }}?v=poc32" rel="stylesheet"/>
-<link href="{{ url_for('static', filename='css/dashboard.css') }}?v=poc32" rel="stylesheet"/>
-<link href="{{ url_for('static', filename='css/components.css') }}?v=poc32" rel="stylesheet"/>
+<link href="{{ url_for('static', filename='css/app.css') }}?v=poc33" rel="stylesheet"/>
+<link href="{{ url_for('static', filename='css/compat.css') }}?v=poc33" rel="stylesheet"/>
+<link href="{{ url_for('static', filename='css/dashboard.css') }}?v=poc33" rel="stylesheet"/>
+<link href="{{ url_for('static', filename='css/components.css') }}?v=poc33" rel="stylesheet"/>
 <script>
 window.SSIES_USER = {{ {"email": email|default(username), "display_name": username, "role": role, "photo_url": photo_url|default(none)} | tojson }};
 </script>
@@ -836,10 +836,10 @@ window.SSIES_USER = {{ {"email": email|default(username), "display_name": userna
 
 <div class="toast" id="toast"></div>
 
-<script src="{{ url_for('static', filename='js/chrome.js') }}?v=poc32"></script>
-<script src="{{ url_for('static', filename='js/theme.js') }}?v=poc32"></script>
-<script src="{{ url_for('static', filename='js/whatsapp.js') }}?v=poc32"></script>
-<script src="{{ url_for('static', filename='js/waha.js') }}?v=poc32"></script>
+<script src="{{ url_for('static', filename='js/chrome.js') }}?v=poc33"></script>
+<script src="{{ url_for('static', filename='js/theme.js') }}?v=poc33"></script>
+<script src="{{ url_for('static', filename='js/whatsapp.js') }}?v=poc33"></script>
+<script src="{{ url_for('static', filename='js/waha.js') }}?v=poc33"></script>
 <script>
 const DAYS = {{ days | tojson }};
 const _asUser = new URLSearchParams(location.search).get("asUser");
@@ -1714,6 +1714,7 @@ function setScheduleView(mode){
 function syncScheduleViewSeg(){
   const mode=getScheduleView();
   document.querySelectorAll("#schedViewSeg button").forEach(b=>b.classList.toggle("on", b.dataset.val===mode));
+  document.documentElement.setAttribute("data-sched-view", mode);
 }
 function updateSchedSelCount(){
   const el=document.getElementById("schedSelCount"); if(!el) return;
@@ -1874,11 +1875,30 @@ function updateCell(ci,day,field,inp){const g=groups[ci];let e=g.schedule.find(x
     if(meta) meta.textContent=`${n} day${n===1?"":"s"}`;
   }
   tableDirty=true; if(clashOn) refreshClashes();}
-function toggleColExpand(ci){ colCollapsed[ci]=!colCollapsed[ci]; renderTable(); }
-function expandAllCols(expand){ groups.forEach((_,ci)=>{ colCollapsed[ci]=!expand; }); renderTable(); }
+function toggleColExpand(ci){ colCollapsed[ci]=!colCollapsed[ci]; applyColWidthsFromState(); renderTable(); }
+function expandAllCols(expand){ groups.forEach((_,ci)=>{ colCollapsed[ci]=!expand; }); applyColWidthsFromState(); renderTable(); }
+function colTextWidth(text){
+  const c=colTextWidth._c||(colTextWidth._c=document.createElement("canvas"));
+  const ctx=c.getContext("2d");
+  ctx.font="700 14px Satoshi, system-ui, sans-serif";
+  return Math.ceil(ctx.measureText(String(text||"")).width);
+}
+function applyColWidthsFromState(){
+  /* table-layout:fixed ignores max-width alone — set explicit widths so expand/collapse is visible.
+     Collapsed: size to nickname (or name) so the short label shows completely.
+     Expanded: size to full WhatsApp group name. */
+  const CHROME=118;
+  groups.forEach((g,ci)=>{
+    const collapsed=colCollapsed[ci]===true;
+    const label=collapsed?colDisplay(g):(g.name||colDisplay(g)||"");
+    const tw=colTextWidth(label);
+    if(collapsed) colWidths[ci]=Math.max(108, Math.min(240, tw+CHROME));
+    else colWidths[ci]=Math.max(168, Math.min(340, tw+CHROME));
+  });
+}
 function editColMeta(ci){ cmIdx=ci; const g=groups[ci]; document.getElementById("cmName").value=g.name||""; document.getElementById("cmNick").value=g.nickname||""; document.getElementById("colMetaModal").classList.add("show"); setTimeout(()=>document.getElementById("cmName").focus(),30); }
 function closeColMeta(){ document.getElementById("colMetaModal").classList.remove("show"); }
-async function saveColMeta(){ if(cmIdx==null) return; const name=document.getElementById("cmName").value.trim(); if(!name){ toast("Group name is required","err"); return; } groups[cmIdx].name=name; groups[cmIdx].nickname=document.getElementById("cmNick").value.trim(); tableDirty=true; closeColMeta(); if(await saveTable()) toast("Group updated ✓"); else renderTable(); }
+async function saveColMeta(){ if(cmIdx==null) return; const name=document.getElementById("cmName").value.trim(); if(!name){ toast("Group name is required","err"); return; } groups[cmIdx].name=name; groups[cmIdx].nickname=document.getElementById("cmNick").value.trim(); tableDirty=true; closeColMeta(); applyColWidthsFromState(); if(await saveTable()) toast("Group updated ✓"); else renderTable(); }
 function toggleClash(){ clashOn=!clashOn; localStorage.setItem("sched-clash", clashOn?"on":"off"); syncClashBtn(); refreshClashes(); }
 function syncClashBtn(){ const b=document.getElementById("clashBtn"); if(b) b.classList.toggle("on", clashOn); }
 function computeClashes(){ const cells=new Set(), pairs=[]; DAYS.forEach((day)=>{ const items=[]; groups.forEach((g,ci)=>{ const e=g.schedule.find((x)=>x.day===day); if(!e) return; const a=parseTimeMin(e.from); if(a==null) return; let b=parseTimeMin(e.to); if(b==null||b<=a) b=a+30; items.push({ci,a,b}); }); for(let i=0;i<items.length;i++) for(let j=i+1;j<items.length;j++){ if(items[i].a<items[j].b && items[j].a<items[i].b){ cells.add(items[i].ci+"|"+day); cells.add(items[j].ci+"|"+day); pairs.push({day,a:items[i].ci,b:items[j].ci}); } } }); return {cells,pairs}; }
@@ -2242,8 +2262,8 @@ async function copyText(t){try{await navigator.clipboard.writeText(t);toast("Cop
 let tt;function toast(m,type="ok"){const e=document.getElementById("toast");e.textContent=m;e.className=`toast ${type} show`;clearTimeout(tt);tt=setTimeout(()=>e.classList.remove("show"),3000);}
 
 </script>
-<script src="{{ url_for('static', filename='js/lists.js') }}?v=poc32"></script>
-<script src="{{ url_for('static', filename='js/features.js') }}?v=poc32"></script>
+<script src="{{ url_for('static', filename='js/lists.js') }}?v=poc33"></script>
+<script src="{{ url_for('static', filename='js/features.js') }}?v=poc33"></script>
 <script>boot();</script>
 </body>
 </html>

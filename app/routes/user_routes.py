@@ -491,56 +491,226 @@ def delete_list(public_id):
 @bp.route("/api/lists/<public_id>/sync", methods=["POST"])
 @login_required
 def sync_list(public_id):
-    """Rebuild list members from contacts that carry any of the list's labels."""
+    """Pull matching WhatsApp label chats into this list (falls back to local labels)."""
     uid = _effective_user_id()
     row = ContactList.query.filter_by(user_id=uid, public_id=public_id).first()
     if not row:
         return jsonify({"error": "Not found"}), 404
-    labels = row.labels if isinstance(row.labels, list) else []
-    found = []
-    for c in Contact.query.filter_by(user_id=uid).all():
-        cl = c.labels or []
-        if labels and any(lab in cl for lab in labels):
-            ph = digits(dec(c.phone_enc))
-            if ph and ph not in found:
-                found.append(ph)
-    # Merge (don't drop manually added members that still exist as contacts)
-    existing_phones = {digits(dec(c.phone_enc)) for c in Contact.query.filter_by(user_id=uid).all()}
-    merged = []
-    for ph in (row.members or []) + found:
-        d = digits(ph)
-        if d and d in existing_phones and d not in merged:
-            merged.append(d)
-    row.members = merged
-    db.session.commit()
-    return jsonify({"ok": True, "list": _list_dict(row), "added": len(found)})
+    try:
+        result = _sync_lists_from_whatsapp(uid, only_public_id=public_id)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 502
+    lists = result.get("lists") or []
+    matched = next((l for l in lists if l.get("id") == public_id), _list_dict(row))
+    return jsonify({"ok": True, "list": matched, "added": result.get("contactsUpserted", 0),
+                    "waLabels": result.get("waLabels") or [], "source": result.get("source")})
 
 
 @bp.route("/api/lists/sync-all", methods=["POST"])
 @login_required
 def sync_all_lists():
+    """Discover WhatsApp Business labels + contacts and rebuild SSIES lists."""
     uid = _effective_user_id()
-    rows = ContactList.query.filter_by(user_id=uid).all()
-    out = []
-    for row in rows:
-        labels = row.labels if isinstance(row.labels, list) else []
+    try:
+        result = _sync_lists_from_whatsapp(uid)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 502
+    return jsonify({"ok": True, **result})
+
+
+def _sync_lists_from_whatsapp(uid, only_public_id=None):
+    """
+    Sync ContactList rows from WhatsApp Business labels via WAHA.
+    Creates missing lists for each WA label, upserts contacts from labeled chats,
+    and assigns label membership. Falls back to local contact.labels if WAHA fails.
+    """
+    import uuid as _uuid
+    from app.services.waha_client import (
+        WahaError, use_waha_user, get_labels, get_chats_for_label, phone_from_chat,
+    )
+
+    wa_labels = []
+    source = "local"
+    label_to_phones = {}  # label name -> [phones]
+    phone_meta = {}  # phone -> {name, labels:set}
+
+    try:
+        with use_waha_user(uid, assign=False):
+            raw_labels = get_labels() or []
+            for lab in raw_labels:
+                if not isinstance(lab, dict):
+                    continue
+                name = (lab.get("name") or "").strip()
+                lid = lab.get("id")
+                if not name or lid is None:
+                    continue
+                wa_labels.append(name)
+                try:
+                    chats = get_chats_for_label(lid) or []
+                except WahaError:
+                    chats = []
+                phones = []
+                for chat in chats:
+                    ph = phone_from_chat(chat)
+                    if not ph:
+                        continue
+                    phones.append(ph)
+                    meta = phone_meta.setdefault(ph, {"name": "", "labels": set()})
+                    meta["labels"].add(name)
+                    cname = ""
+                    if isinstance(chat, dict):
+                        for key in ("name", "pushName", "notifyName", "formattedName", "subject", "title"):
+                            val = chat.get(key)
+                            if isinstance(val, str) and val.strip():
+                                cname = val.strip()
+                                break
+                    if cname and (not meta["name"] or meta["name"] == ph):
+                        meta["name"] = cname
+                label_to_phones[name] = phones
+            source = "whatsapp"
+    except WahaError as e:
+        # No WA session / labels unavailable — rebuild from local contact labels only
+        source = "local"
+        local_err = str(e)
+    else:
+        local_err = None
+
+    # Upsert contacts discovered from WA
+    contacts_by_phone = {}
+    for c in Contact.query.filter_by(user_id=uid).all():
+        ph = digits(dec(c.phone_enc))
+        if ph:
+            contacts_by_phone[ph] = c
+
+    upserted = 0
+    for ph, meta in phone_meta.items():
+        row_c = contacts_by_phone.get(ph)
+        labs = sorted(meta["labels"])
+        if row_c is None:
+            n = Contact.query.filter_by(user_id=uid).count()
+            row_c = Contact(
+                user_id=uid,
+                name=(meta["name"] or ph)[:255],
+                phone_enc=enc(ph),
+                message_enc=enc(""),
+                labels=labs,
+                wa_linked=True,
+                position=n,
+            )
+            db.session.add(row_c)
+            contacts_by_phone[ph] = row_c
+            upserted += 1
+        else:
+            existing = row_c.labels if isinstance(row_c.labels, list) else []
+            merged_labs = sorted(set([str(x).strip() for x in existing if str(x).strip()] + labs))
+            row_c.labels = merged_labs
+            if meta["name"] and (not row_c.name or row_c.name == ph):
+                row_c.name = meta["name"][:255]
+            row_c.wa_linked = True
+            upserted += 1
+
+    db.session.flush()
+
+    # Existing lists
+    existing_lists = ContactList.query.filter_by(user_id=uid).order_by(ContactList.position, ContactList.id).all()
+    if only_public_id:
+        existing_lists = [r for r in existing_lists if r.public_id == only_public_id]
+
+    def _find_list_for_label(label_name):
+        ln = label_name.strip().lower()
+        for r in ContactList.query.filter_by(user_id=uid).all():
+            labs = r.labels if isinstance(r.labels, list) else []
+            if any(str(x).strip().lower() == ln for x in labs):
+                return r
+            if (r.name or "").strip().lower() == ln:
+                return r
+        return None
+
+    # Create a list per WA label when doing full sync
+    if source == "whatsapp" and not only_public_id:
+        for lab_name in wa_labels:
+            if _find_list_for_label(lab_name):
+                continue
+            n = ContactList.query.filter_by(user_id=uid).count()
+            db.session.add(ContactList(
+                user_id=uid,
+                public_id="l-" + _uuid.uuid4().hex[:8],
+                name=lab_name[:255],
+                color="#0d9488",
+                labels=[lab_name],
+                members=list(label_to_phones.get(lab_name) or []),
+                message_enc=enc(""),
+                position=n,
+            ))
+        db.session.flush()
+
+    # Rebuild members for target lists
+    targets = ContactList.query.filter_by(user_id=uid).order_by(ContactList.position, ContactList.id).all()
+    if only_public_id:
+        targets = [r for r in targets if r.public_id == only_public_id]
+
+    # Refresh contact phone map after upserts
+    contacts_by_phone = {}
+    for c in Contact.query.filter_by(user_id=uid).all():
+        ph = digits(dec(c.phone_enc))
+        if ph:
+            contacts_by_phone[ph] = c
+
+    for row in targets:
+        labs = [str(x).strip() for x in (row.labels or []) if str(x).strip()]
         found = []
-        for c in Contact.query.filter_by(user_id=uid).all():
-            cl = c.labels or []
-            if labels and any(lab in cl for lab in labels):
-                ph = digits(dec(c.phone_enc))
-                if ph and ph not in found:
+        # From WA label→phones map
+        for lab in labs:
+            for ph in label_to_phones.get(lab) or []:
+                if ph not in found:
                     found.append(ph)
-        existing_phones = {digits(dec(c.phone_enc)) for c in Contact.query.filter_by(user_id=uid).all()}
-        merged = []
-        for ph in (row.members or []) + found:
+        # From local contact labels (always merge)
+        for ph, c in contacts_by_phone.items():
+            cl = c.labels if isinstance(c.labels, list) else []
+            if labs and any(lab in cl for lab in labs) and ph not in found:
+                found.append(ph)
+        # Keep previously saved members that still exist
+        for ph in (row.members or []):
             d = digits(ph)
-            if d and d in existing_phones and d not in merged:
-                merged.append(d)
-        row.members = merged
-        out.append(_list_dict(row))
+            if d and d in contacts_by_phone and d not in found:
+                found.append(d)
+        row.members = found
+        # If list has no labels yet but name matches a WA label, attach it
+        if not labs and source == "whatsapp":
+            match = next((w for w in wa_labels if w.lower() == (row.name or "").strip().lower()), None)
+            if match:
+                row.labels = [match]
+                for ph in label_to_phones.get(match) or []:
+                    if ph not in row.members:
+                        row.members.append(ph)
+
     db.session.commit()
-    return jsonify({"ok": True, "lists": out})
+
+    # Aggregate labels for the editor
+    all_labels = set(wa_labels)
+    for c in Contact.query.filter_by(user_id=uid).all():
+        for lab in (c.labels or []):
+            if str(lab).strip():
+                all_labels.add(str(lab).strip())
+    for r in ContactList.query.filter_by(user_id=uid).all():
+        for lab in (r.labels or []):
+            if str(lab).strip():
+                all_labels.add(str(lab).strip())
+
+    rows = ContactList.query.filter_by(user_id=uid).order_by(ContactList.position, ContactList.id).all()
+    if only_public_id:
+        rows = [r for r in rows if r.public_id == only_public_id]
+
+    payload = {
+        "lists": [_list_dict(r) for r in rows],
+        "waLabels": sorted(all_labels),
+        "contactsUpserted": upserted,
+        "source": source,
+        "labelCount": len(wa_labels),
+    }
+    if local_err and source == "local":
+        payload["warning"] = local_err
+    return payload
 
 
 @bp.route("/api/settings", methods=["GET"])

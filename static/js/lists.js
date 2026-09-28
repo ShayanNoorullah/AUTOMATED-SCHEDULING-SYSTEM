@@ -3,8 +3,11 @@ let lists = [], waLabels = [], listActive = null, listMode = localStorage.getIte
 let lmEditId = null, lmemListId = null;
 
 function listById(id) { return lists.find((l) => l.id === id); }
+function phoneKey(p) { return String(p || "").replace(/\D/g, ""); }
 function listMembers(list) {
-  return (list.members || []).map((ph) => contacts.find((c) => String(c.phone) === String(ph))).filter(Boolean);
+  return (list.members || [])
+    .map((ph) => contacts.find((c) => phoneKey(c.phone) === phoneKey(ph)))
+    .filter(Boolean);
 }
 function listSelSet(id) { if (!listSel[id]) listSel[id] = {}; return listSel[id]; }
 function listMsg(list) {
@@ -191,26 +194,40 @@ async function deleteList(id) {
 }
 async function syncList(id) {
   try {
+    toast("Syncing from WhatsApp…");
     const res = await fetch(`/api/lists/${encodeURIComponent(id)}/sync`, { method: "POST" });
     const d = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(d.error || "Sync failed");
+    if (typeof loadContacts === "function") await loadContacts();
     await loadLists();
+    if (d.waLabels) waLabels = d.waLabels;
     renderLists();
-    toast("List synced from labels ✓");
+    const src = d.source === "whatsapp" ? "WhatsApp" : "saved contacts";
+    toast(`List synced from ${src} ✓`);
   } catch (e) {
     toast(e.message || "Sync failed", "err");
   }
 }
 async function syncAllLists() {
   try {
+    toast("Syncing lists from WhatsApp…");
     const res = await fetch("/api/lists/sync-all", { method: "POST" });
     const d = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(d.error || "Sync failed");
+    if (typeof loadContacts === "function") await loadContacts();
     await loadLists();
+    if (Array.isArray(d.waLabels)) waLabels = d.waLabels;
+    if (Array.isArray(d.lists) && d.lists.length) {
+      lists = d.lists;
+      if (!listActive || !listById(listActive)) listActive = lists[0].id;
+    }
     renderLists();
-    toast("All lists synced from WhatsApp labels ✓");
+    const n = (d.lists || lists || []).length;
+    const src = d.source === "whatsapp" ? "WhatsApp" : "saved contacts";
+    const warn = d.warning ? ` (${d.warning})` : "";
+    toast(n ? `Synced ${n} list${n === 1 ? "" : "s"} from ${src} ✓${warn}` : `No WhatsApp labels found yet${warn}`, n ? "ok" : "err");
   } catch (e) {
-    toast(e.message || "Sync failed", "err");
+    toast(e.message || "Sync failed — link WhatsApp in Automated Send first", "err");
   }
 }
 

@@ -384,6 +384,16 @@ document.addEventListener("click", (e) => { if (!e.target.closest(".notif-wrap")
 /* Production aliases for legacy shell helpers */
 function toggleRailMobile() { toggleRail(); }
 function toggleRailFromLogo() {
+  /* Navbar mode: logo is a home control, not a collapse control */
+  const navbar = document.documentElement.getAttribute("data-nav") === "navbar" && window.innerWidth > 860;
+  if (navbar) {
+    if (typeof navGo === "function" && document.getElementById("view-dashboard")) {
+      navGo("dashboard");
+    } else {
+      location.href = "/?view=dashboard";
+    }
+    return;
+  }
   const shell = document.getElementById("shell") || document.getElementById("app");
   if (!shell) return;
   if (window.innerWidth <= 860) { toggleRail(); return; }
@@ -394,7 +404,20 @@ function toggleRailFromLogo() {
 function updateLogoChevron() {
   const shell = document.getElementById("shell") || document.getElementById("app");
   const chev = document.getElementById("logoChev");
+  const brand = document.getElementById("brandLogo");
+  const navbar = document.documentElement.getAttribute("data-nav") === "navbar" && window.innerWidth > 860;
+  if (brand) {
+    if (navbar) {
+      brand.title = "Go to dashboard";
+      brand.setAttribute("aria-label", "Go to dashboard");
+    } else {
+      brand.title = "Collapse sidebar";
+      brand.setAttribute("aria-label", "Toggle sidebar");
+    }
+  }
   if (!chev || !shell) return;
+  if (navbar) { chev.style.display = "none"; return; }
+  chev.style.display = "";
   const collapsed = shell.classList.contains("rail-collapsed");
   chev.innerHTML = collapsed
     ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M9 18l6-6-6-6"/></svg>'
