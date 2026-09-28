@@ -7,7 +7,7 @@
 
 x-waha: &waha-common
   # Pin free Core NOWEB ARM image (no Plus license). 2026.7.2 fixes WhatsApp protocol Connection Failure.
-  image: devlikeapro/waha:noweb-arm-2026.7.2
+  image: devlikeapro/waha:noweb-arm-2026.9.1
   restart: unless-stopped
   environment:
     WAHA_API_KEY: ${WAHA_API_KEY}

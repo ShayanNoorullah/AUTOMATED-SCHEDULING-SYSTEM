@@ -59,7 +59,7 @@ Ensure your superadmin exists in **Supabase → Authentication → Users** with 
 2. Create an **Ampere A1** instance:
    - Image: **Ubuntu 22.04 or 24.04**
    - Shape: **VM.Standard.A1.Flex** — recommend **2 OCPU**, **12 GB RAM**
-   - **ARM64 note:** use `devlikeapro/waha:noweb-arm-2026.7.2` (NOWEB engine; WEBJS/Chromium is unstable on Ampere).
+   - **ARM64 note:** use `devlikeapro/waha:noweb-arm-2026.9.1` (NOWEB engine; WEBJS/Chromium is unstable on Ampere).
 3. **Networking → Public IP** → reserve/assign a **public IPv4** to the instance.
 4. **Security List** (VCN ingress rules): allow TCP **22**, **80**, **443** from `0.0.0.0/0`.
 5. SSH in:
@@ -293,7 +293,7 @@ sudo systemctl enable docker
 | WAHA unauthorized | `WAHA_API_KEY` in `.env` must match superadmin settings |
 | All accounts share one WhatsApp | Deploy latest app + multi-`wahaN` compose; each user must scan QR on **their** Automated Send page |
 | “All WhatsApp slots are in use” | Raise `WAHA_SLOTS` and add `wahaN` services (still free Core image) |
-| `no matching manifest for linux/arm64` | Use `devlikeapro/waha:noweb-arm-2026.7.2` in compose (NOWEB on Ampere; avoid WEBJS Chromium crashes) |
+| `no matching manifest for linux/arm64` | Use `devlikeapro/waha:noweb-arm-2026.9.1` in compose (NOWEB on Ampere; avoid WEBJS Chromium crashes) |
 | QR never appears / session FAILED | Upgrade WAHA image; tap **Reset & new QR**; WhatsApp protocol breaks older NOWEB builds |
 | All groups “Not found in WhatsApp” but WAHA connected | NOWEB returns groups as a dict — ensure latest `waha_client.py` is deployed; click **Fetch WA** |
 | `ERR_TOO_MANY_REDIRECTS` / `/health` loops | Rebuild app after fix: Talisman must not force HTTPS behind Caddy (`DOCKER=1`) |

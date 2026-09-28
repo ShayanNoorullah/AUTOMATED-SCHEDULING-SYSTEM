@@ -217,15 +217,21 @@ async function syncAllLists() {
     if (typeof loadContacts === "function") await loadContacts();
     await loadLists();
     if (Array.isArray(d.waLabels)) waLabels = d.waLabels;
-    if (Array.isArray(d.lists) && d.lists.length) {
+    if (Array.isArray(d.lists)) {
       lists = d.lists;
-      if (!listActive || !listById(listActive)) listActive = lists[0].id;
+      if (lists.length && (!listActive || !listById(listActive))) listActive = lists[0].id;
     }
     renderLists();
-    const n = (d.lists || lists || []).length;
+    const n = (lists || []).length;
+    const labelN = (d.labelCount != null) ? d.labelCount : ((d.waLabels || []).length);
     const src = d.source === "whatsapp" ? "WhatsApp" : "saved contacts";
-    const warn = d.warning ? ` (${d.warning})` : "";
-    toast(n ? `Synced ${n} list${n === 1 ? "" : "s"} from ${src} ✓${warn}` : `No WhatsApp labels found yet${warn}`, n ? "ok" : "err");
+    if (n) {
+      toast(`Synced ${n} list${n === 1 ? "" : "s"} from ${src} ✓`);
+    } else if (d.source === "whatsapp" && !labelN) {
+      toast("WhatsApp is linked but returned no Business labels. Use Business tools → Labels (not chat Lists), then re-link WhatsApp in Automated Send and sync again.", "err");
+    } else {
+      toast(d.warning ? `No lists yet (${d.warning})` : "No lists yet — create one or sync after linking WhatsApp", "err");
+    }
   } catch (e) {
     toast(e.message || "Sync failed — link WhatsApp in Automated Send first", "err");
   }

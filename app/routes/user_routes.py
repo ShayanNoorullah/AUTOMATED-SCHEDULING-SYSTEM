@@ -527,15 +527,21 @@ def _sync_lists_from_whatsapp(uid, only_public_id=None):
     import uuid as _uuid
     from app.services.waha_client import (
         WahaError, use_waha_user, get_labels, get_chats_for_label, phone_from_chat,
+        get_lid_phone_map,
     )
 
     wa_labels = []
     source = "local"
     label_to_phones = {}  # label name -> [phones]
     phone_meta = {}  # phone -> {name, labels:set}
+    lid_map = {}
 
     try:
         with use_waha_user(uid, assign=False):
+            try:
+                lid_map = get_lid_phone_map() or {}
+            except WahaError:
+                lid_map = {}
             raw_labels = get_labels() or []
             for lab in raw_labels:
                 if not isinstance(lab, dict):
@@ -544,6 +550,7 @@ def _sync_lists_from_whatsapp(uid, only_public_id=None):
                 lid = lab.get("id")
                 if not name or lid is None:
                     continue
+                # Skip placeholder names from id-probe unless chats resolve later
                 wa_labels.append(name)
                 try:
                     chats = get_chats_for_label(lid) or []
@@ -551,7 +558,7 @@ def _sync_lists_from_whatsapp(uid, only_public_id=None):
                     chats = []
                 phones = []
                 for chat in chats:
-                    ph = phone_from_chat(chat)
+                    ph = phone_from_chat(chat, lid_map=lid_map)
                     if not ph:
                         continue
                     phones.append(ph)

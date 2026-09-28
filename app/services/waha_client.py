@@ -471,7 +471,14 @@ def get_labels(session=None):
     for attempt in range(4):
         try:
             data = _req("GET", f"/api/{name}/labels", session_name=name)
-            return _normalize_waha_items(data)
+            items = _normalize_waha_items(data)
+            if items:
+                return items
+            # NOWEB quirk: list-all often returns [] even when labels exist.
+            probed = _probe_label_ids(name)
+            if probed:
+                return probed
+            return []
         except WahaError as e:
             last_err = e
             msg = str(e).lower()
@@ -479,13 +486,80 @@ def get_labels(session=None):
                 ensure_noweb_store_enabled(name)
                 time.sleep(2.5)
                 continue
-            if attempt < 3 and ("starting" in msg or "not ready" in msg or "working" in msg):
+            if attempt < 3 and ("starting" in msg or "not ready" in msg or "failed" in msg):
+                try:
+                    restart_session(name)
+                except WahaError:
+                    pass
                 time.sleep(2.0)
                 continue
             raise
     if last_err:
         raise last_err
     return []
+
+
+def _probe_label_ids(session_name, max_id=80):
+    """
+    Discover labels by id when GET /labels returns [].
+    Create/update/delete work on NOWEB, but list-all is unreliable.
+    Only keep ids that have a real name and/or at least one labeled chat.
+    """
+    found = []
+    seen = set()
+    for i in range(0, max_id + 1):
+        lid = str(i)
+        detail = None
+        try:
+            detail = _req("GET", f"/api/{session_name}/labels/{lid}", session_name=session_name)
+        except WahaError:
+            detail = None
+        name = ""
+        if isinstance(detail, dict):
+            name = (detail.get("name") or "").strip()
+            if name:
+                key = str(detail.get("id", lid))
+                if key not in seen:
+                    seen.add(key)
+                    found.append({
+                        "id": detail.get("id", lid),
+                        "name": name,
+                        "color": detail.get("color"),
+                        "colorHex": detail.get("colorHex"),
+                    })
+                continue
+        try:
+            chats = _req("GET", f"/api/{session_name}/labels/{lid}/chats", session_name=session_name)
+        except WahaError:
+            continue
+        chat_items = _normalize_waha_items(chats)
+        if not chat_items:
+            continue
+        if lid not in seen:
+            seen.add(lid)
+            found.append({"id": lid, "name": name or f"Label {lid}", "color": None, "colorHex": None})
+    return found
+
+
+def get_lid_phone_map(session=None):
+    """Map WhatsApp @lid ids -> phone digits using WAHA lids endpoint."""
+    name = _session_name(session)
+    out = {}
+    try:
+        data = _req("GET", f"/api/{name}/lids", session_name=name)
+    except WahaError:
+        return out
+    items = data if isinstance(data, list) else _normalize_waha_items(data)
+    for row in items or []:
+        if not isinstance(row, dict):
+            continue
+        lid = str(row.get("lid") or row.get("id") or "")
+        pn = str(row.get("pn") or row.get("phone") or row.get("jid") or "")
+        phone = "".join(ch for ch in pn.split("@")[0] if ch.isdigit())
+        if lid and phone and len(phone) >= 8:
+            out[lid] = phone
+            out[lid.split("@")[0]] = phone
+    return out
 
 
 def get_chats_for_label(label_id, session=None):
@@ -502,7 +576,7 @@ def get_chats_for_label(label_id, session=None):
     return _normalize_waha_items(data)
 
 
-def phone_from_chat(chat):
+def phone_from_chat(chat, lid_map=None):
     """Extract E.164-ish digits from a WAHA chat/contact payload (skip groups)."""
     if not isinstance(chat, dict):
         return ""
@@ -515,7 +589,20 @@ def phone_from_chat(chat):
             p = "".join(ch for ch in str(val) if ch.isdigit())
             if len(p) >= 8:
                 return p
+    # Prefer explicit alt phone jid when present (NOWEB often uses @lid + remoteJidAlt)
+    for key in ("remoteJidAlt", "pn", "participantPn", "senderPn"):
+        val = chat.get(key)
+        if isinstance(val, str) and "@" in val:
+            p = "".join(ch for ch in val.split("@")[0] if ch.isdigit())
+            if len(p) >= 8:
+                return p
     if isinstance(gid, str) and gid:
+        if gid.endswith("@lid") or "@lid" in gid:
+            if lid_map:
+                mapped = lid_map.get(gid) or lid_map.get(gid.split("@")[0])
+                if mapped:
+                    return mapped
+            return ""
         user = gid.split("@")[0].split(":")[0]
         p = "".join(ch for ch in user if ch.isdigit())
         if len(p) >= 8 and not gid.endswith("@g.us"):
