@@ -129,11 +129,6 @@ function showSettingsTab(tab) {
     if (typeof loadAudit === "function") loadAudit();
     if (typeof loadPasskeys === "function") loadPasskeys();
   }
-  if (tab === "layout") {
-    const slider = document.getElementById("psBottomSlider");
-    const saved = getPortalSwitcherBottomPct();
-    if (slider) slider.value = String(Math.round(saved == null ? 4 : saved));
-  }
 }
 function getDefaultSendMode() { return localStorage.getItem(THEME_KEYS.sendMode) || "ask"; }
 function getStatusLogPref() { return localStorage.getItem(THEME_KEYS.statusLog) || "auto"; }
@@ -190,30 +185,50 @@ function animateCounters() {
   });
 }
 
-/* Floating portal switcher (User / Admin / Superadmin) — bottom right, vertically adjustable */
-const PS_BOTTOM_KEY = "ps-bottom-pct";
-function getPortalSwitcherBottomPct() {
-  const raw = parseFloat(localStorage.getItem(PS_BOTTOM_KEY) || "");
-  if (Number.isFinite(raw)) return Math.min(70, Math.max(2, raw));
-  return null; // use CSS default
+/* Floating portal switcher (User / Admin / Superadmin) — free-drag anywhere, auto-hide when idle */
+const PS_POS_KEY = "ps-pos";              // {left, top} in px
+const PS_LEGACY_BOTTOM_KEY = "ps-bottom-pct";
+function _psGetPos() {
+  try { const p = JSON.parse(localStorage.getItem(PS_POS_KEY) || "null"); if (p && Number.isFinite(p.left) && Number.isFinite(p.top)) return p; } catch (e) {}
+  return null;
 }
-function applyPortalSwitcherBottom(el, pct) {
-  if (!el) el = document.querySelector(".portal-switcher");
+function _psSavePos(left, top) { try { localStorage.setItem(PS_POS_KEY, JSON.stringify({ left, top })); } catch (e) {} }
+function _psClamp(el, left, top) {
+  const m = 8;
+  const w = el.offsetWidth || 160, h = el.offsetHeight || 44;
+  const vw = window.innerWidth, vh = window.innerHeight;
+  return { left: Math.min(Math.max(m, left), vw - w - m), top: Math.min(Math.max(m, top), vh - h - m) };
+}
+function applyPortalSwitcherPos(el) {
+  el = el || document.querySelector(".portal-switcher");
   if (!el) return;
-  const v = pct == null ? getPortalSwitcherBottomPct() : Math.min(70, Math.max(2, Number(pct)));
-  if (v == null || Number.isNaN(v)) {
-    el.style.removeProperty("bottom");
-    return;
-  }
-  el.style.bottom = `max(12px, calc(${v}vh - 20px))`;
-  const slider = document.getElementById("psBottomSlider");
-  if (slider && String(slider.value) !== String(Math.round(v))) slider.value = String(Math.round(v));
+  const p = _psGetPos();
+  if (!p) { el.style.removeProperty("left"); el.style.removeProperty("top"); el.style.removeProperty("right"); el.style.removeProperty("bottom"); return; }
+  const c = _psClamp(el, p.left, p.top);
+  el.style.left = c.left + "px"; el.style.top = c.top + "px";
+  el.style.right = "auto"; el.style.bottom = "auto";
 }
-function setPortalSwitcherBottom(pct) {
-  const v = Math.min(70, Math.max(2, Number(pct)));
-  try { localStorage.setItem(PS_BOTTOM_KEY, String(v)); } catch (e) {}
-  applyPortalSwitcherBottom(null, v);
+function resetPortalSwitcherPos() {
+  try { localStorage.removeItem(PS_POS_KEY); localStorage.removeItem(PS_LEGACY_BOTTOM_KEY); } catch (e) {}
+  const el = document.querySelector(".portal-switcher");
+  if (el) { el.style.removeProperty("left"); el.style.removeProperty("top"); el.style.removeProperty("right"); el.style.removeProperty("bottom"); _psWake(el); }
 }
+/* Back-compat no-ops (old settings/theme code may still call these) */
+function getPortalSwitcherBottomPct() { return null; }
+function applyPortalSwitcherBottom() { applyPortalSwitcherPos(); }
+function setPortalSwitcherBottom() {}
+
+let _psIdleTimer = null, _psHoverTimer = null;
+function _psWake(el) {
+  el = el || document.querySelector(".portal-switcher"); if (!el) return;
+  el.classList.remove("ps-idle");
+  clearTimeout(_psIdleTimer);
+  _psIdleTimer = setTimeout(() => {
+    const e = document.querySelector(".portal-switcher");
+    if (e && !e.classList.contains("dragging") && !e.matches(":hover")) e.classList.add("ps-idle");
+  }, 10000);
+}
+
 function renderPortalSwitcher() {
   try {
     if (typeof getSession !== "function") return;
@@ -232,59 +247,81 @@ function renderPortalSwitcher() {
     const el = document.createElement("div");
     el.className = "portal-switcher";
     el.setAttribute("role", "group");
-    el.setAttribute("aria-label", "Switch portal");
+    el.setAttribute("aria-label", "Switch portal — drag to move");
     el.setAttribute("data-collapsed", collapsed ? "true" : "false");
     el.innerHTML =
-      `<button type="button" class="ps-drag" title="Drag to move vertically" aria-label="Move site switcher vertically"><span></span><span></span><span></span></button>` +
       `<button type="button" class="ps-arrow" onclick="togglePortalSwitcher()" title="Switch role view" aria-label="Toggle role switcher"><svg class="ps-caret" viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.6"><path d="M15 18l-6-6 6-6"/></svg></button>` +
       `<div class="ps-roles">` +
       portals.map((p) => `<button type="button" class="ps-role${p.key === cur ? " on" : ""}" onclick="switchPortal('${p.href}','${p.key === cur}')">${p.label}</button>`).join("") +
       `</div>`;
     document.body.appendChild(el);
-    applyPortalSwitcherBottom(el);
+    applyPortalSwitcherPos(el);
     initPortalSwitcherDrag(el);
+    _psWake(el);
+    el.addEventListener("mouseenter", () => { clearTimeout(_psHoverTimer); _psHoverTimer = setTimeout(() => _psWake(el), 2000); });
+    el.addEventListener("mouseleave", () => { clearTimeout(_psHoverTimer); });
+    window.addEventListener("resize", () => applyPortalSwitcherPos(el));
   } catch (e) {}
 }
+
+/* The whole switcher is draggable — press and move anywhere on it. A press that
+   doesn't move past a small threshold is treated as a click so the buttons work. */
 function initPortalSwitcherDrag(el) {
-  const handle = el.querySelector(".ps-drag");
-  if (!handle || handle.dataset.bound === "1") return;
-  handle.dataset.bound = "1";
-  let dragging = false;
+  if (el.dataset.dragBound === "1") return;
+  el.dataset.dragBound = "1";
+  const THRESH = 4;
+  let dragging = false, moved = false, sx = 0, sy = 0, sl = 0, st = 0;
   const onMove = (ev) => {
-    if (!dragging) return;
+    const x = ev.touches ? ev.touches[0].clientX : ev.clientX;
     const y = ev.touches ? ev.touches[0].clientY : ev.clientY;
-    const vh = window.innerHeight || 800;
-    const fromBottom = ((vh - y) / vh) * 100;
-    setPortalSwitcherBottom(fromBottom);
+    const dx = x - sx, dy = y - sy;
+    if (!moved && Math.abs(dx) + Math.abs(dy) < THRESH) return;
+    if (!moved) { moved = true; el.classList.add("dragging"); _psWake(el); }
+    const c = _psClamp(el, sl + dx, st + dy);
+    el.style.left = c.left + "px"; el.style.top = c.top + "px";
+    el.style.right = "auto"; el.style.bottom = "auto";
     ev.preventDefault();
   };
   const onUp = () => {
-    if (!dragging) return;
-    dragging = false;
-    el.classList.remove("dragging");
     window.removeEventListener("pointermove", onMove);
     window.removeEventListener("pointerup", onUp);
     window.removeEventListener("touchmove", onMove);
     window.removeEventListener("touchend", onUp);
+    if (!dragging) return;
+    dragging = false;
+    el.classList.remove("dragging");
+    if (moved) {
+      const r = el.getBoundingClientRect();
+      _psSavePos(r.left, r.top);
+      // Swallow the click that fires after a drag so role/arrow buttons don't trigger.
+      const sup = (e) => { e.stopPropagation(); e.preventDefault(); cleanup(); };
+      const cleanup = () => window.removeEventListener("click", sup, true);
+      window.addEventListener("click", sup, true);
+      setTimeout(cleanup, 400);
+    }
   };
   const onDown = (ev) => {
-    dragging = true;
-    el.classList.add("dragging");
+    if (ev.button != null && ev.button !== 0) return; // primary button / touch only
+    dragging = true; moved = false;
+    const r = el.getBoundingClientRect();
+    sx = ev.touches ? ev.touches[0].clientX : ev.clientX;
+    sy = ev.touches ? ev.touches[0].clientY : ev.clientY;
+    sl = r.left; st = r.top;
+    _psWake(el);
     window.addEventListener("pointermove", onMove, { passive: false });
     window.addEventListener("pointerup", onUp);
     window.addEventListener("touchmove", onMove, { passive: false });
     window.addEventListener("touchend", onUp);
-    onMove(ev);
-    ev.preventDefault();
   };
-  handle.addEventListener("pointerdown", onDown);
-  handle.addEventListener("touchstart", onDown, { passive: false });
+  el.addEventListener("pointerdown", onDown);
+  el.addEventListener("touchstart", onDown, { passive: false });
 }
 function togglePortalSwitcher() {
   const el = document.querySelector(".portal-switcher"); if (!el) return;
   const next = el.getAttribute("data-collapsed") === "true" ? "false" : "true";
   el.setAttribute("data-collapsed", next);
   try { localStorage.setItem("ps-collapsed", next); } catch (e) {}
+  _psWake(el);
 }
 function switchPortal(href, isCurrent) { if (isCurrent === "true") return; location.href = href; }
 

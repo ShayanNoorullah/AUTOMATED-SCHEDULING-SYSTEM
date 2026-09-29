@@ -1,6 +1,13 @@
 /* Lists — WhatsApp Business label audiences */
 let lists = [], waLabels = [], listActive = null, listMode = localStorage.getItem("lists-mode") || "tabs", listSel = {};
-let lmEditId = null, lmemListId = null;
+let lmEditId = null, lmemListId = null, listSearchQ = {};
+const LI_ICO = {
+  sync: '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>',
+  manage: '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M19 8v6M22 11h-6"/></svg>',
+  edit: '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>',
+  trash: '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/></svg>',
+  search: '<svg class="search-ico" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>',
+};
 
 function listById(id) { return lists.find((l) => l.id === id); }
 function phoneKey(p) { return String(p || "").replace(/\D/g, ""); }
@@ -91,29 +98,44 @@ function renderLists() {
 }
 
 function listToolbar(list) {
-  const n = listTotalCount(list);
-  return `<div class="lists-detail-bar">
-    <div class="lists-detail-meta">
-      <span class="list-dot" style="background:${list.color || "var(--accent)"}"></span>
-      <b>${esc(list.name)}</b>
-      <span class="chip">${listContactCount(list)} contact${listContactCount(list) === 1 ? "" : "s"}</span>
-      ${listGroupCount(list) ? `<span class="chip chip-soft">${listGroupCount(list)} group${listGroupCount(list) === 1 ? "" : "s"}</span>` : ""}
-      <span class="hint list-selcount" id="lcount-${list.id}" style="margin:0"></span>
-    </div>
-    <div class="lists-detail-actions">
-      <button class="btn btn-ghost btn-sm" type="button" onclick="listSelectAll('${list.id}',true)" ${n ? "" : "disabled"}>Select all</button>
-      <button class="btn btn-ghost btn-sm" type="button" onclick="listSelectAll('${list.id}',false)">Clear</button>
-      <button class="btn btn-ghost btn-sm" type="button" onclick="syncList('${list.id}')">Sync</button>
-      <button class="btn btn-ghost btn-sm" type="button" onclick="openListMembers('${list.id}')">Manage</button>
-      <button class="btn btn-ghost btn-sm" type="button" onclick="editList('${list.id}')">Edit</button>
-      <button class="btn btn-ghost btn-sm" type="button" style="color:var(--error)" onclick="deleteList('${list.id}')">Delete</button>
-      <button class="btn btn-soft btn-sm" type="button" onclick="sendList('${list.id}',true)">Send selected</button>
-      <button class="btn btn-primary btn-sm" type="button" onclick="sendList('${list.id}',false)">Send all</button>
-    </div>
-  </div>
-  <div class="lists-labelrow">${(list.labels || []).length
+  const c = listContactCount(list), g = listGroupCount(list), n = c + g;
+  const labels = (list.labels || []).length
     ? list.labels.map(labelChip).join("")
-    : '<span class="hint" style="margin:0">No labels linked — edit the list or sync from WhatsApp</span>'}</div>`;
+    : '<span class="hint" style="margin:0">No labels</span>';
+  const q = listSearchQ[list.id] || "";
+  return `<div class="lists-detail-head">
+    <div class="lists-detail-title">
+      <span class="list-dot lg" style="background:${list.color || "var(--accent)"}"></span>
+      <div class="lists-detail-titletext">
+        <b>${esc(list.name)}</b>
+        <div class="lists-detail-sub">${c} contact${c === 1 ? "" : "s"}${g ? ` · ${g} group${g === 1 ? "" : "s"}` : ""}<span class="lists-labels-inline">${labels}</span></div>
+      </div>
+      <div class="lists-icon-actions">
+        <button class="icon-btn ib-sm" type="button" title="Sync from WhatsApp" aria-label="Sync from WhatsApp" onclick="syncList('${list.id}')">${LI_ICO.sync}</button>
+        <button class="icon-btn ib-sm" type="button" title="Manage contacts" aria-label="Manage contacts" onclick="openListMembers('${list.id}')">${LI_ICO.manage}</button>
+        <button class="icon-btn ib-sm" type="button" title="Edit list" aria-label="Edit list" onclick="editList('${list.id}')">${LI_ICO.edit}</button>
+        <button class="icon-btn ib-sm ib-danger" type="button" title="Delete list" aria-label="Delete list" onclick="deleteList('${list.id}')">${LI_ICO.trash}</button>
+      </div>
+    </div>
+    <div class="lists-detail-tools">
+      <div class="search-wrap lists-search">${LI_ICO.search}
+        <input class="field search" id="lsearch-${list.id}" placeholder="Search ${n} member${n === 1 ? "" : "s"}…" value="${escA(q)}" oninput="listFilter('${list.id}',this.value)" ${n ? "" : "disabled"}/>
+      </div>
+      <div class="lists-detail-cta">
+        <button class="btn btn-ghost btn-sm" type="button" onclick="listSelectAll('${list.id}',true)" ${n ? "" : "disabled"}>Select all</button>
+        <button class="btn btn-ghost btn-sm" type="button" onclick="listSelectAll('${list.id}',false)">Clear</button>
+        <span class="hint list-selcount" id="lcount-${list.id}" style="margin:0"></span>
+        <button class="btn btn-soft btn-sm" type="button" onclick="sendList('${list.id}',true)">Send selected</button>
+        <button class="btn btn-primary btn-sm" type="button" onclick="sendList('${list.id}',false)" ${n ? "" : "disabled"}>Send all</button>
+      </div>
+    </div>
+  </div>`;
+}
+function listFilter(id, q) {
+  listSearchQ[id] = q;
+  const box = document.getElementById("lmembers-" + id);
+  if (box) box.innerHTML = listMembersTable(listById(id));
+  updateListSelCount(id);
 }
 
 function memberRow(list, c) {
@@ -169,12 +191,20 @@ function groupCard(list, g) {
 }
 
 function listMembersTable(list) {
-  const mem = listMembers(list);
-  const grps = listGroupsOf(list);
+  let mem = listMembers(list);
+  let grps = listGroupsOf(list);
   if (!mem.length && !grps.length) {
     return `<div class="empty" style="padding:36px"><p class="hint" style="margin:0 0 12px">No contacts or groups in this list yet.</p>
       <button class="btn btn-soft btn-sm" onclick="syncList('${list.id}')">Sync from labels</button>
       <button class="btn btn-soft btn-sm" onclick="openListMembers('${list.id}')">Add contacts</button></div>`;
+  }
+  const q = (listSearchQ[list.id] || "").trim().toLowerCase();
+  if (q) {
+    mem = mem.filter((c) => ((c.name || "") + " " + (c.phone || "")).toLowerCase().includes(q));
+    grps = grps.filter((g) => ((g.name || "") + " " + (g.id || "")).toLowerCase().includes(q));
+    if (!mem.length && !grps.length) {
+      return `<div class="empty" style="padding:32px"><div class="empty-ico" aria-hidden="true">${LI_ICO.search}</div><p class="hint" style="margin:0">No members match “${esc(q)}”.</p></div>`;
+    }
   }
   return `<div class="tbl-wrap lists-member-tbl"><table class="data grid-table"><thead><tr>
     <th class="lists-check"></th><th>Name</th><th>Type</th><th>Phone / ID</th><th>Labels</th><th></th>
@@ -205,7 +235,7 @@ function renderListTabs(wrap) {
   const list = listById(listActive);
   wrap.innerHTML = `<div class="lists-shell">
     <div class="pt-tabs lists-pt-tabs">${tabs}</div>
-    <div class="lists-detail">${listToolbar(list)}${listMembersTable(list)}</div>
+    <div class="lists-detail">${listToolbar(list)}<div class="lists-members" id="lmembers-${list.id}">${listMembersTable(list)}</div></div>
   </div>`;
   updateListSelCount(list.id);
 }
