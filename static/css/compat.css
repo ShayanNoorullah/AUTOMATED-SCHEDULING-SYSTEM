@@ -30,6 +30,16 @@
 .shell.rail-collapsed .rail-brand{justify-content:center;padding-left:0;padding-right:0;}
 .app.rail-collapsed .nav-item,
 .shell.rail-collapsed .nav-item{justify-content:center;}
+/* Collapsed rail: submenus become a clean centered icon column — no indent,
+   no connector line, and no detached active accent bar. */
+.app.rail-collapsed .nav-submenu,
+.shell.rail-collapsed .nav-submenu{margin:2px 0 6px;padding-left:0;border-left:none;align-items:center;gap:2px;}
+.app.rail-collapsed .nav-submenu .nav-sub,
+.shell.rail-collapsed .nav-submenu .nav-sub{justify-content:center;width:100%;padding:9px 0;}
+.app.rail-collapsed .nav-group-btn .caret,
+.shell.rail-collapsed .nav-group-btn .caret{display:none;}
+.app.rail-collapsed .nav-item.active::before,
+.shell.rail-collapsed .nav-item.active::before{display:none;}
 
 /* Portal chrome mapped onto POC tokens */
 .portal-app{display:flex;min-height:100vh;min-height:100dvh;background:transparent;}
