@@ -1367,7 +1367,9 @@ html[data-sched-view="board"] .sched-cols-only{display:none !important;}
 .lists-member-tbl tbody tr.lists-clickrow:hover{background:var(--accent-soft);}
 .lmember.lists-clickrow:hover{border-color:var(--accent-ring);}
 /* ── List entity detail modal ── */
-.av.lg{width:56px;height:56px;font-size:1.3rem;flex-shrink:0;}
+.av.lg{width:56px;height:56px;font-size:1.3rem;flex-shrink:0;border-radius:16px;background:var(--surface-3);color:var(--text-muted);display:grid;place-items:center;font-weight:800;position:relative;overflow:hidden;}
+.av.lg img{width:100%;height:100%;object-fit:cover;border-radius:inherit;display:block;}
+.av.lg.has-img{background:transparent;color:transparent;}
 .le-hero{display:flex;align-items:center;gap:14px;margin-bottom:18px;}
 .le-hero-body{min-width:0;}
 .le-hero-body h3{margin:0 0 3px;font-size:1.15rem;font-weight:750;overflow:hidden;text-overflow:ellipsis;}
@@ -1414,7 +1416,9 @@ html[data-sched-view="board"] .sched-cols-only{display:none !important;}
 }
 
 /* ══════════════════ Lists — redesigned workspace ══════════════════ */
-.av.xs{width:22px;height:22px;font-size:.62rem;flex-shrink:0;}
+.av.xs{width:24px;height:24px;font-size:.6rem;flex-shrink:0;border-radius:8px;background:var(--surface-3);color:var(--text-muted);display:grid;place-items:center;font-weight:800;position:relative;overflow:hidden;}
+.av.xs img{width:100%;height:100%;object-fit:cover;border-radius:inherit;display:block;}
+.av.xs.has-img{background:transparent;color:transparent;}
 .lists-empty-hero{max-width:440px;margin:40px auto;text-align:center;padding:36px 28px;border:1px solid var(--border);border-radius:var(--r-lg);background:var(--surface);box-shadow:var(--shadow-sm);animation:fadeUp .4s var(--ease) both;}
 .lists-empty-hero .empty-ico{width:60px;height:60px;margin:0 auto 14px;border-radius:var(--r-full);display:grid;place-items:center;background:var(--accent-soft);color:var(--accent-hover);}
 .lists-empty-hero h3{margin:0 0 6px;font-size:1.2rem;font-weight:750;}
