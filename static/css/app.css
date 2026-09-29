@@ -1378,6 +1378,8 @@ html[data-sched-view="board"] .sched-cols-only{display:none !important;}
 .le-badges{display:flex;gap:6px;flex-wrap:wrap;}
 .le-field{margin-bottom:16px;}
 .le-field:last-child{margin-bottom:0;}
+.msg-preview.le-preview{padding:0;}
+.le-preview .preview-b{white-space:pre-wrap;max-height:200px;overflow:auto;}
 .le-label{font-size:.78rem;font-weight:700;letter-spacing:.02em;text-transform:uppercase;color:var(--text-muted);margin-bottom:7px;}
 /* ── Group members (Groups page) ── */
 .gd-members{display:flex;flex-direction:column;gap:6px;max-height:340px;overflow:auto;}

@@ -630,10 +630,12 @@ function openListEntity(listId, type, key, gname) {
           <div class="le-badges">${info.waLinked ? '<span class="chip chip-default">On WhatsApp</span>' : '<span class="chip">Not verified</span>'}</div></div>
       </div>
       <div class="le-field"><div class="le-label">Labels</div><div class="lbl-row">${labels}</div></div>
-      <div class="le-field"><div class="le-label">Message</div>
-        <textarea class="field" id="leMsg" style="min-height:130px">${esc(info.message || listMsg(list))}</textarea>
-        <div class="hint" style="margin:6px 0 0">Wrap *text* for bold. {date} / {weekday} are replaced when sent.</div></div>`;
+      <div class="le-field"><div class="le-label">Message to send</div>
+        <textarea class="field" id="leMsg" style="min-height:110px" oninput="leRenderPreview()">${esc(info.message || listMsg(list))}</textarea>
+        <div class="hint" style="margin:6px 0 0">Wrap *text* for bold. {date} / {weekday} are replaced when sent.</div></div>
+      <div class="le-field"><div class="le-label">Preview</div><div class="msg-preview le-preview"><div class="preview-b" id="lePreview"></div></div></div>`;
     document.getElementById("leOpenGroup").style.display = "none";
+    document.getElementById("leOpenContact").style.display = "";
   } else {
     // key is the index into list.groups (safe against special characters in names)
     const g = (typeof key === "number" || /^\d+$/.test(key)) ? (list.groups || [])[Number(key)] : null;
@@ -647,12 +649,46 @@ function openListEntity(listId, type, key, gname) {
         <div class="le-hero-body"><h3>${esc(gname2)}</h3>
           <div class="le-badges"><span class="chip chip-default">WhatsApp group</span></div></div>
       </div>
-      <div class="le-field"><div class="le-label">Message</div>
-        <textarea class="field" id="leMsg" style="min-height:130px">${esc(listMsg(list))}</textarea>
-        <div class="hint" style="margin:6px 0 0">Sent to the whole group. Open the Groups page to see its members and manage it.</div></div>`;
+      <div class="le-field"><div class="le-label">Message to send</div>
+        <textarea class="field" id="leMsg" style="min-height:110px" oninput="leRenderPreview()">${esc(listMsg(list))}</textarea>
+        <div class="hint" style="margin:6px 0 0">Sent to the whole group. Open the Groups page to see its members and manage it.</div></div>
+      <div class="le-field"><div class="le-label">Preview</div><div class="msg-preview le-preview"><div class="preview-b" id="lePreview"></div></div></div>`;
     document.getElementById("leOpenGroup").style.display = "";
+    document.getElementById("leOpenContact").style.display = "none";
   }
   modal.classList.add("show");
+  leRenderPreview();
+}
+function leRenderPreview() {
+  const out = document.getElementById("lePreview");
+  const src = document.getElementById("leMsg");
+  if (!out || !src) return;
+  const raw = src.value || "";
+  const rendered = (typeof replaceTokens === "function") ? replaceTokens(raw) : raw;
+  out.innerHTML = raw.trim()
+    ? ((typeof renderWhatsAppPreview === "function") ? renderWhatsAppPreview(rendered) : esc(rendered))
+    : '<i class="hint" style="margin:0">Nothing to preview yet</i>';
+}
+function listEntityOpenContact() {
+  if (!leCtx || leCtx.type !== "c") return;
+  const phone = leCtx.phone, name = leCtx.name;
+  closeListEntity();
+  const arr = (typeof contacts !== "undefined" ? contacts : []);
+  const i = arr.findIndex((c) => phoneKey(c.phone) === phoneKey(phone));
+  if (i >= 0 && typeof openContactDetail === "function") {
+    openContactDetail(i);
+  } else if (typeof newContactDetail === "function") {
+    // Not a saved contact yet — open the Contacts page prefilled to save it.
+    newContactDetail();
+    if (typeof cdWorking !== "undefined" && cdWorking) {
+      cdWorking.name = (name && name !== phone) ? name : "";
+      cdWorking.phone = phone;
+      if (typeof renderContactDetail === "function") renderContactDetail();
+    }
+    toast("Contact not saved yet — add details to keep it");
+  } else if (typeof showView === "function") {
+    showView("contacts");
+  }
 }
 function closeListEntity() { const m = document.getElementById("listEntityModal"); if (m) m.classList.remove("show"); leCtx = null; }
 function listEntitySend() {
