@@ -1,12 +1,26 @@
-/* Lists — WhatsApp Business label audiences */
-let lists = [], waLabels = [], listActive = null, listMode = localStorage.getItem("lists-mode") || "tabs", listSel = {};
-let lmEditId = null, lmemListId = null, listSearchQ = {};
+/* Lists — WhatsApp Business label audiences (redesigned workspace) */
+let lists = [], waLabels = [], listActive = null, listSel = {};
+let listMode = (function () {
+  const m = localStorage.getItem("lists-mode") || "workspace";
+  return m === "tabs" ? "workspace" : (m === "board" ? "grid" : m); // migrate old values
+})();
+let lmEditId = null, lmemListId = null;
+let listSearchQ = {};      // per-list member search
+let listTypeF = "all";     // detail sub-filter: all | contacts | groups
+let listSideQ = "";        // sidebar list search
+let lmLabelsSel = new Set(), lmLabelPool = [];
+let msgEditId = null;      // list id whose message is being edited inline
+
+const LIST_COLORS = ["#0d9488", "#6366f1", "#f59e0b", "#ef4444", "#10b981", "#0ea5e9", "#ec4899", "#8b5cf6", "#64748b"];
 const LI_ICO = {
   sync: '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>',
   manage: '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M19 8v6M22 11h-6"/></svg>',
   edit: '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>',
   trash: '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/></svg>',
   search: '<svg class="search-ico" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>',
+  copy: '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>',
+  send: '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 2 11 13M22 2l-7 20-4-9-9-4Z"/></svg>',
+  plus: '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>',
 };
 
 function listById(id) { return lists.find((l) => l.id === id); }
@@ -22,16 +36,13 @@ function listMembers(list) {
     const srvName = srv[key];
     const c = (typeof contacts !== "undefined" ? contacts : []).find((x) => phoneKey(x.phone) === key);
     if (c) {
-      // Prefer the WhatsApp-resolved name when the saved contact is still just a phone.
       if (srvName && (!c.name || c.name === c.phone)) return { ...c, name: srvName };
       return c;
     }
     return { name: srvName || key || String(ph), phone: key || String(ph), labels: [], waLinked: !!srvName, orphan: !srvName };
   });
 }
-function listGroupsOf(list) {
-  return (list.groups || []).filter((g) => g && (g.id || g.name));
-}
+function listGroupsOf(list) { return (list.groups || []).filter((g) => g && (g.id || g.name)); }
 function listSelSet(id) { if (!listSel[id]) listSel[id] = {}; return listSel[id]; }
 function listMsg(list) {
   return list.message && list.message.trim()
@@ -39,6 +50,7 @@ function listMsg(list) {
     : "*Reminder*\nDear parent, please note the updated class schedule.\n*Kindly acknowledge.*";
 }
 function labelChip(l) { return `<span class="lbl-chip">${esc(l)}</span>`; }
+function initials(s) { const n = String(s || "?").trim(); return n ? n[0].toUpperCase() : "?"; }
 
 async function loadLists() {
   try {
@@ -47,218 +59,316 @@ async function loadLists() {
     waLabels = d.waLabels || [];
     if (listActive == null && lists.length) listActive = lists[0].id;
     if (listActive && !listById(listActive)) listActive = lists.length ? lists[0].id : null;
-  } catch (_) {
-    lists = [];
-    waLabels = [];
-  }
+  } catch (_) { lists = []; waLabels = []; }
 }
 
 function setListMode(m) { listMode = m; localStorage.setItem("lists-mode", m); renderLists(); }
-function setListActive(id) { listActive = id; renderLists(); }
+function setListActive(id) {
+  listActive = id;
+  msgEditId = null;
+  if (listMode === "workspace" && document.getElementById("listDetail")) {
+    document.querySelectorAll(".lists-side-item").forEach((el) => el.classList.toggle("on", el.dataset.id === id));
+    document.getElementById("listDetail").innerHTML = renderListDetail(listById(id));
+    const active = document.querySelector(".lists-side-item.on");
+    if (active) active.scrollIntoView({ block: "nearest" });
+    updateListSelCount(id);
+  } else { renderLists(); }
+}
 function toggleListSel(id, key, checked) {
   const s = listSelSet(id);
   if (checked) s[key] = true; else delete s[key];
   updateListSelCount(id);
+  const item = document.querySelector(`.lists-side-item[data-id="${id}"]`);
 }
 function listSelectAll(id, v) {
   const s = listSelSet(id);
   const list = listById(id);
   listMembers(list).forEach((c) => { if (v) s["c:" + c.phone] = true; else delete s["c:" + c.phone]; });
-  listGroupsOf(list).forEach((g) => {
-    const k = "g:" + (g.id || g.name);
-    if (v) s[k] = true; else delete s[k];
-  });
-  renderLists();
+  listGroupsOf(list).forEach((g) => { const k = "g:" + (g.id || g.name); if (v) s[k] = true; else delete s[k]; });
+  const box = document.getElementById("lmembers-" + id);
+  if (box) box.innerHTML = listMembersView(listById(id));
+  updateListSelCount(id);
 }
 function updateListSelCount(id) {
   const el = document.getElementById("lcount-" + id);
   if (!el) return;
   const n = Object.keys(listSelSet(id)).length;
   el.textContent = n ? `${n} selected` : "";
+  el.classList.toggle("on", !!n);
 }
 
+/* ══════════════ top-level render ══════════════ */
 function renderLists() {
   const wrap = document.getElementById("listsWrap");
   if (!wrap) return;
   document.querySelectorAll("#listModeSeg button").forEach((b) => b.classList.toggle("on", b.dataset.val === listMode));
   if (!lists.length) {
-    wrap.innerHTML = `<div class="tbl-wrap"><div class="empty">
-      <div class="empty-ico" aria-hidden="true"><svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 7h16M4 12h10M4 17h14"/><circle cx="18" cy="17" r="3"/></svg></div>
-      <p>No lists yet. Sync WhatsApp Business labels or create one.</p>
-      <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap">
-        <button class="btn btn-primary btn-sm" onclick="syncAllLists()">Sync from WhatsApp</button>
-        <button class="btn btn-soft btn-sm" onclick="newList()">+ New list</button>
+    wrap.innerHTML = `<div class="lists-empty-hero">
+      <div class="empty-ico" aria-hidden="true"><svg viewBox="0 0 24 24" width="34" height="34" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 7h16M4 12h10M4 17h14"/><circle cx="18" cy="17" r="3"/></svg></div>
+      <h3>No lists yet</h3>
+      <p>Pull your WhatsApp Business labels in as ready-to-send audiences, or build a list by hand.</p>
+      <div class="lists-empty-actions">
+        <button class="btn btn-primary" onclick="syncAllLists()">${LI_ICO.sync}<span>Sync from WhatsApp</span></button>
+        <button class="btn btn-soft" onclick="newList()">${LI_ICO.plus}<span>New list</span></button>
       </div>
-    </div></div>`;
+    </div>`;
     return;
   }
-  if (listMode === "tabs") renderListTabs(wrap);
-  else if (listMode === "board") renderListBoard(wrap);
-  else renderListTable(wrap);
+  if (!listActive || !listById(listActive)) listActive = lists[0].id;
+  if (listMode === "grid") renderListGrid(wrap);
+  else if (listMode === "table") renderListTable(wrap);
+  else renderListWorkspace(wrap);
 }
 
-function listToolbar(list) {
-  const c = listContactCount(list), g = listGroupCount(list), n = c + g;
-  const labels = (list.labels || []).length
-    ? list.labels.map(labelChip).join("")
-    : '<span class="hint" style="margin:0">No labels</span>';
-  const q = listSearchQ[list.id] || "";
-  return `<div class="lists-detail-head">
-    <div class="lists-detail-title">
-      <span class="list-dot lg" style="background:${list.color || "var(--accent)"}"></span>
-      <div class="lists-detail-titletext">
-        <b>${esc(list.name)}</b>
-        <div class="lists-detail-sub">${c} contact${c === 1 ? "" : "s"}${g ? ` · ${g} group${g === 1 ? "" : "s"}` : ""}<span class="lists-labels-inline">${labels}</span></div>
+/* ══════════════ workspace (master–detail) ══════════════ */
+function sideItem(l) {
+  const on = l.id === listActive;
+  const c = listContactCount(l), g = listGroupCount(l);
+  const avs = listMembers(l).slice(0, 3).map((m) => `<span class="av xs">${avatarInner((m.name && m.name !== m.phone) ? m.name : m.phone, "")}</span>`).join("");
+  return `<button type="button" class="lists-side-item${on ? " on" : ""}" data-id="${l.id}" data-name="${escA((l.name || "").toLowerCase())}" onclick="setListActive('${l.id}')">
+    <span class="lists-side-bar" style="background:${l.color || "var(--accent)"}"></span>
+    <span class="lists-side-body">
+      <span class="lists-side-name">${esc(l.name)}</span>
+      <span class="lists-side-meta">${c} contact${c === 1 ? "" : "s"}${g ? ` · ${g} group${g === 1 ? "" : "s"}` : ""}</span>
+    </span>
+    <span class="lists-side-avs">${avs}</span>
+  </button>`;
+}
+function renderListSidebar() {
+  const q = listSideQ.trim().toLowerCase();
+  const items = lists.filter((l) => !q || (l.name || "").toLowerCase().includes(q));
+  const body = items.length ? items.map(sideItem).join("") : `<p class="hint" style="padding:14px;text-align:center">No lists match.</p>`;
+  return `<div class="lists-side-scroll" id="listSideScroll">${body}</div>`;
+}
+function renderListWorkspace(wrap) {
+  wrap.innerHTML = `<div class="lists-workspace">
+    <aside class="lists-side">
+      <div class="lists-side-head">
+        <b>Your lists</b><span class="lists-side-count">${lists.length}</span>
+        <button class="btn btn-primary btn-sm lists-side-new" type="button" onclick="newList()">${LI_ICO.plus}<span>New</span></button>
       </div>
-      <div class="lists-icon-actions">
-        <button class="icon-btn ib-sm" type="button" title="Sync from WhatsApp" aria-label="Sync from WhatsApp" onclick="syncList('${list.id}')">${LI_ICO.sync}</button>
-        <button class="icon-btn ib-sm" type="button" title="Manage contacts" aria-label="Manage contacts" onclick="openListMembers('${list.id}')">${LI_ICO.manage}</button>
-        <button class="icon-btn ib-sm" type="button" title="Edit list" aria-label="Edit list" onclick="editList('${list.id}')">${LI_ICO.edit}</button>
-        <button class="icon-btn ib-sm ib-danger" type="button" title="Delete list" aria-label="Delete list" onclick="deleteList('${list.id}')">${LI_ICO.trash}</button>
+      <div class="search-wrap lists-side-search">${LI_ICO.search}
+        <input class="field search" id="listSideSearch" placeholder="Search lists…" value="${escA(listSideQ)}" oninput="filterSidebar(this.value)"/>
       </div>
-    </div>
-    <div class="lists-detail-tools">
-      <div class="search-wrap lists-search">${LI_ICO.search}
-        <input class="field search" id="lsearch-${list.id}" placeholder="Search ${n} member${n === 1 ? "" : "s"}…" value="${escA(q)}" oninput="listFilter('${list.id}',this.value)" ${n ? "" : "disabled"}/>
-      </div>
-      <div class="lists-detail-cta">
-        <button class="btn btn-ghost btn-sm" type="button" onclick="listSelectAll('${list.id}',true)" ${n ? "" : "disabled"}>Select all</button>
-        <button class="btn btn-ghost btn-sm" type="button" onclick="listSelectAll('${list.id}',false)">Clear</button>
-        <span class="hint list-selcount" id="lcount-${list.id}" style="margin:0"></span>
-        <button class="btn btn-soft btn-sm" type="button" onclick="sendList('${list.id}',true)">Send selected</button>
-        <button class="btn btn-primary btn-sm" type="button" onclick="sendList('${list.id}',false)" ${n ? "" : "disabled"}>Send all</button>
-      </div>
-    </div>
+      ${renderListSidebar()}
+    </aside>
+    <section class="lists-panel" id="listDetail">${renderListDetail(listById(listActive))}</section>
+  </div>`;
+  updateListSelCount(listActive);
+}
+function filterSidebar(q) {
+  listSideQ = q;
+  const box = document.getElementById("listSideScroll");
+  if (box) box.outerHTML = renderListSidebar();
+}
+
+function detailStats(list) {
+  const c = listContactCount(list), g = listGroupCount(list);
+  return `<div class="lists-stats">
+    <div class="lists-stat"><span class="lists-stat-n">${c}</span><span class="lists-stat-l">Contacts</span></div>
+    <div class="lists-stat"><span class="lists-stat-n">${g}</span><span class="lists-stat-l">Groups</span></div>
+    <div class="lists-stat"><span class="lists-stat-n">${c + g}</span><span class="lists-stat-l">Total reach</span></div>
   </div>`;
 }
+function messageCard(list) {
+  if (msgEditId === list.id) {
+    return `<div class="lists-msg-card editing">
+      <div class="lists-msg-head"><span class="le-label" style="margin:0">Default message</span></div>
+      <textarea class="field" id="listMsgEdit" style="min-height:120px">${esc(list.message || "")}</textarea>
+      <div class="lists-msg-actions">
+        <button class="btn btn-soft btn-sm" type="button" onclick="cancelListMsg()">Cancel</button>
+        <button class="btn btn-primary btn-sm" type="button" onclick="saveListMsg('${list.id}')">Save message</button>
+      </div>
+    </div>`;
+  }
+  const msg = listMsg(list);
+  const custom = !!(list.message && list.message.trim());
+  return `<div class="lists-msg-card">
+    <div class="lists-msg-head">
+      <span class="le-label" style="margin:0">Default message ${custom ? "" : '<span class="hint" style="margin:0;text-transform:none;font-weight:500">· sample</span>'}</span>
+      <div class="lists-msg-tools">
+        <button class="icon-btn ib-sm" type="button" title="Copy message" onclick="copyListMsg('${list.id}')">${LI_ICO.copy}</button>
+        <button class="icon-btn ib-sm" type="button" title="Edit message" onclick="editListMsg('${list.id}')">${LI_ICO.edit}</button>
+      </div>
+    </div>
+    <div class="lists-msg-body">${esc(msg)}</div>
+  </div>`;
+}
+function editListMsg(id) { msgEditId = id; document.getElementById("listDetail").innerHTML = renderListDetail(listById(id)); const t = document.getElementById("listMsgEdit"); if (t) { t.focus(); t.setSelectionRange(t.value.length, t.value.length); } }
+function cancelListMsg() { const id = msgEditId; msgEditId = null; document.getElementById("listDetail").innerHTML = renderListDetail(listById(id)); updateListSelCount(id); }
+async function saveListMsg(id) {
+  const val = document.getElementById("listMsgEdit").value;
+  try {
+    const res = await fetch(`/api/lists/${encodeURIComponent(id)}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ message: val }) });
+    const d = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(d.error || "Save failed");
+    const l = listById(id); if (l) l.message = val;
+    msgEditId = null;
+    document.getElementById("listDetail").innerHTML = renderListDetail(l);
+    updateListSelCount(id);
+    toast("Message saved ✓");
+  } catch (e) { toast(e.message || "Save failed", "err"); }
+}
+function copyListMsg(id) {
+  const l = listById(id); if (!l) return;
+  const txt = listMsg(l);
+  if (typeof copyText === "function") copyText(txt);
+  else if (navigator.clipboard) { navigator.clipboard.writeText(txt); toast("Message copied ✓"); }
+}
+
+function detailSubtabs(list) {
+  const c = listContactCount(list), g = listGroupCount(list), n = c + g;
+  const tab = (key, label, count) => `<button type="button" class="lists-subtab${listTypeF === key ? " on" : ""}" onclick="setListType('${key}')">${label}<span class="lists-subtab-n">${count}</span></button>`;
+  return `<div class="lists-subtabs">
+    ${tab("all", "All", n)}${tab("contacts", "Contacts", c)}${tab("groups", "Groups", g)}
+  </div>`;
+}
+function setListType(t) {
+  listTypeF = t;
+  document.querySelectorAll(".lists-subtab").forEach((b) => b.classList.remove("on"));
+  const box = document.getElementById("lmembers-" + listActive);
+  if (box) box.innerHTML = listMembersView(listById(listActive));
+  document.querySelectorAll(".lists-subtab").forEach((b) => { if (b.getAttribute("onclick").includes(`'${t}'`)) b.classList.add("on"); });
+  updateListSelCount(listActive);
+}
+
+function renderListDetail(list) {
+  if (!list) return `<div class="empty" style="padding:60px"><p class="hint">Select a list.</p></div>`;
+  const n = listTotalCount(list);
+  const labels = (list.labels || []).length ? list.labels.map(labelChip).join("") : '<span class="hint" style="margin:0">No labels linked</span>';
+  const q = listSearchQ[list.id] || "";
+  return `<div class="lists-detail2" style="--list-accent:${list.color || "var(--accent)"}">
+    <div class="lists-detail-hero">
+      <div class="lists-hero-main">
+        <span class="lists-hero-dot"></span>
+        <div class="lists-hero-text"><h2>${esc(list.name)}</h2><div class="lists-labelrow2">${labels}</div></div>
+      </div>
+      <div class="lists-hero-icons">
+        <button class="icon-btn ib-sm" type="button" title="Sync from WhatsApp" onclick="syncList('${list.id}')">${LI_ICO.sync}</button>
+        <button class="icon-btn ib-sm" type="button" title="Manage contacts" onclick="openListMembers('${list.id}')">${LI_ICO.manage}</button>
+        <button class="icon-btn ib-sm" type="button" title="Edit list" onclick="editList('${list.id}')">${LI_ICO.edit}</button>
+        <button class="icon-btn ib-sm ib-danger" type="button" title="Delete list" onclick="deleteList('${list.id}')">${LI_ICO.trash}</button>
+      </div>
+    </div>
+    ${detailStats(list)}
+    ${messageCard(list)}
+    <div class="lists-detail-toolbar">
+      ${detailSubtabs(list)}
+      <div class="search-wrap lists-search">${LI_ICO.search}
+        <input class="field search" id="lsearch-${list.id}" placeholder="Search members…" value="${escA(q)}" oninput="listFilter('${list.id}',this.value)" ${n ? "" : "disabled"}/>
+      </div>
+    </div>
+    <div class="lists-selbar">
+      <button class="btn btn-ghost btn-sm" type="button" onclick="listSelectAll('${list.id}',true)" ${n ? "" : "disabled"}>Select all</button>
+      <button class="btn btn-ghost btn-sm" type="button" onclick="listSelectAll('${list.id}',false)">Clear</button>
+      <span class="hint list-selcount" id="lcount-${list.id}"></span>
+      <span style="flex:1"></span>
+      <button class="btn btn-soft btn-sm" type="button" onclick="sendList('${list.id}',true)">Send selected</button>
+      <button class="btn btn-primary btn-sm" type="button" onclick="sendList('${list.id}',false)" ${n ? "" : "disabled"}>${LI_ICO.send}<span>Send all</span></button>
+    </div>
+    <div class="lists-members" id="lmembers-${list.id}">${listMembersView(list)}</div>
+  </div>`;
+}
+
+/* ══════════════ members list (shared by workspace) ══════════════ */
 function listFilter(id, q) {
   listSearchQ[id] = q;
   const box = document.getElementById("lmembers-" + id);
-  if (box) box.innerHTML = listMembersTable(listById(id));
+  if (box) box.innerHTML = listMembersView(listById(id));
   updateListSelCount(id);
 }
-
+function _filteredMembers(list) {
+  let mem = listTypeF === "groups" ? [] : listMembers(list);
+  let grps = listTypeF === "contacts" ? [] : listGroupsOf(list);
+  const q = (listSearchQ[list.id] || "").trim().toLowerCase();
+  if (q) {
+    mem = mem.filter((c) => ((c.name || "") + " " + (c.phone || "")).toLowerCase().includes(q));
+    grps = grps.filter((g) => ((g.name || "") + " " + (g.id || "")).toLowerCase().includes(q));
+  }
+  return { mem, grps, q };
+}
 function memberRow(list, c) {
   const key = "c:" + c.phone;
   const sel = !!listSelSet(list.id)[key];
-  const labels = (c.labels || []).map(labelChip).join("");
   const pic = typeof entityPic === "function" ? entityPic(c) : (c.photoUrl || c.pic || "");
   const display = (c.name && c.name !== c.phone) ? c.name : (c.name || c.phone);
-  return `<tr class="lists-clickrow" onclick="openListEntity('${list.id}','c','${escA(c.phone)}')">
-    <td class="lists-check" onclick="event.stopPropagation()"><input type="checkbox" ${sel ? "checked" : ""} onchange="toggleListSel('${list.id}','${escA(key)}',this.checked)"/></td>
-    <td><div class="grid-name"><div class="av small${pic ? " has-img" : ""}">${avatarInner(display, pic)}${c.waLinked ? '<span class="wa-badge"></span>' : ""}</div><b>${esc(display)}</b></div></td>
-    <td class="lists-type"><span class="lists-type-tag">Contact</span></td>
-    <td>+${esc(c.phone)}</td>
-    <td><div class="lbl-row">${labels || '<span class="hint" style="margin:0">—</span>'}</div></td>
-    <td class="grid-go" onclick="event.stopPropagation()"><button class="btn btn-soft btn-sm" type="button" onclick="sendListContact('${list.id}','${escA(c.phone)}')">Send</button></td>
-  </tr>`;
+  return `<div class="lrow lists-clickrow${sel ? " sel" : ""}" onclick="openListEntity('${list.id}','c','${escA(c.phone)}')">
+    <span class="lrow-check" onclick="event.stopPropagation()"><input type="checkbox" ${sel ? "checked" : ""} onchange="toggleListSel('${list.id}','${escA(key)}',this.checked);this.closest('.lrow').classList.toggle('sel',this.checked)"/></span>
+    <span class="av small${pic ? " has-img" : ""}">${avatarInner(display, pic)}${c.waLinked ? '<span class="wa-badge"></span>' : ""}</span>
+    <span class="lrow-body"><b>${esc(display)}</b><span class="lrow-sub">+${esc(c.phone)}</span></span>
+    <span class="lrow-type"><span class="lists-type-tag">Contact</span></span>
+    <button class="btn btn-soft btn-sm lrow-send" type="button" onclick="event.stopPropagation();sendListContact('${list.id}','${escA(c.phone)}')">Send</button>
+  </div>`;
 }
 function groupRow(list, g) {
   const key = "g:" + (g.id || g.name);
   const sel = !!listSelSet(list.id)[key];
   const gname = g.name || g.id || "Group";
-  return `<tr class="lists-clickrow" onclick="openListEntity('${list.id}','g','${escA(g.id || "")}','${escA(gname)}')">
-    <td class="lists-check" onclick="event.stopPropagation()"><input type="checkbox" ${sel ? "checked" : ""} onchange="toggleListSel('${list.id}','${escA(key)}',this.checked)"/></td>
-    <td><div class="grid-name"><div class="av small lists-av-group">${avatarInner(gname, "")}</div><b>${esc(gname)}</b></div></td>
-    <td class="lists-type"><span class="lists-type-tag is-group">Group</span></td>
-    <td><span class="hint" style="margin:0">${esc((g.id || "").replace(/@g\.us$/, "") || "—")}</span></td>
-    <td><span class="hint" style="margin:0">—</span></td>
-    <td class="grid-go" onclick="event.stopPropagation()"><button class="btn btn-soft btn-sm" type="button" onclick="sendListGroup('${list.id}','${escA(g.id || "")}','${escA(gname)}')">Send</button></td>
-  </tr>`;
-}
-function memberCard(list, c) {
-  const key = "c:" + c.phone;
-  const sel = !!listSelSet(list.id)[key];
-  const pic = typeof entityPic === "function" ? entityPic(c) : (c.photoUrl || c.pic || "");
-  const display = (c.name && c.name !== c.phone) ? c.name : (c.name || c.phone);
-  return `<div class="lmember lists-clickrow${sel ? " on" : ""}" onclick="openListEntity('${list.id}','c','${escA(c.phone)}')">
-    <input type="checkbox" ${sel ? "checked" : ""} onclick="event.stopPropagation()" onchange="toggleListSel('${list.id}','${escA(key)}',this.checked)"/>
-    <div class="av small${pic ? " has-img" : ""}">${avatarInner(display, pic)}</div>
-    <div class="lmember-body"><b>${esc(display)}</b><div class="hint" style="margin:0">+${esc(c.phone)}</div></div>
-    <button class="btn btn-soft btn-sm" type="button" onclick="event.stopPropagation();sendListContact('${list.id}','${escA(c.phone)}')">Send</button>
+  return `<div class="lrow lists-clickrow${sel ? " sel" : ""}" onclick="openListEntity('${list.id}','g','${escA(g.id || "")}','${escA(gname)}')">
+    <span class="lrow-check" onclick="event.stopPropagation()"><input type="checkbox" ${sel ? "checked" : ""} onchange="toggleListSel('${list.id}','${escA(key)}',this.checked);this.closest('.lrow').classList.toggle('sel',this.checked)"/></span>
+    <span class="av small lists-av-group">${avatarInner(gname, "")}</span>
+    <span class="lrow-body"><b>${esc(gname)}</b><span class="lrow-sub">WhatsApp group</span></span>
+    <span class="lrow-type"><span class="lists-type-tag is-group">Group</span></span>
+    <button class="btn btn-soft btn-sm lrow-send" type="button" onclick="event.stopPropagation();sendListGroup('${list.id}','${escA(g.id || "")}','${escA(gname)}')">Send</button>
   </div>`;
 }
-function groupCard(list, g) {
-  const key = "g:" + (g.id || g.name);
-  const sel = !!listSelSet(list.id)[key];
-  const gname = g.name || g.id || "Group";
-  return `<div class="lmember lists-clickrow${sel ? " on" : ""}" onclick="openListEntity('${list.id}','g','${escA(g.id || "")}','${escA(gname)}')">
-    <input type="checkbox" ${sel ? "checked" : ""} onclick="event.stopPropagation()" onchange="toggleListSel('${list.id}','${escA(key)}',this.checked)"/>
-    <div class="av small lists-av-group">${avatarInner(gname, "")}</div>
-    <div class="lmember-body"><b>${esc(gname)}</b><div class="hint" style="margin:0">WhatsApp group</div></div>
-    <button class="btn btn-soft btn-sm" type="button" onclick="event.stopPropagation();sendListGroup('${list.id}','${escA(g.id || "")}','${escA(gname)}')">Send</button>
-  </div>`;
-}
-
-function listMembersTable(list) {
-  let mem = listMembers(list);
-  let grps = listGroupsOf(list);
+function listMembersView(list) {
+  if (!listTotalCount(list)) {
+    return `<div class="lists-empty2">
+      <p class="hint">This list has no contacts or groups yet.</p>
+      <div class="lists-empty-actions">
+        <button class="btn btn-soft btn-sm" onclick="syncList('${list.id}')">${LI_ICO.sync}<span>Sync from labels</span></button>
+        <button class="btn btn-soft btn-sm" onclick="openListMembers('${list.id}')">${LI_ICO.manage}<span>Add contacts</span></button>
+      </div></div>`;
+  }
+  const { mem, grps, q } = _filteredMembers(list);
   if (!mem.length && !grps.length) {
-    return `<div class="empty" style="padding:36px"><p class="hint" style="margin:0 0 12px">No contacts or groups in this list yet.</p>
-      <button class="btn btn-soft btn-sm" onclick="syncList('${list.id}')">Sync from labels</button>
-      <button class="btn btn-soft btn-sm" onclick="openListMembers('${list.id}')">Add contacts</button></div>`;
+    return `<div class="lists-empty2"><div class="empty-ico" aria-hidden="true">${LI_ICO.search}</div><p class="hint" style="margin:0">No members match${q ? ` “${esc(q)}”` : ""}.</p></div>`;
   }
-  const q = (listSearchQ[list.id] || "").trim().toLowerCase();
-  if (q) {
-    mem = mem.filter((c) => ((c.name || "") + " " + (c.phone || "")).toLowerCase().includes(q));
-    grps = grps.filter((g) => ((g.name || "") + " " + (g.id || "")).toLowerCase().includes(q));
-    if (!mem.length && !grps.length) {
-      return `<div class="empty" style="padding:32px"><div class="empty-ico" aria-hidden="true">${LI_ICO.search}</div><p class="hint" style="margin:0">No members match “${esc(q)}”.</p></div>`;
-    }
-  }
-  return `<div class="tbl-wrap lists-member-tbl"><table class="data grid-table"><thead><tr>
-    <th class="lists-check"></th><th>Name</th><th>Type</th><th>Phone / ID</th><th>Labels</th><th></th>
-  </tr></thead><tbody>
-    ${mem.map((c) => memberRow(list, c)).join("")}
-    ${grps.map((g) => groupRow(list, g)).join("")}
-  </tbody></table></div>`;
-}
-function listMembersBoard(list) {
-  const mem = listMembers(list);
-  const grps = listGroupsOf(list);
-  if (!mem.length && !grps.length) {
-    return `<div class="empty" style="padding:28px"><p class="hint" style="margin:0 0 12px">Empty list</p>
-      <button class="btn btn-soft btn-sm" onclick="syncList('${list.id}')">Sync</button></div>`;
-  }
-  return `<div class="lmember-grid">${mem.map((c) => memberCard(list, c)).join("")}${grps.map((g) => groupCard(list, g)).join("")}</div>`;
+  return `<div class="lrows">${mem.map((c) => memberRow(list, c)).join("")}${grps.map((g) => groupRow(list, g)).join("")}</div>`;
 }
 
-function renderListTabs(wrap) {
-  if (!listActive || !listById(listActive)) listActive = lists[0].id;
-  const tabs = lists.map((l) => {
-    const n = listTotalCount(l);
-    return `<button type="button" class="${l.id === listActive ? "on" : ""}" onclick="setListActive('${l.id}')">
-      <span class="list-dot" style="background:${l.color || "var(--accent)"}"></span>${esc(l.name)}
-      <span class="pt-tab-n">${n}</span>
-    </button>`;
-  }).join("");
-  const list = listById(listActive);
-  wrap.innerHTML = `<div class="lists-shell">
-    <div class="pt-tabs lists-pt-tabs">${tabs}</div>
-    <div class="lists-detail">${listToolbar(list)}<div class="lists-members" id="lmembers-${list.id}">${listMembersTable(list)}</div></div>
+/* ══════════════ grid (gallery) ══════════════ */
+function renderListGrid(wrap) {
+  wrap.innerHTML = `<div class="card-grid lists-board">${lists.map((l) => {
+    const labs = (l.labels || []).slice(0, 3).map(labelChip).join("");
+    const extra = (l.labels || []).length > 3 ? `<span class="hint" style="margin:0">+${(l.labels || []).length - 3}</span>` : "";
+    const avs = listMembers(l).slice(0, 5).map((m) => `<span class="av xs">${avatarInner((m.name && m.name !== m.phone) ? m.name : m.phone, "")}</span>`).join("");
+    const extraAv = listContactCount(l) > 5 ? `<span class="lists-stack-more">+${listContactCount(l) - 5}</span>` : "";
+    return `<article class="ecard lists-ecard" tabindex="0" style="--list-accent:${l.color || "var(--accent)"}" onclick="setListMode('workspace');setListActive('${l.id}')" onkeydown="if(event.key==='Enter'){setListMode('workspace');setListActive('${l.id}')}">
+      <div class="lists-ecard-bar"></div>
+      <div class="ecard-top">
+        <div class="ecard-id"><b>${esc(l.name)}</b><span>${listContactCount(l)} contacts · ${listGroupCount(l)} groups</span></div>
+        <span class="ecard-go">›</span>
+      </div>
+      <div class="ecard-days">${labs || '<span class="ec-none">No labels</span>'}${extra}</div>
+      <div class="lists-ecard-avs">${avs || '<span class="ec-none">Empty</span>'}${extraAv}</div>
+      <div class="ecard-foot" onclick="event.stopPropagation()">
+        <button class="btn btn-ghost btn-sm" type="button" onclick="syncList('${l.id}')">Sync</button>
+        <button class="btn btn-primary btn-sm" type="button" onclick="sendList('${l.id}',false)">Send all</button>
+      </div>
+    </article>`;
+  }).join("")}
+  <button class="ecard lists-ecard-add" type="button" onclick="newList()">${LI_ICO.plus}<span>New list</span></button>
   </div>`;
-  updateListSelCount(list.id);
 }
 
+/* ══════════════ table (dense) ══════════════ */
 function listMemberAvatars(l, max) {
   const people = listMembers(l).slice(0, max);
   const extra = listContactCount(l) - people.length;
   if (!people.length && !listGroupCount(l)) return '<span class="hint" style="margin:0">Empty</span>';
-  const avs = people.map((c) => {
-    const display = (c.name && c.name !== c.phone) ? c.name : c.phone;
-    return `<span class="lists-stack-av av small" title="${escA(display)}">${avatarInner(display, "")}</span>`;
-  }).join("");
+  const avs = people.map((c) => `<span class="lists-stack-av av small" title="${escA((c.name && c.name !== c.phone) ? c.name : c.phone)}">${avatarInner((c.name && c.name !== c.phone) ? c.name : c.phone, "")}</span>`).join("");
   const more = extra > 0 ? `<span class="lists-stack-more">+${extra}</span>` : "";
   const grp = listGroupCount(l) ? `<span class="lists-stack-grp">${listGroupCount(l)} group${listGroupCount(l) === 1 ? "" : "s"}</span>` : "";
   return `<div class="lists-stack">${avs}${more}${grp}</div>`;
 }
-
 function renderListTable(wrap) {
   wrap.innerHTML = `<div class="tbl-wrap"><table class="data grid-table lists-overview"><thead><tr>
     <th>List</th><th class="lists-memcol">Members</th><th>Labels</th><th class="lists-num">Contacts</th><th class="lists-num">Groups</th><th class="lists-actcol">Actions</th>
   </tr></thead><tbody>${lists.map((l) => {
     const labs = (l.labels || []).map(labelChip).join("") || '<span class="hint" style="margin:0">—</span>';
-    return `<tr onclick="setListMode('tabs');setListActive('${l.id}')">
+    return `<tr onclick="setListMode('workspace');setListActive('${l.id}')">
       <td><div class="grid-name"><span class="list-dot" style="background:${l.color || "var(--accent)"}"></span><b>${esc(l.name)}</b></div></td>
       <td class="lists-memcol">${listMemberAvatars(l, 4)}</td>
       <td><div class="lbl-row">${labs}</div></td>
@@ -275,71 +385,78 @@ function renderListTable(wrap) {
   }).join("")}</tbody></table></div>`;
 }
 
-function renderListBoard(wrap) {
-  wrap.innerHTML = `<div class="card-grid lists-board">${lists.map((l) => {
-    const labs = (l.labels || []).slice(0, 3).map(labelChip).join("");
-    const extra = (l.labels || []).length > 3 ? `<span class="hint" style="margin:0">+${(l.labels || []).length - 3}</span>` : "";
-    const preview = [
-      ...listMembers(l).slice(0, 4).map((c) => (c.name && c.name !== c.phone) ? c.name : ("+" + c.phone)),
-      ...listGroupsOf(l).slice(0, 2).map((g) => g.name || "Group"),
-    ].slice(0, 4);
-    return `<article class="ecard lists-ecard" tabindex="0" onclick="setListMode('tabs');setListActive('${l.id}')" onkeydown="if(event.key==='Enter'){setListMode('tabs');setListActive('${l.id}')}">
-      <div class="ecard-top">
-        <span class="list-dot lg" style="background:${l.color || "var(--accent)"}"></span>
-        <div class="ecard-id"><b>${esc(l.name)}</b><span>${listContactCount(l)} contacts · ${listGroupCount(l)} groups</span></div>
-        <span class="ecard-go">›</span>
-      </div>
-      <div class="ecard-days">${labs || '<span class="ec-none">No labels</span>'}${extra}</div>
-      <div class="lists-preview">${preview.length ? preview.map((p) => `<span>${esc(p)}</span>`).join("") : '<span class="ec-none">Empty</span>'}</div>
-      <div class="ecard-foot" onclick="event.stopPropagation()">
-        <button class="btn btn-ghost btn-sm" type="button" onclick="syncList('${l.id}')">Sync</button>
-        <button class="btn btn-primary btn-sm" type="button" onclick="sendList('${l.id}',false)">Send all</button>
-      </div>
-    </article>`;
-  }).join("")}</div>`;
-}
-
+/* ══════════════ new / edit list form ══════════════ */
 function newList() {
   lmEditId = null;
   document.getElementById("listModalTitle").textContent = "New list";
   document.getElementById("lmSaveBtn").textContent = "Create list";
   document.getElementById("lmName").value = "";
-  document.getElementById("lmColor").value = "#0d9488";
+  document.getElementById("lmColor").value = LIST_COLORS[0];
   document.getElementById("lmMessage").value = "";
-  renderLmLabels([]);
+  lmLabelsSel = new Set();
+  lmLabelPool = [...(waLabels || [])];
+  lmRenderSwatches(); renderLmLabels(); lmPreview();
   document.getElementById("listModal").classList.add("show");
+  setTimeout(() => document.getElementById("lmName").focus(), 60);
 }
 function editList(id) {
   const l = listById(id); if (!l) return;
   lmEditId = id;
   document.getElementById("listModalTitle").textContent = "Edit list";
-  document.getElementById("lmSaveBtn").textContent = "Save";
+  document.getElementById("lmSaveBtn").textContent = "Save changes";
   document.getElementById("lmName").value = l.name || "";
-  document.getElementById("lmColor").value = l.color || "#0d9488";
+  document.getElementById("lmColor").value = l.color || LIST_COLORS[0];
   document.getElementById("lmMessage").value = l.message || "";
-  renderLmLabels(l.labels || []);
+  lmLabelsSel = new Set(l.labels || []);
+  lmLabelPool = [...new Set([...(waLabels || []), ...(l.labels || [])])];
+  lmRenderSwatches(); renderLmLabels(); lmPreview();
   document.getElementById("listModal").classList.add("show");
 }
 function closeListModal() { document.getElementById("listModal").classList.remove("show"); }
-function renderLmLabels(selected) {
-  const box = document.getElementById("lmLabels");
-  if (!box) return;
-  const all = [...new Set([...(waLabels || []), ...selected])];
-  if (!all.length) {
-    box.innerHTML = `<p class="hint" style="margin:0">No labels yet. Sync from WhatsApp Business labels, or add labels on contacts.</p>`;
-    return;
-  }
+function lmRenderSwatches() {
+  const box = document.getElementById("lmSwatches"); if (!box) return;
+  const cur = document.getElementById("lmColor").value;
+  box.innerHTML = LIST_COLORS.map((c) =>
+    `<button type="button" class="lm-swatch${c.toLowerCase() === (cur || "").toLowerCase() ? " on" : ""}" style="background:${c}" title="${c}" onclick="lmPickColor('${c}')"></button>`
+  ).join("") + `<label class="lm-swatch lm-swatch-custom" title="Custom color"><input type="color" value="${cur}" oninput="lmPickColor(this.value)"/></label>`;
+}
+function lmPickColor(c) { document.getElementById("lmColor").value = c; lmRenderSwatches(); lmPreview(); }
+function renderLmLabels() {
+  const box = document.getElementById("lmLabels"); if (!box) return;
+  const all = [...new Set([...(lmLabelPool || []), ...lmLabelsSel])];
+  if (!all.length) { box.innerHTML = `<p class="hint" style="margin:0">No labels yet — sync from WhatsApp Business or add one below.</p>`; return; }
   box.innerHTML = all.map((lab) => {
-    const on = selected.includes(lab);
-    return `<label class="wa-check-row" style="display:flex;gap:8px;align-items:center;padding:6px 0"><input type="checkbox" value="${escA(lab)}" ${on ? "checked" : ""}/> <span>${esc(lab)}</span></label>`;
+    const on = lmLabelsSel.has(lab);
+    return `<button type="button" class="lm-labelpill${on ? " on" : ""}" onclick="lmToggleLabel('${escA(lab)}')">${on ? "✓ " : ""}${esc(lab)}</button>`;
   }).join("");
+}
+function lmToggleLabel(lab) { if (lmLabelsSel.has(lab)) lmLabelsSel.delete(lab); else lmLabelsSel.add(lab); renderLmLabels(); lmPreview(); }
+function lmAddLabel() {
+  const inp = document.getElementById("lmNewLabel");
+  const v = (inp.value || "").trim();
+  if (!v) return;
+  if (!lmLabelPool.includes(v)) lmLabelPool.push(v);
+  lmLabelsSel.add(v); inp.value = ""; renderLmLabels(); lmPreview();
+}
+function lmPreview() {
+  const card = document.getElementById("lmPreviewCard"); if (!card) return;
+  const name = document.getElementById("lmName").value.trim() || "Untitled list";
+  const color = document.getElementById("lmColor").value || LIST_COLORS[0];
+  const labs = [...lmLabelsSel].map(labelChip).join("") || '<span class="hint" style="margin:0">No labels</span>';
+  const msg = document.getElementById("lmMessage").value.trim();
+  card.innerHTML = `<div class="lm-preview-card" style="--list-accent:${color}">
+    <div class="lm-preview-bar"></div>
+    <div class="lm-preview-top"><span class="list-dot lg" style="background:${color}"></span><b>${esc(name)}</b></div>
+    <div class="lbl-row" style="margin:8px 0 10px">${labs}</div>
+    <div class="lm-preview-msg">${msg ? esc(msg) : '<span class="hint" style="margin:0">Sample reminder will be used until you set a message.</span>'}</div>
+  </div>`;
 }
 async function saveList() {
   const name = document.getElementById("lmName").value.trim();
   if (!name) { toast("List name required", "err"); return; }
-  const color = document.getElementById("lmColor").value || "#0d9488";
+  const color = document.getElementById("lmColor").value || LIST_COLORS[0];
   const message = document.getElementById("lmMessage").value;
-  const labels = [...document.querySelectorAll("#lmLabels input:checked")].map((el) => el.value);
+  const labels = [...lmLabelsSel];
   const body = JSON.stringify({ name, color, labels, message });
   try {
     let res;
@@ -352,9 +469,7 @@ async function saveList() {
     closeListModal();
     renderLists();
     toast(lmEditId ? "List updated ✓" : "List created ✓");
-  } catch (e) {
-    toast(e.message || "Save failed", "err");
-  }
+  } catch (e) { toast(e.message || "Save failed", "err"); }
 }
 async function deleteList(id) {
   const l = listById(id);
@@ -363,12 +478,11 @@ async function deleteList(id) {
     const res = await fetch(`/api/lists/${encodeURIComponent(id)}`, { method: "DELETE" });
     const d = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(d.error || "Delete failed");
+    if (listActive === id) listActive = null;
     await loadLists();
     renderLists();
     toast("List deleted");
-  } catch (e) {
-    toast(e.message || "Delete failed", "err");
-  }
+  } catch (e) { toast(e.message || "Delete failed", "err"); }
 }
 async function syncList(id) {
   try {
@@ -382,9 +496,7 @@ async function syncList(id) {
     renderLists();
     const src = d.source === "whatsapp" ? "WhatsApp" : "saved contacts";
     toast(`List synced from ${src} ✓`);
-  } catch (e) {
-    toast(e.message || "Sync failed", "err");
-  }
+  } catch (e) { toast(e.message || "Sync failed", "err"); }
 }
 async function syncAllLists() {
   try {
@@ -395,26 +507,18 @@ async function syncAllLists() {
     if (typeof loadContacts === "function") await loadContacts();
     await loadLists();
     if (Array.isArray(d.waLabels)) waLabels = d.waLabels;
-    if (Array.isArray(d.lists)) {
-      lists = d.lists;
-      if (lists.length && (!listActive || !listById(listActive))) listActive = lists[0].id;
-    }
+    if (Array.isArray(d.lists)) { lists = d.lists; if (lists.length && (!listActive || !listById(listActive))) listActive = lists[0].id; }
     renderLists();
     const n = (lists || []).length;
     const labelN = (d.labelCount != null) ? d.labelCount : ((d.waLabels || []).length);
     const src = d.source === "whatsapp" ? "WhatsApp" : "saved contacts";
-    if (n) {
-      toast(`Synced ${n} list${n === 1 ? "" : "s"} from ${src} ✓`);
-    } else if (d.source === "whatsapp" && !labelN) {
-      toast("WhatsApp is linked but returned no Business labels. Use Business tools → Labels, then re-link WhatsApp and sync again.", "err");
-    } else {
-      toast(d.warning ? `No lists yet (${d.warning})` : "No lists yet — create one or sync after linking WhatsApp", "err");
-    }
-  } catch (e) {
-    toast(e.message || "Sync failed — link WhatsApp in Automated Send first", "err");
-  }
+    if (n) toast(`Synced ${n} list${n === 1 ? "" : "s"} from ${src} ✓`);
+    else if (d.source === "whatsapp" && !labelN) toast("WhatsApp is linked but returned no Business labels. Add labels in WhatsApp Business, then sync again.", "err");
+    else toast(d.warning ? `No lists yet (${d.warning})` : "No lists yet — create one or sync after linking WhatsApp", "err");
+  } catch (e) { toast(e.message || "Sync failed — link WhatsApp in Automated Send first", "err"); }
 }
 
+/* ══════════════ manage members modal ══════════════ */
 function openListMembers(id) {
   lmemListId = id;
   const l = listById(id);
@@ -430,17 +534,19 @@ function renderListMembers() {
   const list = listById(lmemListId);
   const q = (document.getElementById("lmemSearch").value || "").toLowerCase();
   const members = new Set((list && list.members || []).map(phoneKey));
-  const rows = (typeof contacts !== "undefined" ? contacts : []).filter((c) =>
-    !q || (c.name || "").toLowerCase().includes(q) || String(c.phone).includes(q)
-  );
-  if (!rows.length) { box.innerHTML = `<p class="hint">No contacts match.</p>`; return; }
+  const all = (typeof contacts !== "undefined" ? contacts : []);
+  const rows = all.filter((c) => !q || (c.name || "").toLowerCase().includes(q) || String(c.phone).includes(q));
+  const cnt = document.getElementById("lmemCount");
+  if (cnt) cnt.textContent = `${members.size} in list · ${all.length} contacts`;
+  if (!rows.length) { box.innerHTML = `<div class="lists-empty2"><p class="hint" style="margin:0">No contacts match.</p></div>`; return; }
   box.innerHTML = rows.map((c) => {
     const on = members.has(phoneKey(c.phone));
     const pic = typeof entityPic === "function" ? entityPic(c) : (c.photoUrl || c.pic || "");
     return `<label class="lmem-row${on ? " on" : ""}"><input type="checkbox" ${on ? "checked" : ""} onchange="toggleListMember('${escA(c.phone)}',this.checked)"/>
       <div class="av small${pic ? " has-img" : ""}">${avatarInner(c.name, pic)}</div>
       <div style="min-width:0;flex:1"><b>${esc(c.name)}</b><div class="hint" style="margin:0">+${esc(c.phone)}</div></div>
-      <div class="lbl-row">${(c.labels || []).map(labelChip).join("")}</div></label>`;
+      <div class="lbl-row">${(c.labels || []).map(labelChip).join("")}</div>
+      <span class="lmem-tick">✓</span></label>`;
   }).join("");
 }
 async function toggleListMember(phone, checked) {
@@ -450,18 +556,16 @@ async function toggleListMember(phone, checked) {
   if (checked) set.add(key); else set.delete(key);
   list.members = [...set];
   try {
-    await fetch(`/api/lists/${encodeURIComponent(list.id)}`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ members: list.members }),
-    });
+    await fetch(`/api/lists/${encodeURIComponent(list.id)}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ members: list.members }) });
     renderListMembers();
-    renderLists();
-  } catch (_) {
-    toast("Could not update members", "err");
-  }
+    if (listMode === "workspace" && document.getElementById("listDetail")) {
+      document.getElementById("listDetail").innerHTML = renderListDetail(list);
+      updateListSelCount(list.id);
+    } else renderLists();
+  } catch (_) { toast("Could not update members", "err"); }
 }
 
+/* ══════════════ send + entity modal (unchanged contract) ══════════════ */
 function sendListTargets(list, phones) {
   const msg = typeof replaceTokens === "function" ? replaceTokens(listMsg(list)) : listMsg(list);
   const srv = list.memberNames || {};
@@ -469,20 +573,14 @@ function sendListTargets(list, phones) {
     const c = (typeof contacts !== "undefined" ? contacts : []).find((x) => phoneKey(x.phone) === phoneKey(ph));
     const nm = (c && c.name && c.name !== c.phone) ? c.name : (srv[phoneKey(ph)] || (c ? c.name : ph));
     return {
-      name: nm,
-      phone: String(ph),
-      message: (c && c.message && c.message.trim())
-        ? (typeof replaceTokens === "function" ? replaceTokens(c.message) : c.message)
-        : msg,
+      name: nm, phone: String(ph),
+      message: (c && c.message && c.message.trim()) ? (typeof replaceTokens === "function" ? replaceTokens(c.message) : c.message) : msg,
     };
   }).filter((t) => t.phone);
 }
 function sendListGroupTargets(list, groups) {
   const msg = typeof replaceTokens === "function" ? replaceTokens(listMsg(list)) : listMsg(list);
-  return groups.map((g) => ({
-    name: g.name || g.id,
-    message: msg,
-  })).filter((t) => t.name);
+  return groups.map((g) => ({ name: g.name || g.id, message: msg })).filter((t) => t.name);
 }
 function sendList(id, selectedOnly) {
   const list = listById(id); if (!list) return;
@@ -499,9 +597,8 @@ function sendList(id, selectedOnly) {
   if (typeof doRelease === "function") doRelease(targets, "relAllSpin", "relAllBtn", "relAllTxt", "Send list");
   else toast("Send unavailable", "err");
 }
-/* ── Entity detail: click a contact/group in a list to view + send directly ── */
-let leCtx = null;
 
+let leCtx = null;
 function _leContactInfo(list, phone) {
   const key = phoneKey(phone);
   const srv = (list.memberNames || {});
@@ -515,12 +612,9 @@ function _leContactInfo(list, phone) {
     pic: (typeof entityPic === "function" && c) ? entityPic(c) : "",
   };
 }
-
 function openListEntity(listId, type, key, gname) {
-  const list = listById(listId);
-  if (!list) return;
-  const modal = document.getElementById("listEntityModal");
-  if (!modal) return;
+  const list = listById(listId); if (!list) return;
+  const modal = document.getElementById("listEntityModal"); if (!modal) return;
   const body = document.getElementById("leBody");
   if (type === "c") {
     const info = _leContactInfo(list, key);
@@ -530,17 +624,13 @@ function openListEntity(listId, type, key, gname) {
     body.innerHTML = `
       <div class="le-hero">
         <div class="av lg${info.pic ? " has-img" : ""}">${avatarInner(info.name, info.pic)}${info.waLinked ? '<span class="wa-badge"></span>' : ""}</div>
-        <div class="le-hero-body">
-          <h3>${esc(info.name)}</h3>
-          <div class="le-phone">+${esc(info.phone)}</div>
-          <div class="le-badges">${info.waLinked ? '<span class="chip chip-default">On WhatsApp</span>' : '<span class="chip">Not verified</span>'}</div>
-        </div>
+        <div class="le-hero-body"><h3>${esc(info.name)}</h3><div class="le-phone">+${esc(info.phone)}</div>
+          <div class="le-badges">${info.waLinked ? '<span class="chip chip-default">On WhatsApp</span>' : '<span class="chip">Not verified</span>'}</div></div>
       </div>
       <div class="le-field"><div class="le-label">Labels</div><div class="lbl-row">${labels}</div></div>
       <div class="le-field"><div class="le-label">Message</div>
         <textarea class="field" id="leMsg" style="min-height:130px">${esc(info.message || listMsg(list))}</textarea>
-        <div class="hint" style="margin:6px 0 0">Wrap *text* for bold. {date} / {weekday} are replaced when sent.</div>
-      </div>`;
+        <div class="hint" style="margin:6px 0 0">Wrap *text* for bold. {date} / {weekday} are replaced when sent.</div></div>`;
     document.getElementById("leOpenGroup").style.display = "none";
   } else {
     const gname2 = gname || key || "Group";
@@ -549,32 +639,20 @@ function openListEntity(listId, type, key, gname) {
     body.innerHTML = `
       <div class="le-hero">
         <div class="av lg lists-av-group">${avatarInner(gname2, "")}</div>
-        <div class="le-hero-body">
-          <h3>${esc(gname2)}</h3>
-          <div class="le-phone">${esc((key || "").replace(/@g\.us$/, "")) || "WhatsApp group"}</div>
-          <div class="le-badges"><span class="chip chip-default">WhatsApp group</span></div>
-        </div>
+        <div class="le-hero-body"><h3>${esc(gname2)}</h3><div class="le-phone">${esc((key || "").replace(/@g\.us$/, "")) || "WhatsApp group"}</div>
+          <div class="le-badges"><span class="chip chip-default">WhatsApp group</span></div></div>
       </div>
       <div class="le-field"><div class="le-label">Message</div>
         <textarea class="field" id="leMsg" style="min-height:130px">${esc(listMsg(list))}</textarea>
-        <div class="hint" style="margin:6px 0 0">Sent to the whole group. Open the Groups page to see members and manage it.</div>
-      </div>`;
-    const og = document.getElementById("leOpenGroup");
-    og.style.display = "";
+        <div class="hint" style="margin:6px 0 0">Sent to the whole group. Open the Groups page to see members and manage it.</div></div>`;
+    document.getElementById("leOpenGroup").style.display = "";
   }
   modal.classList.add("show");
 }
-
-function closeListEntity() {
-  const m = document.getElementById("listEntityModal");
-  if (m) m.classList.remove("show");
-  leCtx = null;
-}
-
+function closeListEntity() { const m = document.getElementById("listEntityModal"); if (m) m.classList.remove("show"); leCtx = null; }
 function listEntitySend() {
   if (!leCtx) return;
-  const list = listById(leCtx.listId);
-  if (!list) return;
+  const list = listById(leCtx.listId); if (!list) return;
   const raw = (document.getElementById("leMsg").value || "").trim();
   if (!raw) { toast("Enter a message", "err"); return; }
   const msg = typeof replaceTokens === "function" ? replaceTokens(raw) : raw;
@@ -585,23 +663,14 @@ function listEntitySend() {
   if (typeof doRelease === "function") doRelease(targets, "relAllSpin", "relAllBtn", "relAllTxt", "Send");
   else toast("Send unavailable", "err");
 }
-
 function listEntityOpenGroup() {
   if (!leCtx || leCtx.type !== "g") return;
   const name = leCtx.name;
   closeListEntity();
-  if (typeof openGroupDetailByName === "function" && typeof groups !== "undefined" && groups.some((g) => g.name === name)) {
-    openGroupDetailByName(name);
-  } else if (typeof newGroupDetail === "function") {
-    // Not yet a scheduler group — open the Groups page prefilled with this WhatsApp group name.
-    newGroupDetail();
-    if (typeof gdWorking !== "undefined" && gdWorking) { gdWorking.name = name; if (typeof renderGroupDetail === "function") renderGroupDetail(); }
-    toast("Add a schedule to manage this group");
-  } else if (typeof showView === "function") {
-    showView("groups");
-  }
+  if (typeof openGroupDetailByName === "function" && typeof groups !== "undefined" && groups.some((g) => g.name === name)) openGroupDetailByName(name);
+  else if (typeof newGroupDetail === "function") { newGroupDetail(); if (typeof gdWorking !== "undefined" && gdWorking) { gdWorking.name = name; if (typeof renderGroupDetail === "function") renderGroupDetail(); } toast("Add a schedule to manage this group"); }
+  else if (typeof showView === "function") showView("groups");
 }
-
 function sendListContact(id, phone) {
   const list = listById(id); if (!list) return;
   const targets = sendListTargets(list, [phone]);

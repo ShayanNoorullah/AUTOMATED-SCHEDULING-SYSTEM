@@ -23,10 +23,10 @@
 </script>
 <link rel="preconnect" href="https://api.fontshare.com">
 <link href="https://api.fontshare.com/v2/css?f[]=satoshi@400,500,700,900&display=swap" rel="stylesheet">
-<link href="{{ url_for('static', filename='css/app.css') }}?v=poc37" rel="stylesheet"/>
-<link href="{{ url_for('static', filename='css/compat.css') }}?v=poc37" rel="stylesheet"/>
-<link href="{{ url_for('static', filename='css/dashboard.css') }}?v=poc37" rel="stylesheet"/>
-<link href="{{ url_for('static', filename='css/components.css') }}?v=poc37" rel="stylesheet"/>
+<link href="{{ url_for('static', filename='css/app.css') }}?v=poc38" rel="stylesheet"/>
+<link href="{{ url_for('static', filename='css/compat.css') }}?v=poc38" rel="stylesheet"/>
+<link href="{{ url_for('static', filename='css/dashboard.css') }}?v=poc38" rel="stylesheet"/>
+<link href="{{ url_for('static', filename='css/components.css') }}?v=poc38" rel="stylesheet"/>
 <script>
 window.SSIES_USER = {{ {"email": email|default(username), "display_name": username, "role": role, "photo_url": photo_url|default(none)} | tojson }};
 </script>
@@ -279,9 +279,9 @@ window.SSIES_USER = {{ {"email": email|default(username), "display_name": userna
           <button class="btn btn-primary btn-sm" type="button" onclick="newList()">+ New list</button>
           <button class="btn btn-soft btn-sm" type="button" onclick="syncAllLists()" title="Rebuild lists from WhatsApp Business labels">Sync from WhatsApp</button>
           <div class="seg" id="listModeSeg" style="margin-left:auto">
-            <button type="button" data-val="tabs" onclick="setListMode('tabs')">Tabs</button>
+            <button type="button" data-val="workspace" onclick="setListMode('workspace')">Workspace</button>
+            <button type="button" data-val="grid" onclick="setListMode('grid')">Grid</button>
             <button type="button" data-val="table" onclick="setListMode('table')">Table</button>
-            <button type="button" data-val="board" onclick="setListMode('board')">Board</button>
           </div>
         </div>
         <div id="listsWrap"></div>
@@ -802,13 +802,25 @@ window.SSIES_USER = {{ {"email": email|default(username), "display_name": userna
 
 <!-- List create / edit -->
 <div class="modal-scrim" id="listModal">
-  <div class="modal">
+  <div class="modal modal-lg lm-modal">
     <div class="modal-h"><span id="listModalTitle">New list</span><button class="modal-x" type="button" onclick="closeListModal()">✕</button></div>
     <div class="modal-b">
-      <div class="profile-field"><label>List name</label><input id="lmName" placeholder="e.g. Physics Batch 2025"/></div>
-      <div class="profile-field"><label>Accent color</label><input id="lmColor" type="color" value="#0d9488" style="width:56px;height:38px;padding:2px;border:1px solid var(--border);border-radius:var(--r-sm);background:none;cursor:pointer"/></div>
-      <div class="profile-field"><label>WhatsApp labels <span class="field-hint" style="display:inline">contacts with these labels are auto-discovered</span></label><div class="perm-grid" id="lmLabels"></div></div>
-      <div class="profile-field"><label>Default message</label><textarea class="field" id="lmMessage" style="min-height:96px" placeholder="*Reminder*&#10;Dear parent, please note the updated schedule."></textarea></div>
+      <div class="lm-form">
+        <div class="lm-fields">
+          <div class="profile-field"><label>List name</label><input id="lmName" placeholder="e.g. Physics Batch 2025" oninput="lmPreview()"/></div>
+          <div class="profile-field"><label>Accent color</label><div class="lm-swatches" id="lmSwatches"></div><input type="hidden" id="lmColor" value="#0d9488"/></div>
+          <div class="profile-field"><label>WhatsApp labels <span class="field-hint" style="display:inline">contacts with these labels are auto-added</span></label>
+            <div class="lm-labels" id="lmLabels"></div>
+            <div class="lm-addlabel"><input class="field" id="lmNewLabel" placeholder="Add a label…" onkeydown="if(event.key==='Enter'){event.preventDefault();lmAddLabel()}"/><button class="btn btn-soft btn-sm" type="button" onclick="lmAddLabel()">Add</button></div>
+          </div>
+          <div class="profile-field"><label>Default message</label><textarea class="field" id="lmMessage" style="min-height:110px" placeholder="*Reminder*&#10;Dear parent, please note the updated schedule." oninput="lmPreview()"></textarea></div>
+        </div>
+        <div class="lm-preview-wrap">
+          <div class="le-label">Live preview</div>
+          <div id="lmPreviewCard"></div>
+          <p class="hint" style="margin:12px 0 0">Contacts and groups fill in automatically when you sync, or add them from Manage.</p>
+        </div>
+      </div>
     </div>
     <div class="modal-f"><button class="btn btn-soft" type="button" onclick="closeListModal()">Cancel</button><button class="btn btn-primary" type="button" id="lmSaveBtn" onclick="saveList()">Create list</button></div>
   </div>
@@ -819,9 +831,12 @@ window.SSIES_USER = {{ {"email": email|default(username), "display_name": userna
   <div class="modal modal-lg">
     <div class="modal-h"><span id="lmemTitle">Manage contacts</span><button class="modal-x" type="button" onclick="closeListMembers()">✕</button></div>
     <div class="modal-b">
-      <div class="search-wrap" style="margin-bottom:12px">
-        <svg class="search-ico" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
-        <input class="field search" id="lmemSearch" placeholder="Search contacts…" oninput="renderListMembers()"/>
+      <div class="lmem-bar">
+        <div class="search-wrap" style="flex:1;margin:0">
+          <svg class="search-ico" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+          <input class="field search" id="lmemSearch" placeholder="Search contacts…" oninput="renderListMembers()"/>
+        </div>
+        <span class="hint" id="lmemCount" style="margin:0;white-space:nowrap"></span>
       </div>
       <div id="lmemList" class="lmem-list"></div>
     </div>
@@ -844,10 +859,10 @@ window.SSIES_USER = {{ {"email": email|default(username), "display_name": userna
 
 <div class="toast" id="toast" role="status" aria-live="polite" aria-atomic="true"></div>
 
-<script src="{{ url_for('static', filename='js/chrome.js') }}?v=poc37"></script>
-<script src="{{ url_for('static', filename='js/theme.js') }}?v=poc37"></script>
-<script src="{{ url_for('static', filename='js/whatsapp.js') }}?v=poc37"></script>
-<script src="{{ url_for('static', filename='js/waha.js') }}?v=poc37"></script>
+<script src="{{ url_for('static', filename='js/chrome.js') }}?v=poc38"></script>
+<script src="{{ url_for('static', filename='js/theme.js') }}?v=poc38"></script>
+<script src="{{ url_for('static', filename='js/whatsapp.js') }}?v=poc38"></script>
+<script src="{{ url_for('static', filename='js/waha.js') }}?v=poc38"></script>
 <script>
 const DAYS = {{ days | tojson }};
 const _asUser = new URLSearchParams(location.search).get("asUser");
@@ -2297,8 +2312,8 @@ async function copyText(t){try{await navigator.clipboard.writeText(t);toast("Cop
 let tt;function toast(m,type="ok"){const e=document.getElementById("toast");e.textContent=m;e.className=`toast ${type} show`;clearTimeout(tt);tt=setTimeout(()=>e.classList.remove("show"),3000);}
 
 </script>
-<script src="{{ url_for('static', filename='js/lists.js') }}?v=poc37"></script>
-<script src="{{ url_for('static', filename='js/features.js') }}?v=poc37"></script>
+<script src="{{ url_for('static', filename='js/lists.js') }}?v=poc38"></script>
+<script src="{{ url_for('static', filename='js/features.js') }}?v=poc38"></script>
 <script>boot();</script>
 </body>
 </html>
