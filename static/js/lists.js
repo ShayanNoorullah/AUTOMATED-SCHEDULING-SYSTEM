@@ -21,6 +21,7 @@ const LI_ICO = {
   copy: '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>',
   send: '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 2 11 13M22 2l-7 20-4-9-9-4Z"/></svg>',
   plus: '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>',
+  group: '<svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>',
 };
 
 function listById(id) { return lists.find((l) => l.id === id); }
@@ -301,15 +302,16 @@ function memberRow(list, c) {
   </div>`;
 }
 function groupRow(list, g) {
+  const gi = (list.groups || []).indexOf(g);
   const key = "g:" + (g.id || g.name);
   const sel = !!listSelSet(list.id)[key];
   const gname = g.name || g.id || "Group";
-  return `<div class="lrow lists-clickrow${sel ? " sel" : ""}" onclick="openListEntity('${list.id}','g','${escA(g.id || "")}','${escA(gname)}')">
+  return `<div class="lrow lists-clickrow${sel ? " sel" : ""}" onclick="openListEntity('${list.id}','g',${gi})">
     <span class="lrow-check" onclick="event.stopPropagation()"><input type="checkbox" ${sel ? "checked" : ""} onchange="toggleListSel('${list.id}','${escA(key)}',this.checked);this.closest('.lrow').classList.toggle('sel',this.checked)"/></span>
     <span class="av small lists-av-group">${avatarInner(gname, "")}</span>
     <span class="lrow-body"><b>${esc(gname)}</b><span class="lrow-sub">WhatsApp group</span></span>
     <span class="lrow-type"><span class="lists-type-tag is-group">Group</span></span>
-    <button class="btn btn-soft btn-sm lrow-send" type="button" onclick="event.stopPropagation();sendListGroup('${list.id}','${escA(g.id || "")}','${escA(gname)}')">Send</button>
+    <button class="btn btn-soft btn-sm lrow-send" type="button" onclick="event.stopPropagation();sendListGroupIdx('${list.id}',${gi})">Send</button>
   </div>`;
 }
 function listMembersView(list) {
@@ -633,18 +635,21 @@ function openListEntity(listId, type, key, gname) {
         <div class="hint" style="margin:6px 0 0">Wrap *text* for bold. {date} / {weekday} are replaced when sent.</div></div>`;
     document.getElementById("leOpenGroup").style.display = "none";
   } else {
-    const gname2 = gname || key || "Group";
-    leCtx = { listId, type, gid: key, name: gname2 };
+    // key is the index into list.groups (safe against special characters in names)
+    const g = (typeof key === "number" || /^\d+$/.test(key)) ? (list.groups || [])[Number(key)] : null;
+    const gname2 = (g && g.name) || (g && g.id) || gname || "Group";
+    const gid = (g && g.id) || "";
+    leCtx = { listId, type, gid, name: gname2 };
     document.getElementById("leTitle").textContent = "Group";
     body.innerHTML = `
       <div class="le-hero">
-        <div class="av lg lists-av-group">${avatarInner(gname2, "")}</div>
-        <div class="le-hero-body"><h3>${esc(gname2)}</h3><div class="le-phone">${esc((key || "").replace(/@g\.us$/, "")) || "WhatsApp group"}</div>
+        <div class="av lg lists-av-group">${LI_ICO.group}</div>
+        <div class="le-hero-body"><h3>${esc(gname2)}</h3>
           <div class="le-badges"><span class="chip chip-default">WhatsApp group</span></div></div>
       </div>
       <div class="le-field"><div class="le-label">Message</div>
         <textarea class="field" id="leMsg" style="min-height:130px">${esc(listMsg(list))}</textarea>
-        <div class="hint" style="margin:6px 0 0">Sent to the whole group. Open the Groups page to see members and manage it.</div></div>`;
+        <div class="hint" style="margin:6px 0 0">Sent to the whole group. Open the Groups page to see its members and manage it.</div></div>`;
     document.getElementById("leOpenGroup").style.display = "";
   }
   modal.classList.add("show");
@@ -679,6 +684,12 @@ function sendListContact(id, phone) {
 function sendListGroup(id, gid, gname) {
   const list = listById(id); if (!list) return;
   const g = listGroupsOf(list).find((x) => String(x.id) === String(gid) || String(x.name) === String(gname)) || { id: gid, name: gname };
+  const targets = sendListGroupTargets(list, [g]);
+  if (typeof doRelease === "function") doRelease(targets, "relAllSpin", "relAllBtn", "relAllTxt", "Send");
+}
+function sendListGroupIdx(id, gi) {
+  const list = listById(id); if (!list) return;
+  const g = (list.groups || [])[gi]; if (!g) return;
   const targets = sendListGroupTargets(list, [g]);
   if (typeof doRelease === "function") doRelease(targets, "relAllSpin", "relAllBtn", "relAllTxt", "Send");
 }

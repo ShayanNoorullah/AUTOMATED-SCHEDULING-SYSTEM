@@ -1331,7 +1331,8 @@ html[data-sched-view="board"] .sched-cols-only{display:none !important;}
 .lists-type{width:88px;}
 .lists-type-tag{font-size:.7rem;font-weight:700;letter-spacing:.02em;text-transform:uppercase;padding:3px 8px;border-radius:var(--r-full);background:var(--surface-3);color:var(--text-muted);}
 .lists-type-tag.is-group{background:color-mix(in srgb,var(--accent) 14%,transparent);color:var(--accent-hover);}
-.lists-av-group{background:color-mix(in srgb,var(--accent) 18%,var(--surface-2)) !important;}
+.lists-av-group{background:var(--accent-soft) !important;color:var(--accent-hover) !important;}
+.av.lg.lists-av-group svg{width:26px;height:26px;}
 .lists-overview tbody tr{cursor:pointer;}
 .lists-board .lists-ecard{cursor:pointer;}
 .lists-preview{display:flex;flex-direction:column;gap:4px;margin:10px 0 4px;min-height:48px;font-size:.82rem;color:var(--text-muted);}
