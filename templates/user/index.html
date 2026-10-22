@@ -23,10 +23,10 @@
 </script>
 <link rel="preconnect" href="https://api.fontshare.com">
 <link href="https://api.fontshare.com/v2/css?f[]=satoshi@400,500,700,900&display=swap" rel="stylesheet">
-<link href="{{ url_for('static', filename='css/app.css') }}?v=poc43" rel="stylesheet"/>
-<link href="{{ url_for('static', filename='css/compat.css') }}?v=poc43" rel="stylesheet"/>
-<link href="{{ url_for('static', filename='css/dashboard.css') }}?v=poc43" rel="stylesheet"/>
-<link href="{{ url_for('static', filename='css/components.css') }}?v=poc43" rel="stylesheet"/>
+<link href="{{ url_for('static', filename='css/app.css') }}?v=poc44" rel="stylesheet"/>
+<link href="{{ url_for('static', filename='css/compat.css') }}?v=poc44" rel="stylesheet"/>
+<link href="{{ url_for('static', filename='css/dashboard.css') }}?v=poc44" rel="stylesheet"/>
+<link href="{{ url_for('static', filename='css/components.css') }}?v=poc44" rel="stylesheet"/>
 <script>
 window.SSIES_USER = {{ {"email": email|default(username), "display_name": username, "role": role, "photo_url": photo_url|default(none)} | tojson }};
 </script>
@@ -230,6 +230,7 @@ window.SSIES_USER = {{ {"email": email|default(username), "display_name": userna
           </div>
           <div class="sched-toolbar-right">
             <span class="sched-sel-count" id="schedSelCount"></span>
+            <button class="btn btn-soft btn-sm" type="button" onclick="openSuperadminReport()" title="Send the whole weekly schedule to configured recipients on WhatsApp">Send to Superadmin</button>
             <button class="btn btn-soft btn-sm" type="button" onclick="saveTable()">Save</button>
             <button class="btn btn-primary btn-sm" type="button" id="relTblBtn" onclick="releaseTable()">
               <span id="relTblTxt">Send selected</span><div class="spinner hidden" id="relTblSpin"></div>
@@ -854,12 +855,33 @@ window.SSIES_USER = {{ {"email": email|default(username), "display_name": userna
   </div>
 </div>
 
+<!-- Send weekly schedule to superadmin/configured recipients on WhatsApp -->
+<div class="modal-scrim" id="superadminModal">
+  <div class="modal modal-lg">
+    <div class="modal-h"><span>Send schedule to Superadmin</span><button class="modal-x" type="button" onclick="closeSuperadminReport()">✕</button></div>
+    <div class="modal-b">
+      <div class="profile-field"><label>Recipients <span class="field-hint" style="display:inline">tick who should receive the weekly schedule on WhatsApp</span></label>
+        <div id="saRecipients" class="lmem-list" style="max-height:34vh"></div>
+      </div>
+      <div id="saAddRow" class="lm-addlabel" style="display:none">
+        <input class="field" id="saName" placeholder="Name / role (e.g. Superadmin)" style="flex:1"/>
+        <input class="field" id="saPhone" placeholder="WhatsApp number (+92…)" style="flex:1"/>
+        <button class="btn btn-soft btn-sm" type="button" onclick="saAddRecipient()">Add</button>
+      </div>
+      <div class="profile-field" style="margin-top:14px"><label>Message preview <span class="field-hint" style="display:inline">sent as a WhatsApp monospace table</span></label>
+        <div class="msg-preview"><div class="preview-b" id="saPreview" style="white-space:pre-wrap;font-family:ui-monospace,Menlo,monospace;font-size:.8rem"></div></div>
+      </div>
+    </div>
+    <div class="modal-f"><button class="btn btn-soft" type="button" onclick="closeSuperadminReport()">Cancel</button><button class="btn btn-primary" type="button" onclick="sendSuperadminReport()">Send on WhatsApp</button></div>
+  </div>
+</div>
+
 <div class="toast" id="toast" role="status" aria-live="polite" aria-atomic="true"></div>
 
-<script src="{{ url_for('static', filename='js/chrome.js') }}?v=poc43"></script>
-<script src="{{ url_for('static', filename='js/theme.js') }}?v=poc43"></script>
-<script src="{{ url_for('static', filename='js/whatsapp.js') }}?v=poc43"></script>
-<script src="{{ url_for('static', filename='js/waha.js') }}?v=poc43"></script>
+<script src="{{ url_for('static', filename='js/chrome.js') }}?v=poc44"></script>
+<script src="{{ url_for('static', filename='js/theme.js') }}?v=poc44"></script>
+<script src="{{ url_for('static', filename='js/whatsapp.js') }}?v=poc44"></script>
+<script src="{{ url_for('static', filename='js/waha.js') }}?v=poc44"></script>
 <script>
 const DAYS = {{ days | tojson }};
 const _asUser = new URLSearchParams(location.search).get("asUser");
@@ -2304,13 +2326,72 @@ function post(b){return{method:"POST",headers:{"Content-Type":"application/json"
 function put(b){return{method:"PUT",headers:{"Content-Type":"application/json"},body:JSON.stringify(b)};}
 function esc(s){return(s||"").replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));}
 function escA(s){return(s||"").replace(/"/g,"&quot;").replace(/</g,"&lt;");}
+
+/* ── Send weekly schedule to superadmin / configured recipients on WhatsApp ── */
+let saRecips=[], saCanEdit=false, saChecked={};
+function buildScheduleText(){
+  const ord=DAYS.reduce((m,d,i)=>(m[d]=i,m),{});
+  const rows=[];
+  (groups||[]).forEach(g=>{(g.schedule||[]).filter(e=>(e.from||"").trim()).forEach(e=>rows.push({g:colDisplay(g),day:e.day,from:e.from,to:(e.to||"").trim()}));});
+  if(!rows.length) return null;
+  rows.sort((a,b)=>(ord[a.day]??9)-(ord[b.day]??9)||a.g.localeCompare(b.g));
+  const clip=(s,n)=>{s=String(s);return s.length>n?s.slice(0,n-1)+"…":s;};
+  const data=rows.map(r=>[clip(r.g,14),r.day.slice(0,3),r.to?`${r.from}-${r.to}`:r.from]);
+  const heads=["Group","Day","Time"];
+  const w=heads.map((h,i)=>Math.max(h.length,...data.map(r=>r[i].length)));
+  const line=(c)=>c.map((x,i)=>String(x).padEnd(w[i])).join("  ").replace(/\s+$/,"");
+  const table=[line(heads),w.map(x=>"─".repeat(x)).join("  "),...data.map(line)].join("\n");
+  const who=(window.SSIES_USER&&SSIES_USER.display_name)||"";
+  const d=new Date().toLocaleDateString();
+  return `*📅 Weekly Schedule*\n_${rows.length} slot${rows.length===1?"":"s"} · ${d}${who?" · by "+who:""}_\n\n\`\`\`\n${table}\n\`\`\``;
+}
+async function openSuperadminReport(){
+  try{ const d=await (await fetch("/api/schedule/recipients")).json(); saRecips=d.recipients||[]; saCanEdit=!!d.canEdit; }
+  catch{ saRecips=[]; saCanEdit=false; }
+  saChecked={}; saRecips.forEach(r=>saChecked[r.phone]=true);
+  document.getElementById("saAddRow").style.display=saCanEdit?"flex":"none";
+  renderSaRecipients();
+  const msg=buildScheduleText();
+  document.getElementById("saPreview").textContent=msg?msg.replace(/```/g,"").replace(/[*_]/g,"").trim():"No schedule yet — add class times in the table first.";
+  document.getElementById("superadminModal").classList.add("show");
+}
+function closeSuperadminReport(){ document.getElementById("superadminModal").classList.remove("show"); }
+function renderSaRecipients(){
+  const box=document.getElementById("saRecipients");
+  if(!saRecips.length){ box.innerHTML=`<p class="hint" style="margin:0">No recipients yet.${saCanEdit?" Add one below.":" Ask an admin to add superadmin contacts."}</p>`; return; }
+  box.innerHTML=saRecips.map((r,i)=>`<label class="lmem-row${saChecked[r.phone]?" on":""}"><input type="checkbox" ${saChecked[r.phone]?"checked":""} onchange="saChecked['${escA(r.phone)}']=this.checked;this.closest('.lmem-row').classList.toggle('on',this.checked)"/>
+    <div style="min-width:0;flex:1"><b>${esc(r.name)}</b><div class="hint" style="margin:0">+${esc(r.phone)}${r.role?" · "+esc(r.role):""}</div></div>
+    ${saCanEdit?`<button class="icon-btn ib-sm ib-danger" type="button" title="Remove" onclick="saRemoveRecipient(${i})">✕</button>`:""}</label>`).join("");
+}
+async function saSaveRecipients(){
+  const res=await fetch("/api/schedule/recipients",put({recipients:saRecips}));
+  const d=await res.json().catch(()=>({}));
+  if(!res.ok){ toast(d.error||"Could not save recipients","err"); return false; }
+  saRecips=d.recipients||saRecips; return true;
+}
+async function saAddRecipient(){
+  const name=document.getElementById("saName").value.trim();
+  const phone=document.getElementById("saPhone").value.replace(/\D/g,"");
+  if(phone.length<8){ toast("Enter a valid WhatsApp number","err"); return; }
+  saRecips.push({name:name||phone,role:"",phone});
+  if(await saSaveRecipients()){ saChecked[phone]=true; document.getElementById("saName").value=""; document.getElementById("saPhone").value=""; renderSaRecipients(); }
+}
+async function saRemoveRecipient(i){ saRecips.splice(i,1); if(await saSaveRecipients()) renderSaRecipients(); }
+function sendSuperadminReport(){
+  const msg=buildScheduleText();
+  if(!msg){ toast("No schedule to send — add times first","err"); return; }
+  const picks=saRecips.filter(r=>saChecked[r.phone]);
+  if(!picks.length){ toast("Tick at least one recipient","err"); return; }
+  closeSuperadminReport();
+  doRelease(picks.map(r=>({name:r.name,phone:r.phone,message:msg})),"relTblSpin","relTblBtn","relTblTxt","Send selected");
+}
 async function copyBox(id){try{await navigator.clipboard.writeText(document.getElementById(id).value);toast("Copied ✓");}catch{toast("Copy failed","err");}}
 async function copyText(t){try{await navigator.clipboard.writeText(t);toast("Copied ✓");}catch{toast("Copy failed","err");}}
 let tt;function toast(m,type="ok"){const e=document.getElementById("toast");e.textContent=m;e.className=`toast ${type} show`;clearTimeout(tt);tt=setTimeout(()=>e.classList.remove("show"),3000);}
 
 </script>
-<script src="{{ url_for('static', filename='js/lists.js') }}?v=poc43"></script>
-<script src="{{ url_for('static', filename='js/features.js') }}?v=poc43"></script>
+<script src="{{ url_for('static', filename='js/lists.js') }}?v=poc44"></script>
+<script src="{{ url_for('static', filename='js/features.js') }}?v=poc44"></script>
 <script>boot();</script>
 </body>
 </html>

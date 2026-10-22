@@ -390,6 +390,36 @@ def mark_notifications_read():
     return jsonify({"ok": True})
 
 
+# ── Schedule-report recipients (who gets the weekly schedule on WhatsApp) ─────
+
+@bp.route("/api/schedule/recipients", methods=["GET"])
+@login_required
+def get_schedule_recipients():
+    from app.services.users import get_system_setting
+    recs = get_system_setting("schedule_recipients", []) or []
+    return jsonify({"recipients": recs, "canEdit": g.profile.is_admin()})
+
+
+@bp.route("/api/schedule/recipients", methods=["PUT"])
+@login_required
+def put_schedule_recipients():
+    from app.services.users import set_system_setting
+    if not g.profile.is_admin():
+        return jsonify({"error": "Only admins can edit schedule recipients"}), 403
+    recs = []
+    for r in (request.json or {}).get("recipients") or []:
+        if not isinstance(r, dict):
+            continue
+        phone = "".join(ch for ch in str(r.get("phone") or "") if ch.isdigit())
+        role = str(r.get("role") or "").strip()[:40]
+        name = str(r.get("name") or "").strip()[:80] or role or phone
+        if phone and len(phone) >= 8:
+            recs.append({"name": name, "role": role, "phone": phone})
+    set_system_setting("schedule_recipients", recs)
+    db.session.commit()
+    return jsonify({"ok": True, "recipients": recs})
+
+
 # ── Password reset requests ──────────────────────────────────────────────────
 # Pending password is stored as Fernet ciphertext (APP_ENCRYPTION_KEY), not plaintext
 # and not a one-way hash — so approve can decrypt → Supabase admin.update_user → wipe.
