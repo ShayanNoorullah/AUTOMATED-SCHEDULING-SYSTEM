@@ -23,10 +23,10 @@
 </script>
 <link rel="preconnect" href="https://api.fontshare.com">
 <link href="https://api.fontshare.com/v2/css?f[]=satoshi@400,500,700,900&display=swap" rel="stylesheet">
-<link href="{{ url_for('static', filename='css/app.css') }}?v=poc44" rel="stylesheet"/>
-<link href="{{ url_for('static', filename='css/compat.css') }}?v=poc44" rel="stylesheet"/>
-<link href="{{ url_for('static', filename='css/dashboard.css') }}?v=poc44" rel="stylesheet"/>
-<link href="{{ url_for('static', filename='css/components.css') }}?v=poc44" rel="stylesheet"/>
+<link href="{{ url_for('static', filename='css/app.css') }}?v=poc45" rel="stylesheet"/>
+<link href="{{ url_for('static', filename='css/compat.css') }}?v=poc45" rel="stylesheet"/>
+<link href="{{ url_for('static', filename='css/dashboard.css') }}?v=poc45" rel="stylesheet"/>
+<link href="{{ url_for('static', filename='css/components.css') }}?v=poc45" rel="stylesheet"/>
 <script>
 window.SSIES_USER = {{ {"email": email|default(username), "display_name": username, "role": role, "photo_url": photo_url|default(none)} | tojson }};
 </script>
@@ -44,6 +44,7 @@ window.SSIES_USER = {{ {"email": email|default(username), "display_name": userna
     </div>
     <nav class="rail-nav nav">
       <button class="nav-item active" data-view="dashboard" onclick="navGo('dashboard')" title="Dashboard"><span class="ico"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg></span><span class="lbl">Dashboard</span></button>
+      <button class="nav-item" data-view="workspace" onclick="navGo('workspace')" title="Workspace"><span class="ico"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="8" height="8" rx="1.5"/><rect x="13" y="3" width="8" height="5" rx="1.5"/><rect x="13" y="10" width="8" height="11" rx="1.5"/><rect x="3" y="13" width="8" height="8" rx="1.5"/></svg></span><span class="lbl">Workspace</span></button>
       <div class="nav-group open" id="navSchedGroup">
         <button class="nav-item nav-group-btn" onclick="toggleNavGroup(this)" title="Scheduler">
           <span class="ico"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg></span>
@@ -110,6 +111,28 @@ window.SSIES_USER = {{ {"email": email|default(username), "display_name": userna
     <div class="content">
       <!-- ════ DASHBOARD ════ -->
       <section class="view active" id="view-dashboard"><div id="dashHome"></div></section>
+
+      <!-- ════ WORKSPACE ════ -->
+      <section class="view" id="view-workspace">
+        <div class="toolbar ws-toolbar">
+          <div class="ws-name"><span class="ws-dot"></span><b id="wsName">My workspace</b></div>
+          <div class="ws-actions">
+            <button class="btn btn-soft btn-sm" type="button" onclick="wsNew()">New</button>
+            <div class="ws-open-wrap">
+              <button class="btn btn-soft btn-sm" type="button" onclick="wsToggleOpen()">Open ▾</button>
+              <div class="ws-open-menu" id="wsOpenMenu"></div>
+            </div>
+            <button class="btn btn-soft btn-sm" type="button" onclick="wsSave()">Save</button>
+            <button class="btn btn-soft btn-sm" type="button" onclick="wsSaveAs()">Save as…</button>
+            <div class="ws-open-wrap">
+              <button class="btn btn-primary btn-sm" type="button" onclick="wsToggleAdd()">+ Add widget</button>
+              <div class="ws-open-menu" id="wsAddMenu"></div>
+            </div>
+          </div>
+        </div>
+        <div id="wsGrid" class="ws-grid"></div>
+      </section>
+
 
       <!-- ════ GROUP DETAIL ════ -->
       <section class="view" id="view-group-detail"><div id="groupDetail"></div></section>
@@ -230,7 +253,7 @@ window.SSIES_USER = {{ {"email": email|default(username), "display_name": userna
           </div>
           <div class="sched-toolbar-right">
             <span class="sched-sel-count" id="schedSelCount"></span>
-            <button class="btn btn-soft btn-sm" type="button" onclick="openSuperadminReport()" title="Send the whole weekly schedule to configured recipients on WhatsApp">Send to Superadmin</button>
+            <button class="btn btn-soft btn-sm" type="button" onclick="openSuperadminReport()" title="Preview and send the whole weekly schedule to configured recipients on WhatsApp">Send Preview</button>
             <button class="btn btn-soft btn-sm" type="button" onclick="saveTable()">Save</button>
             <button class="btn btn-primary btn-sm" type="button" id="relTblBtn" onclick="releaseTable()">
               <span id="relTblTxt">Send selected</span><div class="spinner hidden" id="relTblSpin"></div>
@@ -243,9 +266,10 @@ window.SSIES_USER = {{ {"email": email|default(username), "display_name": userna
         </div>
         <div class="sched-notes-bar">
           <div class="notes-panel">
-            <div class="notes-head">
-              <button class="notes-toggle" onclick="toggleNotes()" aria-expanded="true" type="button"><svg class="notes-caret" viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M6 9l6 6 6-6"/></svg><span>Notes</span></button>
-              <div class="notes-toolbar" id="notesToolbar">
+            <div class="notes-head" onclick="if(event.target.closest('.notes-toolbar'))return;toggleNotes()">
+              <button class="notes-toggle is-collapsed" onclick="event.stopPropagation();toggleNotes()" aria-expanded="false" type="button"><svg class="notes-caret" viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M6 9l6 6 6-6"/></svg><span>Notes</span></button>
+              <span class="notes-head-hint" id="notesHeadHint"></span>
+              <div class="notes-toolbar hidden" id="notesToolbar">
                 <div class="notes-tb-group">
                   <button class="notes-tb-btn" type="button" title="Bold" onclick="notesWrap('*')"><b>B</b></button>
                   <button class="notes-tb-btn" type="button" title="Italic" onclick="notesWrap('_')"><i>I</i></button>
@@ -262,7 +286,7 @@ window.SSIES_USER = {{ {"email": email|default(username), "display_name": userna
                 </div>
               </div>
             </div>
-            <div class="notes-body" id="notesBody">
+            <div class="notes-body collapsed" id="notesBody">
               <textarea id="tableNotes" class="notes-area" placeholder="Jot schedule notes, reminders and follow-ups… the box grows as you type." oninput="saveTableNotes();notesAutoGrow();notesUpdateMeta()"></textarea>
               <div class="notes-foot"><span id="notesMeta">0 words · 0 characters</span><span id="notesSaved" class="notes-saved"></span></div>
             </div>
@@ -858,18 +882,25 @@ window.SSIES_USER = {{ {"email": email|default(username), "display_name": userna
 <!-- Send weekly schedule to superadmin/configured recipients on WhatsApp -->
 <div class="modal-scrim" id="superadminModal">
   <div class="modal modal-lg">
-    <div class="modal-h"><span>Send schedule to Superadmin</span><button class="modal-x" type="button" onclick="closeSuperadminReport()">✕</button></div>
+    <div class="modal-h"><span>Send Preview</span><button class="modal-x" type="button" onclick="closeSuperadminReport()">✕</button></div>
     <div class="modal-b">
       <div class="profile-field"><label>Recipients <span class="field-hint" style="display:inline">tick who should receive the weekly schedule on WhatsApp</span></label>
-        <div id="saRecipients" class="lmem-list" style="max-height:34vh"></div>
+        <div id="saRecipients" class="lmem-list" style="max-height:30vh"></div>
       </div>
       <div id="saAddRow" class="lm-addlabel" style="display:none">
         <input class="field" id="saName" placeholder="Name / role (e.g. Superadmin)" style="flex:1"/>
         <input class="field" id="saPhone" placeholder="WhatsApp number (+92…)" style="flex:1"/>
         <button class="btn btn-soft btn-sm" type="button" onclick="saAddRecipient()">Add</button>
       </div>
-      <div class="profile-field" style="margin-top:14px"><label>Message preview <span class="field-hint" style="display:inline">sent as a WhatsApp monospace table</span></label>
-        <div class="msg-preview"><div class="preview-b" id="saPreview" style="white-space:pre-wrap;font-family:ui-monospace,Menlo,monospace;font-size:.8rem"></div></div>
+      <div class="profile-field" style="margin-top:14px"><label>Layout</label>
+        <div class="seg" id="saFmtSeg">
+          <button type="button" data-val="table" class="on" onclick="saSetFmt('table')">Table</button>
+          <button type="button" data-val="byday" onclick="saSetFmt('byday')">By day</button>
+          <button type="button" data-val="group" onclick="saSetFmt('group')">By group</button>
+        </div>
+      </div>
+      <div class="profile-field" style="margin-top:12px"><label>Preview <span class="field-hint" style="display:inline">sent as a WhatsApp message</span></label>
+        <div class="msg-preview"><div class="preview-b" id="saPreview" style="white-space:pre-wrap;font-family:ui-monospace,Menlo,monospace;font-size:.8rem;max-height:34vh;overflow:auto"></div></div>
       </div>
     </div>
     <div class="modal-f"><button class="btn btn-soft" type="button" onclick="closeSuperadminReport()">Cancel</button><button class="btn btn-primary" type="button" onclick="sendSuperadminReport()">Send on WhatsApp</button></div>
@@ -878,10 +909,10 @@ window.SSIES_USER = {{ {"email": email|default(username), "display_name": userna
 
 <div class="toast" id="toast" role="status" aria-live="polite" aria-atomic="true"></div>
 
-<script src="{{ url_for('static', filename='js/chrome.js') }}?v=poc44"></script>
-<script src="{{ url_for('static', filename='js/theme.js') }}?v=poc44"></script>
-<script src="{{ url_for('static', filename='js/whatsapp.js') }}?v=poc44"></script>
-<script src="{{ url_for('static', filename='js/waha.js') }}?v=poc44"></script>
+<script src="{{ url_for('static', filename='js/chrome.js') }}?v=poc45"></script>
+<script src="{{ url_for('static', filename='js/theme.js') }}?v=poc45"></script>
+<script src="{{ url_for('static', filename='js/whatsapp.js') }}?v=poc45"></script>
+<script src="{{ url_for('static', filename='js/waha.js') }}?v=poc45"></script>
 <script>
 const DAYS = {{ days | tojson }};
 const _asUser = new URLSearchParams(location.search).get("asUser");
@@ -917,6 +948,7 @@ const GRIP_ICO = '<svg viewBox="0 0 24 24" width="14" height="14" fill="currentC
 /* ════ Navigation ════ */
 const VIEW_META = {
   dashboard:{t:"Dashboard",d:"Overview of your groups, sends, and session"},
+  workspace:{t:"Workspace",d:"Your own board of KPIs and charts — add widgets, then save or open layouts"},
   "group-detail":{t:"Group",d:"Group overview and weekly schedule"},
   "contact-detail":{t:"Contact",d:"Contact overview and message"},
   groups:{t:"Groups",d:"Manage your WhatsApp groups and weekly schedules"},
@@ -1030,6 +1062,7 @@ function showView(v){
   document.getElementById("pageTitle").textContent = meta.t;
   document.getElementById("pageDesc").textContent  = meta.d;
   if (v==="dashboard") renderUserDashboard();
+  if (v==="workspace" && typeof wsRender==="function") wsRender();
   if (v==="groups") renderGroupTable();
   if (v==="contacts") renderContactTable();
   if (v==="group-detail") renderGroupDetail();
@@ -1306,6 +1339,7 @@ function notesUpdateMeta(){
   const el=document.getElementById("tableNotes"), m=document.getElementById("notesMeta"); if(!el||!m)return;
   const v=el.value; const words=(v.trim().match(/\S+/g)||[]).length; const lines=v?v.split("\n").length:0;
   m.textContent=`${words} word${words===1?"":"s"} · ${v.length} character${v.length===1?"":"s"} · ${lines} line${lines===1?"":"s"}`;
+  notesUpdateHint();
 }
 function notesAfterEdit(){ const el=document.getElementById("tableNotes"); if(el) el.focus(); saveTableNotes(); notesAutoGrow(); notesUpdateMeta(); }
 function notesWrap(marker){
@@ -1328,12 +1362,20 @@ function notesInsertTimestamp(){
 }
 async function notesCopy(){ const ta=document.getElementById("tableNotes"); if(!ta||!ta.value.trim()){ toast("Nothing to copy","err"); return; } try{ await navigator.clipboard.writeText(ta.value); toast("Notes copied ✓"); }catch{ toast("Copy failed","err"); } }
 function notesClear(){ const ta=document.getElementById("tableNotes"); if(!ta||!ta.value)return; if(!confirm("Clear all notes for this schedule?"))return; ta.value=""; notesAfterEdit(); toast("Notes cleared"); }
+function notesUpdateHint(){
+  const hint=document.getElementById("notesHeadHint"); if(!hint) return;
+  const collapsed=document.getElementById("notesBody")?.classList.contains("collapsed");
+  const txt=(document.getElementById("tableNotes")?.value||"").trim();
+  const first=txt.split("\n").find(l=>l.trim())||"";
+  hint.textContent=collapsed?(first?first.replace(/^[#•☐*_ ]+/,"").slice(0,60):"Add schedule notes, reminders and follow-ups…"):"";
+}
 function toggleNotes(){
   const body=document.getElementById("notesBody"), tb=document.getElementById("notesToolbar"), btn=document.querySelector(".notes-toggle");
   if(!body)return; const collapsed=body.classList.toggle("collapsed");
   if(tb) tb.classList.toggle("hidden",collapsed);
   if(btn){ btn.setAttribute("aria-expanded",String(!collapsed)); btn.classList.toggle("is-collapsed",collapsed); }
-  if(!collapsed) notesAutoGrow();
+  notesUpdateHint();
+  if(!collapsed){ notesAutoGrow(); document.getElementById("tableNotes")?.focus(); }
 }
 async function loadGroups(){ groups=await (await fetch("/api/groups")).json();
   groups.forEach(g=>{ if(g.message===undefined)g.message=""; normalize(g); if(!g.pic && (g.photoUrl||g.photo_url)) g.pic=g.photoUrl||g.photo_url; });
@@ -2233,9 +2275,14 @@ function closeSendStatus(){
 function ssStatusIcon(st){ return st==="success"?"✓":st==="failed"?"✕":st==="sending"?'<span class="ss-spin"></span>':"•"; }
 function ssStatusLabel(st){ return st==="success"?"Delivered":st==="failed"?"Failed":st==="sending"?"Sending…":"Queued"; }
 function renderSendStatus(){
-  const prov=(document.getElementById("autoProviderLabel")?.textContent||"waha").toUpperCase();
+  const provRaw=(document.getElementById("autoProviderLabel")?.textContent||"").trim();
+  const prov=(provRaw && provRaw!=="—") ? provRaw.toUpperCase() : "WAHA";
   const pl=document.getElementById("ssProviderLabel"); if(pl) pl.textContent=prov;
-  const connected=document.getElementById("autoSessionDot")?.classList.contains("on");
+  // Trust the preflight session check (server-verified) over the Automated-Send DOM dot,
+  // which is only set once that view has refreshed — otherwise sends from the Table page
+  // show "Not connected" even when WhatsApp is linked.
+  const sessChk=((ssPf&&ssPf.checks)||[]).find(c=>c.id==="session"||/session/i.test(c.label||""));
+  const connected=sessChk?!!sessChk.ok:!!document.getElementById("autoSessionDot")?.classList.contains("on");
   const sess=document.getElementById("ssSession");
   if(sess){ sess.textContent=connected?"Session connected":"Not connected"; sess.className="ss-session "+(connected?"ok":"bad"); }
   const pfEl=document.getElementById("ssPreflight");
@@ -2327,23 +2374,54 @@ function put(b){return{method:"PUT",headers:{"Content-Type":"application/json"},
 function esc(s){return(s||"").replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));}
 function escA(s){return(s||"").replace(/"/g,"&quot;").replace(/</g,"&lt;");}
 
-/* ── Send weekly schedule to superadmin / configured recipients on WhatsApp ── */
-let saRecips=[], saCanEdit=false, saChecked={};
-function buildScheduleText(){
+/* ── Send weekly schedule preview to configured recipients on WhatsApp ── */
+let saRecips=[], saCanEdit=false, saChecked={}, saFmt="table";
+function _schedRows(){
   const ord=DAYS.reduce((m,d,i)=>(m[d]=i,m),{});
   const rows=[];
-  (groups||[]).forEach(g=>{(g.schedule||[]).filter(e=>(e.from||"").trim()).forEach(e=>rows.push({g:colDisplay(g),day:e.day,from:e.from,to:(e.to||"").trim()}));});
+  (groups||[]).forEach(g=>{(g.schedule||[]).filter(e=>(e.from||"").trim()).forEach(e=>rows.push({g:colDisplay(g),day:e.day,from:e.from,to:(e.to||"").trim(),ord:ord[e.day]??9}));});
+  return rows;
+}
+function buildScheduleText(fmt){
+  fmt=fmt||saFmt;
+  const rows=_schedRows();
   if(!rows.length) return null;
-  rows.sort((a,b)=>(ord[a.day]??9)-(ord[b.day]??9)||a.g.localeCompare(b.g));
+  const who=(window.SSIES_USER&&SSIES_USER.display_name)||"";
+  const d=new Date().toLocaleDateString();
+  const head=`*📅 Weekly Schedule*\n_${rows.length} slot${rows.length===1?"":"s"} · ${d}${who?" · by "+who:""}_`;
+  const rng=(r)=>r.to?`${r.from}-${r.to}`:r.from;
+  if(fmt==="byday"){
+    const byDay={};
+    rows.forEach(r=>(byDay[r.day]=byDay[r.day]||[]).push(r));
+    const blocks=DAYS.filter(d=>byDay[d]).map(day=>
+      `*${day}*\n`+byDay[day].sort((a,b)=>a.g.localeCompare(b.g)).map(r=>`• ${r.g} — ${rng(r)}`).join("\n"));
+    return `${head}\n\n${blocks.join("\n\n")}`;
+  }
+  if(fmt==="group"){
+    const byG={};
+    rows.forEach(r=>(byG[r.g]=byG[r.g]||[]).push(r));
+    const blocks=Object.keys(byG).sort().map(g=>
+      `*${g}*\n`+byG[g].sort((a,b)=>a.ord-b.ord).map(r=>`${r.day.slice(0,3)}  ${rng(r)}`).join("\n"));
+    return `${head}\n\n${blocks.join("\n\n")}`;
+  }
+  // table (monospace)
+  rows.sort((a,b)=>a.ord-b.ord||a.g.localeCompare(b.g));
   const clip=(s,n)=>{s=String(s);return s.length>n?s.slice(0,n-1)+"…":s;};
-  const data=rows.map(r=>[clip(r.g,14),r.day.slice(0,3),r.to?`${r.from}-${r.to}`:r.from]);
+  const data=rows.map(r=>[clip(r.g,14),r.day.slice(0,3),rng(r)]);
   const heads=["Group","Day","Time"];
   const w=heads.map((h,i)=>Math.max(h.length,...data.map(r=>r[i].length)));
   const line=(c)=>c.map((x,i)=>String(x).padEnd(w[i])).join("  ").replace(/\s+$/,"");
   const table=[line(heads),w.map(x=>"─".repeat(x)).join("  "),...data.map(line)].join("\n");
-  const who=(window.SSIES_USER&&SSIES_USER.display_name)||"";
-  const d=new Date().toLocaleDateString();
-  return `*📅 Weekly Schedule*\n_${rows.length} slot${rows.length===1?"":"s"} · ${d}${who?" · by "+who:""}_\n\n\`\`\`\n${table}\n\`\`\``;
+  return `${head}\n\n\`\`\`\n${table}\n\`\`\``;
+}
+function saRenderPreview(){
+  const msg=buildScheduleText();
+  document.getElementById("saPreview").textContent=msg?msg.replace(/```/g,"").replace(/[*_]/g,"").trim():"No schedule yet — add class times in the table first.";
+}
+function saSetFmt(f){
+  saFmt=f;
+  document.querySelectorAll("#saFmtSeg button").forEach(b=>b.classList.toggle("on",b.dataset.val===f));
+  saRenderPreview();
 }
 async function openSuperadminReport(){
   try{ const d=await (await fetch("/api/schedule/recipients")).json(); saRecips=d.recipients||[]; saCanEdit=!!d.canEdit; }
@@ -2351,8 +2429,7 @@ async function openSuperadminReport(){
   saChecked={}; saRecips.forEach(r=>saChecked[r.phone]=true);
   document.getElementById("saAddRow").style.display=saCanEdit?"flex":"none";
   renderSaRecipients();
-  const msg=buildScheduleText();
-  document.getElementById("saPreview").textContent=msg?msg.replace(/```/g,"").replace(/[*_]/g,"").trim():"No schedule yet — add class times in the table first.";
+  saSetFmt(saFmt);
   document.getElementById("superadminModal").classList.add("show");
 }
 function closeSuperadminReport(){ document.getElementById("superadminModal").classList.remove("show"); }
@@ -2390,8 +2467,9 @@ async function copyText(t){try{await navigator.clipboard.writeText(t);toast("Cop
 let tt;function toast(m,type="ok"){const e=document.getElementById("toast");e.textContent=m;e.className=`toast ${type} show`;clearTimeout(tt);tt=setTimeout(()=>e.classList.remove("show"),3000);}
 
 </script>
-<script src="{{ url_for('static', filename='js/lists.js') }}?v=poc44"></script>
-<script src="{{ url_for('static', filename='js/features.js') }}?v=poc44"></script>
+<script src="{{ url_for('static', filename='js/lists.js') }}?v=poc45"></script>
+<script src="{{ url_for('static', filename='js/features.js') }}?v=poc45"></script>
+<script src="{{ url_for('static', filename='js/workspace.js') }}?v=poc45"></script>
 <script>boot();</script>
 </body>
 </html>

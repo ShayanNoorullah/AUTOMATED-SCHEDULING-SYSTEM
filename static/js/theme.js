@@ -322,6 +322,10 @@ function togglePortalSwitcher() {
   el.setAttribute("data-collapsed", next);
   try { localStorage.setItem("ps-collapsed", next); } catch (e) {}
   _psWake(el);
+  // Width changes on expand/collapse — re-clamp a dragged switcher so it can't
+  // slide off-screen (undragged stays anchored bottom-right via CSS).
+  requestAnimationFrame(() => applyPortalSwitcherPos(el));
+  setTimeout(() => applyPortalSwitcherPos(el), 340);
 }
 function switchPortal(href, isCurrent) { if (isCurrent === "true") return; location.href = href; }
 
