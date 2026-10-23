@@ -1,5 +1,7 @@
-# Set DUCKDNS_DOMAIN in .env (e.g. ssies-schedule.duckdns.org)
-{$DUCKDNS_DOMAIN} {
+# Serves the app over HTTPS on both the DuckDNS host and the custom subdomain.
+# Caddy auto-provisions Let's Encrypt certs once each name's DNS points at this VM.
+# DUCKDNS_DOMAIN is set in .env (e.g. ssies-schedule.duckdns.org).
+{$DUCKDNS_DOMAIN}, ssies.shayannoorullah.tech {
 	encode gzip
 	reverse_proxy app:5000 {
 		header_up X-Forwarded-Proto {scheme}
