@@ -23,10 +23,10 @@
 </script>
 <link rel="preconnect" href="https://api.fontshare.com">
 <link href="https://api.fontshare.com/v2/css?f[]=satoshi@400,500,700,900&display=swap" rel="stylesheet">
-<link href="{{ url_for('static', filename='css/app.css') }}?v=poc45" rel="stylesheet"/>
-<link href="{{ url_for('static', filename='css/compat.css') }}?v=poc45" rel="stylesheet"/>
-<link href="{{ url_for('static', filename='css/dashboard.css') }}?v=poc45" rel="stylesheet"/>
-<link href="{{ url_for('static', filename='css/components.css') }}?v=poc45" rel="stylesheet"/>
+<link href="{{ url_for('static', filename='css/app.css') }}?v=poc46" rel="stylesheet"/>
+<link href="{{ url_for('static', filename='css/compat.css') }}?v=poc46" rel="stylesheet"/>
+<link href="{{ url_for('static', filename='css/dashboard.css') }}?v=poc46" rel="stylesheet"/>
+<link href="{{ url_for('static', filename='css/components.css') }}?v=poc46" rel="stylesheet"/>
 <script>
 window.SSIES_USER = {{ {"email": email|default(username), "display_name": username, "role": role, "photo_url": photo_url|default(none)} | tojson }};
 </script>
@@ -667,6 +667,32 @@ window.SSIES_USER = {{ {"email": email|default(username), "display_name": userna
                   </div>
                 </div>
               </div>
+              <div class="sec" style="margin-top:16px">
+                <div class="sec-h">Weekly schedule email</div>
+                <div class="sec-b">
+                  <div class="srow">
+                    <div><div class="st">Email the timetable when a schedule is sent</div><div class="sd">After you release a schedule, also email the full weekly timetable (via Resend) — like the WhatsApp preview.</div></div>
+                    <label class="toggle"><input type="checkbox" id="emEnabled" onchange="saveEmailReport()"/><span class="tk"></span></label>
+                  </div>
+                  <div class="srow srow-stack" style="gap:10px">
+                    <div><div class="st">Resend API key</div><div class="sd">Stored in your app. Create one at resend.com → API keys (sending access). Leave blank to keep the current key.</div></div>
+                    <input class="field" id="emKey" type="password" placeholder="re_…" autocomplete="off"/>
+                  </div>
+                  <div class="srow">
+                    <div><div class="st">Send to</div><div class="sd">Mailbox that receives the timetable.</div></div>
+                    <input class="field" id="emTo" style="max-width:300px" placeholder="plan@shayannoorullah.tech"/>
+                  </div>
+                  <div class="srow">
+                    <div><div class="st">From</div><div class="sd">Must be on your Resend-verified domain.</div></div>
+                    <input class="field" id="emFrom" style="max-width:340px" placeholder="SSIES Scheduler &lt;scheduler@mail.shayannoorullah.tech&gt;"/>
+                  </div>
+                  <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+                    <button class="btn btn-soft btn-sm" type="button" onclick="saveEmailReport()">Save</button>
+                    <button class="btn btn-primary btn-sm" type="button" onclick="sendTestScheduleEmail()">Send test email</button>
+                    <span class="hint" id="emStatus" style="margin:0"></span>
+                  </div>
+                </div>
+              </div>
             </div>
 
             <div class="stab-panel" id="stab-security">
@@ -909,10 +935,10 @@ window.SSIES_USER = {{ {"email": email|default(username), "display_name": userna
 
 <div class="toast" id="toast" role="status" aria-live="polite" aria-atomic="true"></div>
 
-<script src="{{ url_for('static', filename='js/chrome.js') }}?v=poc45"></script>
-<script src="{{ url_for('static', filename='js/theme.js') }}?v=poc45"></script>
-<script src="{{ url_for('static', filename='js/whatsapp.js') }}?v=poc45"></script>
-<script src="{{ url_for('static', filename='js/waha.js') }}?v=poc45"></script>
+<script src="{{ url_for('static', filename='js/chrome.js') }}?v=poc46"></script>
+<script src="{{ url_for('static', filename='js/theme.js') }}?v=poc46"></script>
+<script src="{{ url_for('static', filename='js/whatsapp.js') }}?v=poc46"></script>
+<script src="{{ url_for('static', filename='js/waha.js') }}?v=poc46"></script>
 <script>
 const DAYS = {{ days | tojson }};
 const _asUser = new URLSearchParams(location.search).get("asUser");
@@ -1074,7 +1100,7 @@ function showView(v){
   if (v==="wa-direct") renderDirectPanel();
   if (v==="wa-auto") renderAutoSendPanel();
   if (v==="history") loadReleaseHistory();
-  if (v==="settings") loadScheduledJob();
+  if (v==="settings") { loadScheduledJob(); loadEmailReport(); }
   if (window.innerWidth<=820) document.getElementById("shell").classList.remove("rail-open");
   if(typeof syncNavSched==="function") syncNavSched();
 }
@@ -2336,7 +2362,35 @@ async function ssStart(){
   try{
     const d=await (await fetch("/api/release",post({targets:ssTargets}))).json();
     if(d.error){ toast(d.error,"err"); ssPhase="ready"; setBusy(spin,btn,txt,false,label); renderSendStatus(); return; }
+    // When a schedule (Table "Send selected") is released, also email the timetable to plan@ (backend no-ops if disabled).
+    if(btn==="relTblBtn"){ fetch("/api/schedule/email-report",post({})).then(r=>r.json()).then(j=>{ if(j&&j.ok&&!j.skipped&&j.to) toast("Schedule emailed to "+j.to+" ✓"); }).catch(()=>{}); }
   }catch(e){ toast("Send failed","err"); ssPhase="ready"; setBusy(spin,btn,txt,false,label); renderSendStatus(); }
+}
+async function loadEmailReport(){
+  try{
+    const d=await (await fetch("/api/schedule/email-config")).json();
+    const e=document.getElementById("emEnabled"); if(e) e.checked=!!d.enabled;
+    const to=document.getElementById("emTo"); if(to) to.value=d.to||"";
+    const fr=document.getElementById("emFrom"); if(fr) fr.value=d.from||"";
+    const k=document.getElementById("emKey"); if(k) k.placeholder=d.hasKey?"•••••••• (saved — blank keeps it)":"re_…";
+  }catch(_){}
+}
+async function saveEmailReport(){
+  const body={ enabled:document.getElementById("emEnabled").checked, to:document.getElementById("emTo").value.trim(), from:document.getElementById("emFrom").value.trim() };
+  const k=document.getElementById("emKey").value.trim(); if(k) body.apiKey=k;
+  try{
+    const res=await fetch("/api/schedule/email-config",put(body));
+    const d=await res.json().catch(()=>({})); if(!res.ok) throw new Error(d.error||"Save failed");
+    document.getElementById("emKey").value=""; await loadEmailReport(); toast("Email settings saved ✓");
+  }catch(e){ toast(e.message||"Save failed","err"); }
+}
+async function sendTestScheduleEmail(){
+  const st=document.getElementById("emStatus"); if(st) st.textContent="Sending…";
+  try{
+    const res=await fetch("/api/schedule/email-report",post({test:true}));
+    const d=await res.json().catch(()=>({})); if(!res.ok) throw new Error(d.error||"Send failed");
+    if(st) st.textContent="Sent to "+(d.to||"recipient")+" ✓"; toast("Test email sent ✓");
+  }catch(e){ if(st) st.textContent=""; toast(e.message||"Send failed","err"); }
 }
 function setBusy(spin,btn,txt,busy,label){const b=document.getElementById(btn); if(b) b.disabled=busy;
   const x=document.getElementById(txt); if(x) x.textContent=busy?"Sending…":label; document.getElementById(spin)?.classList.toggle("hidden",!busy);}
@@ -2467,9 +2521,9 @@ async function copyText(t){try{await navigator.clipboard.writeText(t);toast("Cop
 let tt;function toast(m,type="ok"){const e=document.getElementById("toast");e.textContent=m;e.className=`toast ${type} show`;clearTimeout(tt);tt=setTimeout(()=>e.classList.remove("show"),3000);}
 
 </script>
-<script src="{{ url_for('static', filename='js/lists.js') }}?v=poc45"></script>
-<script src="{{ url_for('static', filename='js/features.js') }}?v=poc45"></script>
-<script src="{{ url_for('static', filename='js/workspace.js') }}?v=poc45"></script>
+<script src="{{ url_for('static', filename='js/lists.js') }}?v=poc46"></script>
+<script src="{{ url_for('static', filename='js/features.js') }}?v=poc46"></script>
+<script src="{{ url_for('static', filename='js/workspace.js') }}?v=poc46"></script>
 <script>boot();</script>
 </body>
 </html>

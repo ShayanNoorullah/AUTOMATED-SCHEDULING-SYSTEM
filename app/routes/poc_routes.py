@@ -420,6 +420,124 @@ def put_schedule_recipients():
     return jsonify({"ok": True, "recipients": recs})
 
 
+# ── Weekly schedule email (auto-email the timetable to plan@ via Resend) ──────
+_EMAIL_FROM_DEFAULT = "SSIES Scheduler <scheduler@mail.shayannoorullah.tech>"
+
+
+def _build_schedule_html(uid):
+    """Return (html, slot_count) of the user's whole weekly timetable, or (None, 0)."""
+    from app.config import DAYS
+    groups = Group.query.filter_by(user_id=uid).order_by(Group.position, Group.id).all()
+    used = [d for d in DAYS if any(
+        (e.get("day") == d and (e.get("from") or "").strip())
+        for gp in groups for e in (gp.schedule or []))]
+    if not used:
+        return None, 0
+    th = "".join(f'<th style="padding:8px 10px;text-align:left;font-size:12px;color:#fff;">{d[:3]}</th>' for d in used)
+    rows, total = [], 0
+    for gp in groups:
+        sched = {e["day"]: e for e in (gp.schedule or []) if (e.get("from") or "").strip()}
+        if not sched:
+            continue
+        tds = []
+        for d in used:
+            e = sched.get(d)
+            if e:
+                rng = f"{e['from']}&ndash;{e.get('to', '')}".rstrip("&ndash;").rstrip("–")
+                tds.append(f'<td style="padding:7px 10px;border-top:1px solid #e5e7eb;font-size:13px;white-space:nowrap;">{rng}</td>')
+                total += 1
+            else:
+                tds.append('<td style="padding:7px 10px;border-top:1px solid #e5e7eb;color:#cbd5e1;">&mdash;</td>')
+        nm = (gp.nickname or gp.name or "—")
+        rows.append(f'<tr><td style="padding:7px 10px;border-top:1px solid #e5e7eb;font-weight:600;font-size:13px;">{nm}</td>{"".join(tds)}</tr>')
+    date_str = datetime.utcnow().strftime("%d %b %Y")
+    html = f"""<div style="font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif;max-width:640px;margin:0 auto;color:#0f172a;">
+  <h2 style="margin:0 0 4px;">&#128197; Weekly Schedule</h2>
+  <p style="margin:0 0 16px;color:#64748b;font-size:13px;">{total} class time{'' if total == 1 else 's'} &middot; {date_str}</p>
+  <table style="border-collapse:collapse;width:100%;border:1px solid #e5e7eb;border-radius:8px;overflow:hidden;">
+    <thead><tr style="background:#0d9488;"><th style="padding:8px 10px;text-align:left;font-size:12px;color:#fff;">Group</th>{th}</tr></thead>
+    <tbody>{''.join(rows)}</tbody>
+  </table>
+  <p style="margin:16px 0 0;color:#94a3b8;font-size:12px;">Sent automatically by the SSIES Schedule Sender when a schedule was released.</p>
+</div>"""
+    return html, total
+
+
+def _resend_send(api_key, frm, to, subject, html):
+    import requests as _rq
+    r = _rq.post(
+        "https://api.resend.com/emails",
+        headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
+        json={"from": frm, "to": [to], "subject": subject, "html": html},
+        timeout=20,
+    )
+    if r.status_code >= 400:
+        try:
+            msg = (r.json() or {}).get("message") or r.text[:200]
+        except ValueError:
+            msg = r.text[:200]
+        raise RuntimeError(msg or f"Resend HTTP {r.status_code}")
+    return r.json() if r.content else {}
+
+
+@bp.route("/api/schedule/email-config", methods=["GET"])
+@login_required
+def get_schedule_email_config():
+    from app.services.users import get_system_setting
+    return jsonify({
+        "enabled": bool(get_system_setting("schedule_email_enabled", False)),
+        "to": get_system_setting("schedule_email_to", "") or "",
+        "from": get_system_setting("schedule_email_from", "") or _EMAIL_FROM_DEFAULT,
+        "hasKey": bool(get_system_setting("resend_api_key", "")),
+        "canEdit": g.profile.is_admin(),
+    })
+
+
+@bp.route("/api/schedule/email-config", methods=["PUT"])
+@login_required
+def put_schedule_email_config():
+    from app.services.users import set_system_setting
+    if not g.profile.is_admin():
+        return jsonify({"error": "Only admins can change email settings"}), 403
+    data = request.json or {}
+    if "enabled" in data:
+        set_system_setting("schedule_email_enabled", bool(data.get("enabled")))
+    if "to" in data:
+        set_system_setting("schedule_email_to", str(data.get("to") or "").strip()[:255])
+    if "from" in data:
+        set_system_setting("schedule_email_from", str(data.get("from") or "").strip()[:255] or _EMAIL_FROM_DEFAULT)
+    key = str(data.get("apiKey") or "").strip()
+    if key:
+        set_system_setting("resend_api_key", key)
+    db.session.commit()
+    return jsonify({"ok": True})
+
+
+@bp.route("/api/schedule/email-report", methods=["POST"])
+@login_required
+def schedule_email_report():
+    from app.services.users import get_system_setting
+    test = bool((request.json or {}).get("test"))
+    if not test and not get_system_setting("schedule_email_enabled", False):
+        return jsonify({"ok": True, "skipped": True})
+    key = get_system_setting("resend_api_key", "") or ""
+    to = get_system_setting("schedule_email_to", "") or ""
+    frm = get_system_setting("schedule_email_from", "") or _EMAIL_FROM_DEFAULT
+    if not key:
+        return jsonify({"error": "Resend API key not set"}), 400
+    if not to:
+        return jsonify({"error": "Recipient address not set"}), 400
+    html, n = _build_schedule_html(g.profile.id)
+    if not html:
+        return jsonify({"error": "No schedule to email — add class times first"}), 400
+    subject = f"Weekly Schedule — {datetime.utcnow().strftime('%d %b %Y')}"
+    try:
+        _resend_send(key, frm, to, subject, html)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 502
+    return jsonify({"ok": True, "slots": n, "to": to})
+
+
 # ── Password reset requests ──────────────────────────────────────────────────
 # Pending password is stored as Fernet ciphertext (APP_ENCRYPTION_KEY), not plaintext
 # and not a one-way hash — so approve can decrypt → Supabase admin.update_user → wipe.
