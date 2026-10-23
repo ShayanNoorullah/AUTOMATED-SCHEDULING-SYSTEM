@@ -274,9 +274,30 @@ async function loadScheduledJob() {
     if (hour) hour.value = String(d.hour ?? 9);
     if (min) min.value = String(d.minute ?? 0);
     if (last) last.textContent = d.lastRunAt ? `Last run: ${new Date(d.lastRunAt).toLocaleString()}` : "Not run yet";
+    updateSchedHint();
   } catch {
     /* ignore */
   }
+}
+
+// Show the chosen UTC weekly slot translated to the viewer's local day/time.
+function updateSchedHint() {
+  const el = document.getElementById("schedWhen");
+  if (!el) return;
+  const toInt = (id, def) => { const v = parseInt(document.getElementById(id)?.value, 10); return isNaN(v) ? def : v; };
+  const dow = Math.min(6, Math.max(0, toInt("schedDow", 0)));
+  const hour = Math.min(23, Math.max(0, toInt("schedHour", 9)));
+  const min = Math.min(59, Math.max(0, toInt("schedMinute", 0)));
+  const now = new Date();
+  const next = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), hour, min, 0));
+  let add = (dow - next.getUTCDay() + 7) % 7;
+  if (add === 0 && next.getTime() <= now.getTime()) add = 7;
+  next.setUTCDate(next.getUTCDate() + add);
+  const DOW = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+  const utc = `${DOW[dow]} ${String(hour).padStart(2, "0")}:${String(min).padStart(2, "0")} UTC`;
+  const local = next.toLocaleString(undefined, { weekday: "long", hour: "numeric", minute: "2-digit" });
+  const tz = (Intl.DateTimeFormat().resolvedOptions().timeZone || "local").split("/").pop().replace(/_/g, " ");
+  el.innerHTML = `Fires <b>${local}</b> your time <span class="sw-utc">· ${utc} · ${tz}</span>`;
 }
 
 async function saveScheduledJob() {

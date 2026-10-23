@@ -23,10 +23,10 @@
 </script>
 <link rel="preconnect" href="https://api.fontshare.com">
 <link href="https://api.fontshare.com/v2/css?f[]=satoshi@400,500,700,900&display=swap" rel="stylesheet">
-<link href="{{ url_for('static', filename='css/app.css') }}?v=poc47" rel="stylesheet"/>
-<link href="{{ url_for('static', filename='css/compat.css') }}?v=poc47" rel="stylesheet"/>
-<link href="{{ url_for('static', filename='css/dashboard.css') }}?v=poc47" rel="stylesheet"/>
-<link href="{{ url_for('static', filename='css/components.css') }}?v=poc47" rel="stylesheet"/>
+<link href="{{ url_for('static', filename='css/app.css') }}?v=poc48" rel="stylesheet"/>
+<link href="{{ url_for('static', filename='css/compat.css') }}?v=poc48" rel="stylesheet"/>
+<link href="{{ url_for('static', filename='css/dashboard.css') }}?v=poc48" rel="stylesheet"/>
+<link href="{{ url_for('static', filename='css/components.css') }}?v=poc48" rel="stylesheet"/>
 <script>
 window.SSIES_USER = {{ {"email": email|default(username), "display_name": username, "role": role, "photo_url": photo_url|default(none)} | tojson }};
 </script>
@@ -637,33 +637,36 @@ window.SSIES_USER = {{ {"email": email|default(username), "display_name": userna
                     <div><div class="st">Delay between sends</div><div class="sd">Seconds between recipients during bulk automated release.</div></div>
                     <input class="num" type="number" id="setDelay" min="0" max="300" onchange="saveAutomation()"/>
                   </div>
-                  <div class="srow srow-stack">
+                  <div class="srow srow-stack sched-row">
                     <div class="srow-head">
                       <div>
                         <div class="st">Scheduled weekly send</div>
-                        <div class="sd">Automatically send all groups on the chosen day and time (UTC server clock).</div>
+                        <div class="sd">Automatically send all groups every week at the chosen day and time.</div>
                       </div>
-                      <label class="toggle" title="Enable scheduled send"><input type="checkbox" id="schedEnabled"/><span class="tk"></span></label>
+                      <label class="toggle" title="Enable scheduled send"><input type="checkbox" id="schedEnabled" onchange="updateSchedHint()"/><span class="tk"></span></label>
                     </div>
-                    <div class="sched-controls">
-                      <label class="sched-field">
-                        <span class="sched-lbl">Day</span>
-                        <select class="field" id="schedDow">
-                          <option value="0">Sunday</option><option value="1">Monday</option><option value="2">Tuesday</option>
-                          <option value="3">Wednesday</option><option value="4">Thursday</option><option value="5">Friday</option><option value="6">Saturday</option>
-                        </select>
-                      </label>
-                      <label class="sched-field">
-                        <span class="sched-lbl">Hour (UTC)</span>
-                        <input class="field" id="schedHour" type="number" min="0" max="23" placeholder="9"/>
-                      </label>
-                      <label class="sched-field">
-                        <span class="sched-lbl">Minute</span>
-                        <input class="field" id="schedMinute" type="number" min="0" max="59" placeholder="0"/>
-                      </label>
+                    <div class="sched-reveal">
+                      <div class="sched-controls">
+                        <label class="sched-field">
+                          <span class="sched-lbl">Day</span>
+                          <select class="field" id="schedDow" onchange="updateSchedHint()">
+                            <option value="0">Sunday</option><option value="1">Monday</option><option value="2">Tuesday</option>
+                            <option value="3">Wednesday</option><option value="4">Thursday</option><option value="5">Friday</option><option value="6">Saturday</option>
+                          </select>
+                        </label>
+                        <label class="sched-field">
+                          <span class="sched-lbl">Hour (UTC)</span>
+                          <input class="field" id="schedHour" type="number" min="0" max="23" placeholder="9" oninput="updateSchedHint()"/>
+                        </label>
+                        <label class="sched-field">
+                          <span class="sched-lbl">Minute</span>
+                          <input class="field" id="schedMinute" type="number" min="0" max="59" placeholder="0" oninput="updateSchedHint()"/>
+                        </label>
+                      </div>
+                      <p class="sched-when" id="schedWhen"></p>
+                      <p class="hint" id="schedLastRun">Not run yet</p>
+                      <button class="btn btn-primary btn-sm" type="button" onclick="saveScheduledJob()" style="align-self:flex-start">Save schedule</button>
                     </div>
-                    <p class="hint" id="schedLastRun">Not run yet</p>
-                    <button class="btn btn-soft btn-sm" type="button" onclick="saveScheduledJob()" style="align-self:flex-start">Save schedule</button>
                   </div>
                 </div>
               </div>
@@ -935,10 +938,10 @@ window.SSIES_USER = {{ {"email": email|default(username), "display_name": userna
 
 <div class="toast" id="toast" role="status" aria-live="polite" aria-atomic="true"></div>
 
-<script src="{{ url_for('static', filename='js/chrome.js') }}?v=poc47"></script>
-<script src="{{ url_for('static', filename='js/theme.js') }}?v=poc47"></script>
-<script src="{{ url_for('static', filename='js/whatsapp.js') }}?v=poc47"></script>
-<script src="{{ url_for('static', filename='js/waha.js') }}?v=poc47"></script>
+<script src="{{ url_for('static', filename='js/chrome.js') }}?v=poc48"></script>
+<script src="{{ url_for('static', filename='js/theme.js') }}?v=poc48"></script>
+<script src="{{ url_for('static', filename='js/whatsapp.js') }}?v=poc48"></script>
+<script src="{{ url_for('static', filename='js/waha.js') }}?v=poc48"></script>
 <script>
 const DAYS = {{ days | tojson }};
 const _asUser = new URLSearchParams(location.search).get("asUser");
@@ -2524,9 +2527,9 @@ async function copyText(t){try{await navigator.clipboard.writeText(t);toast("Cop
 let tt;function toast(m,type="ok"){const e=document.getElementById("toast");e.textContent=m;e.className=`toast ${type} show`;clearTimeout(tt);tt=setTimeout(()=>e.classList.remove("show"),3000);}
 
 </script>
-<script src="{{ url_for('static', filename='js/lists.js') }}?v=poc47"></script>
-<script src="{{ url_for('static', filename='js/features.js') }}?v=poc47"></script>
-<script src="{{ url_for('static', filename='js/workspace.js') }}?v=poc47"></script>
+<script src="{{ url_for('static', filename='js/lists.js') }}?v=poc48"></script>
+<script src="{{ url_for('static', filename='js/features.js') }}?v=poc48"></script>
+<script src="{{ url_for('static', filename='js/workspace.js') }}?v=poc48"></script>
 <script>boot();</script>
 </body>
 </html>

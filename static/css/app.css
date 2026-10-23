@@ -777,9 +777,15 @@ html[data-zebra="on"] table.sched tbody tr:nth-child(even) td{background:var(--s
 .accent-default{border:1px solid var(--border);background:var(--surface-2);border-radius:var(--r-sm);padding:9px 13px;font-size:.82rem;font-weight:650;cursor:pointer;font-family:inherit;color:var(--text-muted);transition:all .16s;}
 .accent-default.on{border-color:var(--accent);color:var(--accent-hover);}
 .num{max-width:120px;}
-.sched-controls{display:flex;gap:12px;flex-wrap:wrap;margin-top:6px;}
+.sched-controls{display:flex;gap:12px;flex-wrap:wrap;}
 .sched-field{display:flex;flex-direction:column;gap:5px;}
 .sched-lbl{font-size:.72rem;text-transform:uppercase;letter-spacing:.04em;color:var(--text-muted);font-weight:700;}
+.sched-row .sched-reveal{display:grid;gap:13px;overflow:hidden;max-height:0;opacity:0;margin-top:0;transition:max-height .32s var(--ease),opacity .25s var(--ease),margin-top .32s var(--ease);}
+.sched-row:has(#schedEnabled:checked) .sched-reveal{max-height:340px;opacity:1;margin-top:16px;}
+body.no-anim .sched-row .sched-reveal{transition:none;}
+.sched-when{margin:0;font-size:.85rem;color:var(--text);font-weight:650;display:flex;align-items:center;gap:7px;}
+.sched-when::before{content:"";width:7px;height:7px;border-radius:50%;background:var(--success);flex:none;}
+.sched-when .sw-utc{color:var(--text-muted);font-weight:500;}
 .audit-row{display:flex;flex-direction:column;padding:11px 0;border-bottom:1px solid var(--border);gap:2px;}
 .audit-row .act{font-weight:650;font-size:.88rem;}
 .audit-row .meta{font-size:.78rem;color:var(--text-soft);}
