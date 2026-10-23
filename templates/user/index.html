@@ -23,10 +23,10 @@
 </script>
 <link rel="preconnect" href="https://api.fontshare.com">
 <link href="https://api.fontshare.com/v2/css?f[]=satoshi@400,500,700,900&display=swap" rel="stylesheet">
-<link href="{{ url_for('static', filename='css/app.css') }}?v=poc46" rel="stylesheet"/>
-<link href="{{ url_for('static', filename='css/compat.css') }}?v=poc46" rel="stylesheet"/>
-<link href="{{ url_for('static', filename='css/dashboard.css') }}?v=poc46" rel="stylesheet"/>
-<link href="{{ url_for('static', filename='css/components.css') }}?v=poc46" rel="stylesheet"/>
+<link href="{{ url_for('static', filename='css/app.css') }}?v=poc47" rel="stylesheet"/>
+<link href="{{ url_for('static', filename='css/compat.css') }}?v=poc47" rel="stylesheet"/>
+<link href="{{ url_for('static', filename='css/dashboard.css') }}?v=poc47" rel="stylesheet"/>
+<link href="{{ url_for('static', filename='css/components.css') }}?v=poc47" rel="stylesheet"/>
 <script>
 window.SSIES_USER = {{ {"email": email|default(username), "display_name": username, "role": role, "photo_url": photo_url|default(none)} | tojson }};
 </script>
@@ -925,8 +925,8 @@ window.SSIES_USER = {{ {"email": email|default(username), "display_name": userna
           <button type="button" data-val="group" onclick="saSetFmt('group')">By group</button>
         </div>
       </div>
-      <div class="profile-field" style="margin-top:12px"><label>Preview <span class="field-hint" style="display:inline">sent as a WhatsApp message</span></label>
-        <div class="msg-preview"><div class="preview-b" id="saPreview" style="white-space:pre-wrap;font-family:ui-monospace,Menlo,monospace;font-size:.8rem;max-height:34vh;overflow:auto"></div></div>
+      <div class="profile-field" style="margin-top:12px"><label>Preview <span class="field-hint" style="display:inline">sent as a WhatsApp message — edit freely before sending</span></label>
+        <textarea class="field" id="saPreview" spellcheck="false" style="white-space:pre;font-family:ui-monospace,Menlo,monospace;font-size:.8rem;min-height:200px;max-height:40vh;width:100%;resize:vertical;line-height:1.5"></textarea>
       </div>
     </div>
     <div class="modal-f"><button class="btn btn-soft" type="button" onclick="closeSuperadminReport()">Cancel</button><button class="btn btn-primary" type="button" onclick="sendSuperadminReport()">Send on WhatsApp</button></div>
@@ -935,10 +935,10 @@ window.SSIES_USER = {{ {"email": email|default(username), "display_name": userna
 
 <div class="toast" id="toast" role="status" aria-live="polite" aria-atomic="true"></div>
 
-<script src="{{ url_for('static', filename='js/chrome.js') }}?v=poc46"></script>
-<script src="{{ url_for('static', filename='js/theme.js') }}?v=poc46"></script>
-<script src="{{ url_for('static', filename='js/whatsapp.js') }}?v=poc46"></script>
-<script src="{{ url_for('static', filename='js/waha.js') }}?v=poc46"></script>
+<script src="{{ url_for('static', filename='js/chrome.js') }}?v=poc47"></script>
+<script src="{{ url_for('static', filename='js/theme.js') }}?v=poc47"></script>
+<script src="{{ url_for('static', filename='js/whatsapp.js') }}?v=poc47"></script>
+<script src="{{ url_for('static', filename='js/waha.js') }}?v=poc47"></script>
 <script>
 const DAYS = {{ days | tojson }};
 const _asUser = new URLSearchParams(location.search).get("asUser");
@@ -2441,22 +2441,25 @@ function buildScheduleText(fmt){
   const rows=_schedRows();
   if(!rows.length) return null;
   const who=(window.SSIES_USER&&SSIES_USER.display_name)||"";
-  const d=new Date().toLocaleDateString();
-  const head=`*📅 Weekly Schedule*\n_${rows.length} slot${rows.length===1?"":"s"} · ${d}${who?" · by "+who:""}_`;
-  const rng=(r)=>r.to?`${r.from}-${r.to}`:r.from;
+  const d=new Date().toLocaleDateString("en-GB",{day:"numeric",month:"short",year:"numeric"});
+  const n=rows.length;
+  const head=`📅 *WEEKLY SCHEDULE*\n🗓️ ${d}  •  ${n} slot${n===1?"":"s"}${who?"\n👤 by "+who:""}`;
+  const bar="━━━━━━━━━━━━━";
+  const foot=`${bar}\n_SSIES Automation_`;
+  const rng=(r)=>r.to?`${r.from}–${r.to}`:r.from;
   if(fmt==="byday"){
     const byDay={};
     rows.forEach(r=>(byDay[r.day]=byDay[r.day]||[]).push(r));
     const blocks=DAYS.filter(d=>byDay[d]).map(day=>
-      `*${day}*\n`+byDay[day].sort((a,b)=>a.g.localeCompare(b.g)).map(r=>`• ${r.g} — ${rng(r)}`).join("\n"));
-    return `${head}\n\n${blocks.join("\n\n")}`;
+      `📌 *${day.toUpperCase()}*\n`+byDay[day].sort((a,b)=>a.g.localeCompare(b.g)).map(r=>`   ▸ ${r.g} — ${rng(r)}`).join("\n"));
+    return `${head}\n${bar}\n`+blocks.join("\n\n")+`\n${foot}`;
   }
   if(fmt==="group"){
     const byG={};
     rows.forEach(r=>(byG[r.g]=byG[r.g]||[]).push(r));
     const blocks=Object.keys(byG).sort().map(g=>
-      `*${g}*\n`+byG[g].sort((a,b)=>a.ord-b.ord).map(r=>`${r.day.slice(0,3)}  ${rng(r)}`).join("\n"));
-    return `${head}\n\n${blocks.join("\n\n")}`;
+      `👥 *${g}*\n`+byG[g].sort((a,b)=>a.ord-b.ord).map(r=>`   ▸ ${r.day.slice(0,3)} — ${rng(r)}`).join("\n"));
+    return `${head}\n${bar}\n`+blocks.join("\n\n")+`\n${foot}`;
   }
   // table (monospace)
   rows.sort((a,b)=>a.ord-b.ord||a.g.localeCompare(b.g));
@@ -2466,11 +2469,11 @@ function buildScheduleText(fmt){
   const w=heads.map((h,i)=>Math.max(h.length,...data.map(r=>r[i].length)));
   const line=(c)=>c.map((x,i)=>String(x).padEnd(w[i])).join("  ").replace(/\s+$/,"");
   const table=[line(heads),w.map(x=>"─".repeat(x)).join("  "),...data.map(line)].join("\n");
-  return `${head}\n\n\`\`\`\n${table}\n\`\`\``;
+  return `${head}\n\n\`\`\`\n${table}\n\`\`\`\n${foot}`;
 }
 function saRenderPreview(){
   const msg=buildScheduleText();
-  document.getElementById("saPreview").textContent=msg?msg.replace(/```/g,"").replace(/[*_]/g,"").trim():"No schedule yet — add class times in the table first.";
+  document.getElementById("saPreview").value=msg||"No schedule yet — add class times in the table first.";
 }
 function saSetFmt(f){
   saFmt=f;
@@ -2509,8 +2512,8 @@ async function saAddRecipient(){
 }
 async function saRemoveRecipient(i){ saRecips.splice(i,1); if(await saSaveRecipients()) renderSaRecipients(); }
 function sendSuperadminReport(){
-  const msg=buildScheduleText();
-  if(!msg){ toast("No schedule to send — add times first","err"); return; }
+  const msg=document.getElementById("saPreview").value.trim();
+  if(!msg||!_schedRows().length){ toast("No schedule to send — add times first","err"); return; }
   const picks=saRecips.filter(r=>saChecked[r.phone]);
   if(!picks.length){ toast("Tick at least one recipient","err"); return; }
   closeSuperadminReport();
@@ -2521,9 +2524,9 @@ async function copyText(t){try{await navigator.clipboard.writeText(t);toast("Cop
 let tt;function toast(m,type="ok"){const e=document.getElementById("toast");e.textContent=m;e.className=`toast ${type} show`;clearTimeout(tt);tt=setTimeout(()=>e.classList.remove("show"),3000);}
 
 </script>
-<script src="{{ url_for('static', filename='js/lists.js') }}?v=poc46"></script>
-<script src="{{ url_for('static', filename='js/features.js') }}?v=poc46"></script>
-<script src="{{ url_for('static', filename='js/workspace.js') }}?v=poc46"></script>
+<script src="{{ url_for('static', filename='js/lists.js') }}?v=poc47"></script>
+<script src="{{ url_for('static', filename='js/features.js') }}?v=poc47"></script>
+<script src="{{ url_for('static', filename='js/workspace.js') }}?v=poc47"></script>
 <script>boot();</script>
 </body>
 </html>

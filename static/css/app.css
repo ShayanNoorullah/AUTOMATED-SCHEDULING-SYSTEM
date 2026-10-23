@@ -761,7 +761,8 @@ html[data-zebra="on"] table.sched tbody tr:nth-child(even) td{background:var(--s
 .stab.on::after{content:"";position:absolute;left:12px;right:12px;bottom:-1px;height:2px;border-radius:2px;background:var(--grad-accent);}
 .stab:hover{color:var(--text);}
 .stab-panel{display:none;}
-.stab-panel.on{display:block;animation:viewIn .35s var(--ease);}
+.stab-panel.on{display:block;animation:fadeIn .25s var(--ease);}
+@keyframes fadeIn{from{opacity:0;}to{opacity:1;}}
 .srow{display:flex;align-items:center;justify-content:space-between;gap:20px;padding:18px 0;border-bottom:1px solid var(--border);flex-wrap:wrap;}
 .srow:last-child{border-bottom:none;}
 .srow .st{font-weight:650;font-size:.94rem;}
