@@ -131,6 +131,11 @@ def _req(method, path, session_name=None, **kwargs):
         r = requests.request(method, url, **kwargs)
     except requests.RequestException as e:
         err = str(e)
+        if isinstance(e, requests.exceptions.ReadTimeout):
+            raise WahaError(
+                "WAHA took too long to respond. The message may already have been sent — "
+                "check WhatsApp before resending."
+            ) from e
         if "Failed to resolve" in err or "getaddrinfo" in err or "NameResolution" in err:
             raise WahaError(
                 f"Cannot reach WAHA at {cfg['base']}. "
@@ -387,14 +392,17 @@ def stop_session(name=None, user_id=None):
 def send_text(chat_id, text, session=None):
     session = _session_name(session)
     payload = {"session": session, "chatId": chat_id, "text": text}
+    # First send to an individual WAHA hasn't chatted with resolves the number and
+    # opens the chat, which can take well over the default 30s. Give it room.
+    # No retry on timeout: WAHA may have already sent, so a retry could double-send.
     try:
-        return _req("POST", "/api/sendText", session_name=session, json=payload)
+        return _req("POST", "/api/sendText", session_name=session, json=payload, timeout=90)
     except WahaError as e:
         # Recover once from transient WAHA WEBJS/Puppeteer crashes.
         if _is_transient_webjs_error(str(e)):
             restart_session(session)
             _wait_for_qr_status(session, timeout=20)
-            return _req("POST", "/api/sendText", session_name=session, json=payload)
+            return _req("POST", "/api/sendText", session_name=session, json=payload, timeout=90)
         raise
 
 
