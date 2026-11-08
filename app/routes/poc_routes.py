@@ -380,7 +380,10 @@ def list_notifications():
 @bp.route("/api/notifications/read", methods=["POST"])
 @login_required
 def mark_notifications_read():
-    data = request.json or {}
+    # The client POSTs an application/json content-type with an empty body, which
+    # makes request.json raise 400 — so read=True was never committed and the
+    # badge came back on reload. get_json(silent=True) tolerates the empty body.
+    data = request.get_json(silent=True) or {}
     ids = data.get("ids")
     q = Notification.query.filter_by(user_id=g.profile.id, read=False)
     if ids:

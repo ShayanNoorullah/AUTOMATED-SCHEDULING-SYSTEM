@@ -40,6 +40,15 @@
 .shell.rail-collapsed .nav-group-btn .caret{display:none;}
 .app.rail-collapsed .nav-item.active::before,
 .shell.rail-collapsed .nav-item.active::before{display:none;}
+/* Collapsed rail frees ~190px: let the page use the reclaimed width instead of
+   keeping the 1260px cap (which forced wide tables into an internal scroll). */
+.app.rail-collapsed .content,.app.rail-collapsed .page-pad,
+.shell.rail-collapsed .content,.shell.rail-collapsed .page-pad{max-width:none;}
+/* Floating notif bell: centre it under the 72px rail and lift it clear of the
+   collapsed footer (avatar + logout) so it no longer sits on top of them. */
+.app.rail-collapsed .notif-wrap:not(.in-bar),
+.shell.rail-collapsed .notif-wrap:not(.in-bar){left:12px;bottom:96px;}
+/* Collapsed rail hover hints — native title tooltips are set from labels in JS. */
 
 /* Portal chrome mapped onto POC tokens */
 .portal-app{display:flex;min-height:100vh;min-height:100dvh;background:transparent;}

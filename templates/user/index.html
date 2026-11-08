@@ -23,10 +23,10 @@
 </script>
 <link rel="preconnect" href="https://api.fontshare.com">
 <link href="https://api.fontshare.com/v2/css?f[]=satoshi@400,500,700,900&display=swap" rel="stylesheet">
-<link href="{{ url_for('static', filename='css/app.css') }}?v=poc48" rel="stylesheet"/>
-<link href="{{ url_for('static', filename='css/compat.css') }}?v=poc48" rel="stylesheet"/>
-<link href="{{ url_for('static', filename='css/dashboard.css') }}?v=poc48" rel="stylesheet"/>
-<link href="{{ url_for('static', filename='css/components.css') }}?v=poc48" rel="stylesheet"/>
+<link href="{{ url_for('static', filename='css/app.css') }}?v=poc49" rel="stylesheet"/>
+<link href="{{ url_for('static', filename='css/compat.css') }}?v=poc49" rel="stylesheet"/>
+<link href="{{ url_for('static', filename='css/dashboard.css') }}?v=poc49" rel="stylesheet"/>
+<link href="{{ url_for('static', filename='css/components.css') }}?v=poc49" rel="stylesheet"/>
 <script>
 window.SSIES_USER = {{ {"email": email|default(username), "display_name": username, "role": role, "photo_url": photo_url|default(none)} | tojson }};
 </script>
@@ -938,10 +938,10 @@ window.SSIES_USER = {{ {"email": email|default(username), "display_name": userna
 
 <div class="toast" id="toast" role="status" aria-live="polite" aria-atomic="true"></div>
 
-<script src="{{ url_for('static', filename='js/chrome.js') }}?v=poc48"></script>
-<script src="{{ url_for('static', filename='js/theme.js') }}?v=poc48"></script>
-<script src="{{ url_for('static', filename='js/whatsapp.js') }}?v=poc48"></script>
-<script src="{{ url_for('static', filename='js/waha.js') }}?v=poc48"></script>
+<script src="{{ url_for('static', filename='js/chrome.js') }}?v=poc49"></script>
+<script src="{{ url_for('static', filename='js/theme.js') }}?v=poc49"></script>
+<script src="{{ url_for('static', filename='js/whatsapp.js') }}?v=poc49"></script>
+<script src="{{ url_for('static', filename='js/waha.js') }}?v=poc49"></script>
 <script>
 const DAYS = {{ days | tojson }};
 const _asUser = new URLSearchParams(location.search).get("asUser");
@@ -1322,6 +1322,9 @@ function replaceTokens(t){
 /* ════ Boot ════ */
 async function boot(){
   buildTimeOptions(); applyTheme(); updateLogoChevron(); loadTableNotes();
+  /* Hover hints when the rail is collapsed: give every nav item a title from its
+     label (sub-items had none), so the icon-only column shows what each does. */
+  document.querySelectorAll(".rail .nav-item").forEach(b=>{ if(!b.getAttribute("title")){ const l=b.querySelector(".lbl"); if(l&&l.textContent.trim()) b.title=l.textContent.trim(); } });
   if(localStorage.getItem("rail-collapsed")==="1"){
     document.getElementById("shell").classList.add("rail-collapsed");
     updateLogoChevron();
@@ -2527,9 +2530,9 @@ async function copyText(t){try{await navigator.clipboard.writeText(t);toast("Cop
 let tt;function toast(m,type="ok"){const e=document.getElementById("toast");e.textContent=m;e.className=`toast ${type} show`;clearTimeout(tt);tt=setTimeout(()=>e.classList.remove("show"),3000);}
 
 </script>
-<script src="{{ url_for('static', filename='js/lists.js') }}?v=poc48"></script>
-<script src="{{ url_for('static', filename='js/features.js') }}?v=poc48"></script>
-<script src="{{ url_for('static', filename='js/workspace.js') }}?v=poc48"></script>
+<script src="{{ url_for('static', filename='js/lists.js') }}?v=poc49"></script>
+<script src="{{ url_for('static', filename='js/features.js') }}?v=poc49"></script>
+<script src="{{ url_for('static', filename='js/workspace.js') }}?v=poc49"></script>
 <script>boot();</script>
 </body>
 </html>
