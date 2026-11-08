@@ -23,10 +23,10 @@
 </script>
 <link rel="preconnect" href="https://api.fontshare.com">
 <link href="https://api.fontshare.com/v2/css?f[]=satoshi@400,500,700,900&display=swap" rel="stylesheet">
-<link href="{{ url_for('static', filename='css/app.css') }}?v=poc49" rel="stylesheet"/>
-<link href="{{ url_for('static', filename='css/compat.css') }}?v=poc49" rel="stylesheet"/>
-<link href="{{ url_for('static', filename='css/dashboard.css') }}?v=poc49" rel="stylesheet"/>
-<link href="{{ url_for('static', filename='css/components.css') }}?v=poc49" rel="stylesheet"/>
+<link href="{{ url_for('static', filename='css/app.css') }}?v=poc50" rel="stylesheet"/>
+<link href="{{ url_for('static', filename='css/compat.css') }}?v=poc50" rel="stylesheet"/>
+<link href="{{ url_for('static', filename='css/dashboard.css') }}?v=poc50" rel="stylesheet"/>
+<link href="{{ url_for('static', filename='css/components.css') }}?v=poc50" rel="stylesheet"/>
 <script>
 window.SSIES_USER = {{ {"email": email|default(username), "display_name": username, "role": role, "photo_url": photo_url|default(none)} | tojson }};
 </script>
@@ -696,6 +696,19 @@ window.SSIES_USER = {{ {"email": email|default(username), "display_name": userna
                   </div>
                 </div>
               </div>
+              <div class="sec" style="margin-top:16px">
+                <div class="sec-h">Weekly schedule on WhatsApp</div>
+                <div class="sec-b">
+                  <div class="srow">
+                    <div><div class="st">Send timetable image + by-day preview when a schedule is sent</div><div class="sd">After you release a schedule, auto-send a timetable image and the by-day list on WhatsApp to your <b>Send Preview</b> recipients.</div></div>
+                    <label class="toggle"><input type="checkbox" id="prvEnabled" onchange="savePreviewReport()"/><span class="tk"></span></label>
+                  </div>
+                  <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+                    <button class="btn btn-primary btn-sm" type="button" onclick="sendTestPreviewReport()">Send test now</button>
+                    <span class="hint" id="prvStatus" style="margin:0"></span>
+                  </div>
+                </div>
+              </div>
             </div>
 
             <div class="stab-panel" id="stab-security">
@@ -938,10 +951,10 @@ window.SSIES_USER = {{ {"email": email|default(username), "display_name": userna
 
 <div class="toast" id="toast" role="status" aria-live="polite" aria-atomic="true"></div>
 
-<script src="{{ url_for('static', filename='js/chrome.js') }}?v=poc49"></script>
-<script src="{{ url_for('static', filename='js/theme.js') }}?v=poc49"></script>
-<script src="{{ url_for('static', filename='js/whatsapp.js') }}?v=poc49"></script>
-<script src="{{ url_for('static', filename='js/waha.js') }}?v=poc49"></script>
+<script src="{{ url_for('static', filename='js/chrome.js') }}?v=poc50"></script>
+<script src="{{ url_for('static', filename='js/theme.js') }}?v=poc50"></script>
+<script src="{{ url_for('static', filename='js/whatsapp.js') }}?v=poc50"></script>
+<script src="{{ url_for('static', filename='js/waha.js') }}?v=poc50"></script>
 <script>
 const DAYS = {{ days | tojson }};
 const _asUser = new URLSearchParams(location.search).get("asUser");
@@ -1103,7 +1116,7 @@ function showView(v){
   if (v==="wa-direct") renderDirectPanel();
   if (v==="wa-auto") renderAutoSendPanel();
   if (v==="history") loadReleaseHistory();
-  if (v==="settings") { loadScheduledJob(); loadEmailReport(); }
+  if (v==="settings") { loadScheduledJob(); loadEmailReport(); loadPreviewReport(); }
   if (window.innerWidth<=820) document.getElementById("shell").classList.remove("rail-open");
   if(typeof syncNavSched==="function") syncNavSched();
 }
@@ -2369,7 +2382,10 @@ async function ssStart(){
     const d=await (await fetch("/api/release",post({targets:ssTargets}))).json();
     if(d.error){ toast(d.error,"err"); ssPhase="ready"; setBusy(spin,btn,txt,false,label); renderSendStatus(); return; }
     // When a schedule (Table "Send selected") is released, also email the timetable to plan@ (backend no-ops if disabled).
-    if(btn==="relTblBtn"){ fetch("/api/schedule/email-report",post({})).then(r=>r.json()).then(j=>{ if(j&&j.ok&&!j.skipped&&j.to) toast("Schedule emailed to "+j.to+" ✓"); }).catch(()=>{}); }
+    if(btn==="relTblBtn"){
+      fetch("/api/schedule/email-report",post({})).then(r=>r.json()).then(j=>{ if(j&&j.ok&&!j.skipped&&j.to) toast("Schedule emailed to "+j.to+" ✓"); }).catch(()=>{});
+      fetch("/api/schedule/preview-report",post({})).then(r=>r.json()).then(j=>{ if(j&&j.ok&&!j.skipped&&j.sent) toast("Timetable preview sent to "+j.sent+" recipient"+(j.sent===1?"":"s")+" ✓"); }).catch(()=>{});
+    }
   }catch(e){ toast("Send failed","err"); ssPhase="ready"; setBusy(spin,btn,txt,false,label); renderSendStatus(); }
 }
 async function loadEmailReport(){
@@ -2396,6 +2412,28 @@ async function sendTestScheduleEmail(){
     const res=await fetch("/api/schedule/email-report",post({test:true}));
     const d=await res.json().catch(()=>({})); if(!res.ok) throw new Error(d.error||"Send failed");
     if(st) st.textContent="Sent to "+(d.to||"recipient")+" ✓"; toast("Test email sent ✓");
+  }catch(e){ if(st) st.textContent=""; toast(e.message||"Send failed","err"); }
+}
+async function loadPreviewReport(){
+  try{
+    const d=await (await fetch("/api/schedule/email-config")).json();
+    const e=document.getElementById("prvEnabled"); if(e) e.checked=!!d.previewEnabled;
+  }catch(_){}
+}
+async function savePreviewReport(){
+  try{
+    const res=await fetch("/api/schedule/email-config",put({previewEnabled:document.getElementById("prvEnabled").checked}));
+    const d=await res.json().catch(()=>({})); if(!res.ok) throw new Error(d.error||"Save failed");
+    toast("WhatsApp preview setting saved ✓");
+  }catch(e){ toast(e.message||"Save failed","err"); }
+}
+async function sendTestPreviewReport(){
+  const st=document.getElementById("prvStatus"); if(st) st.textContent="Sending…";
+  try{
+    const res=await fetch("/api/schedule/preview-report",post({test:true}));
+    const d=await res.json().catch(()=>({})); if(!res.ok) throw new Error(d.error||"Send failed");
+    const n=d.sent||0; if(st) st.textContent=n?("Sent to "+n+" recipient"+(n===1?"":"s")+" ✓"):"No recipients";
+    toast(n?("Preview sent to "+n+" ✓"):"No preview recipients — add them in Send Preview", n?"ok":"err");
   }catch(e){ if(st) st.textContent=""; toast(e.message||"Send failed","err"); }
 }
 function setBusy(spin,btn,txt,busy,label){const b=document.getElementById(btn); if(b) b.disabled=busy;
@@ -2530,9 +2568,9 @@ async function copyText(t){try{await navigator.clipboard.writeText(t);toast("Cop
 let tt;function toast(m,type="ok"){const e=document.getElementById("toast");e.textContent=m;e.className=`toast ${type} show`;clearTimeout(tt);tt=setTimeout(()=>e.classList.remove("show"),3000);}
 
 </script>
-<script src="{{ url_for('static', filename='js/lists.js') }}?v=poc49"></script>
-<script src="{{ url_for('static', filename='js/features.js') }}?v=poc49"></script>
-<script src="{{ url_for('static', filename='js/workspace.js') }}?v=poc49"></script>
+<script src="{{ url_for('static', filename='js/lists.js') }}?v=poc50"></script>
+<script src="{{ url_for('static', filename='js/features.js') }}?v=poc50"></script>
+<script src="{{ url_for('static', filename='js/workspace.js') }}?v=poc50"></script>
 <script>boot();</script>
 </body>
 </html>

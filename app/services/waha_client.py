@@ -406,6 +406,19 @@ def send_text(chat_id, text, session=None):
         raise
 
 
+def send_image(chat_id, png_bytes, caption="", filename="timetable.png", session=None):
+    """Send a PNG (raw bytes) to a chat via WAHA /api/sendImage."""
+    session = _session_name(session)
+    data = base64.b64encode(png_bytes).decode("ascii")
+    payload = {
+        "session": session,
+        "chatId": chat_id,
+        "file": {"mimetype": "image/png", "filename": filename, "data": data},
+        "caption": caption or "",
+    }
+    return _req("POST", "/api/sendImage", session_name=session, json=payload, timeout=120)
+
+
 def phone_chat_id(phone):
     p = "".join(ch for ch in str(phone or "") if ch.isdigit())
     return f"{p}@c.us" if p else ""

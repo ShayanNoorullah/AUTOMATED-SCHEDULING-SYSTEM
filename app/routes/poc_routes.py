@@ -466,6 +466,125 @@ def _build_schedule_html(uid):
     return html, total
 
 
+def _tt_font(size, bold=False):
+    from PIL import ImageFont
+    name = "DejaVuSans-Bold.ttf" if bold else "DejaVuSans.ttf"
+    for p in ("/usr/share/fonts/truetype/dejavu/" + name, name):
+        try:
+            return ImageFont.truetype(p, size)
+        except Exception:
+            pass
+    try:
+        return ImageFont.load_default(size)  # Pillow >= 10.1 scalable default
+    except TypeError:
+        return ImageFont.load_default()
+
+
+def _schedule_rows(uid):
+    """(used_days, [(group_name, [cell_text per used day])], total_slots) for the user."""
+    from app.config import DAYS
+    groups = Group.query.filter_by(user_id=uid).order_by(Group.position, Group.id).all()
+    used = [d for d in DAYS if any(
+        (e.get("day") == d and (e.get("from") or "").strip())
+        for gp in groups for e in (gp.schedule or []))]
+    rows, total = [], 0
+    for gp in groups:
+        sched = {e["day"]: e for e in (gp.schedule or []) if (e.get("from") or "").strip()}
+        if not sched:
+            continue
+        cells = []
+        for d in used:
+            e = sched.get(d)
+            if e:
+                cells.append(f"{e['from']}–{e.get('to', '')}".strip("–").strip())
+                total += 1
+            else:
+                cells.append("—")
+        rows.append(((gp.nickname or gp.name or "—"), cells))
+    return used, rows, total
+
+
+def _build_schedule_image(uid):
+    """Return PNG bytes of the weekly timetable grid, or None if empty."""
+    from io import BytesIO
+    from PIL import Image, ImageDraw
+    used, rows, total = _schedule_rows(uid)
+    if not used or not rows:
+        return None
+    S = 2  # render at 2x so WhatsApp's downscale stays crisp
+    pad, name_w, day_w, row_h, head_h, title_h = 28 * S, 156 * S, 104 * S, 40 * S, 44 * S, 76 * S
+    W = pad * 2 + name_w + day_w * len(used)
+    H = pad * 2 + title_h + head_h + row_h * len(rows)
+    TEAL, INK, MUTE, LINE, DASH, WHITE = (13, 148, 136), (15, 23, 42), (100, 116, 139), (229, 231, 235), (203, 213, 225), (255, 255, 255)
+    img = Image.new("RGB", (W, H), WHITE)
+    dr = ImageDraw.Draw(img)
+    f_title, f_sub = _tt_font(28 * S, True), _tt_font(13 * S)
+    f_head, f_name, f_cell = _tt_font(13 * S, True), _tt_font(13 * S, True), _tt_font(13 * S)
+
+    def draw(text, x, y, w, h, font, fill, align="c"):
+        bb = dr.textbbox((0, 0), text, font=font)
+        tw = bb[2] - bb[0]
+        ox = 10 * S if align == "l" else (w - tw) / 2
+        dr.text((x + ox, y + (h - (bb[3] - bb[1])) / 2 - bb[1]), text, font=font, fill=fill)
+
+    dr.text((pad, pad), "Weekly Schedule", font=f_title, fill=INK)
+    dr.text((pad, pad + 40 * S),
+            f"{total} class time{'' if total == 1 else 's'} · {datetime.utcnow().strftime('%d %b %Y')}",
+            font=f_sub, fill=MUTE)
+    y0 = pad + title_h
+    dr.rectangle([pad, y0, W - pad, y0 + head_h], fill=TEAL)
+    draw("Group", pad, y0, name_w, head_h, f_head, WHITE, "l")
+    for i, d in enumerate(used):
+        draw(d[:3], pad + name_w + i * day_w, y0, day_w, head_h, f_head, WHITE)
+    y = y0 + head_h
+    for ri, (name, cells) in enumerate(rows):
+        if ri % 2:
+            dr.rectangle([pad, y, W - pad, y + row_h], fill=(248, 250, 252))
+        nm = name
+        while nm and dr.textbbox((0, 0), nm, font=f_name)[2] > name_w - 20 * S:
+            nm = nm[:-1]
+        if nm != name:
+            nm = nm[:-1] + "…"
+        draw(nm, pad, y, name_w, row_h, f_name, INK, "l")
+        for i, c in enumerate(cells):
+            draw(c, pad + name_w + i * day_w, y, day_w, row_h, f_cell, INK if c != "—" else DASH)
+        dr.line([pad, y, W - pad, y], fill=LINE, width=1)
+        y += row_h
+    dr.rectangle([pad, y0, W - pad, y], outline=LINE, width=S)
+    for i in range(len(used) + 1):
+        x = pad + name_w + i * day_w if i else pad + name_w
+        dr.line([x, y0, x, y], fill=LINE, width=1)
+    out = BytesIO()
+    img.save(out, "PNG")
+    return out.getvalue()
+
+
+def _build_schedule_byday_text(uid):
+    """Modern by-day WhatsApp text of the weekly timetable, or None if empty."""
+    from app.config import DAYS
+    groups = Group.query.filter_by(user_id=uid).order_by(Group.position, Group.id).all()
+    byday, total = {}, 0
+    for gp in groups:
+        name = (gp.nickname or gp.name or "—")
+        for e in (gp.schedule or []):
+            if not (e.get("from") or "").strip():
+                continue
+            rng = f"{e['from']}–{e.get('to', '')}".strip("–").strip()
+            byday.setdefault(e.get("day"), []).append((name, rng))
+            total += 1
+    if not total:
+        return None
+    bar = "━" * 13
+    head = f"📅 *WEEKLY SCHEDULE*\n🗓️ {datetime.utcnow().strftime('%d %b %Y')}  •  {total} slot{'' if total == 1 else 's'}"
+    blocks = []
+    for d in DAYS:
+        if d not in byday:
+            continue
+        body = "\n".join(f"   ▸ {nm} — {rng}" for nm, rng in sorted(byday[d], key=lambda x: x[0].lower()))
+        blocks.append(f"📌 *{d.upper()}*\n{body}")
+    return f"{head}\n{bar}\n" + "\n\n".join(blocks) + f"\n{bar}\n_SSIES Automation_"
+
+
 def _resend_send(api_key, frm, to, subject, html):
     import requests as _rq
     r = _rq.post(
@@ -492,6 +611,7 @@ def get_schedule_email_config():
         "to": get_system_setting("schedule_email_to", "") or "",
         "from": get_system_setting("schedule_email_from", "") or _EMAIL_FROM_DEFAULT,
         "hasKey": bool(get_system_setting("resend_api_key", "")),
+        "previewEnabled": bool(get_system_setting("schedule_preview_enabled", False)),
         "canEdit": g.profile.is_admin(),
     })
 
@@ -505,6 +625,8 @@ def put_schedule_email_config():
     data = request.json or {}
     if "enabled" in data:
         set_system_setting("schedule_email_enabled", bool(data.get("enabled")))
+    if "previewEnabled" in data:
+        set_system_setting("schedule_preview_enabled", bool(data.get("previewEnabled")))
     if "to" in data:
         set_system_setting("schedule_email_to", str(data.get("to") or "").strip()[:255])
     if "from" in data:
@@ -539,6 +661,39 @@ def schedule_email_report():
     except Exception as e:
         return jsonify({"error": str(e)}), 502
     return jsonify({"ok": True, "slots": n, "to": to})
+
+
+@bp.route("/api/schedule/preview-report", methods=["POST"])
+@login_required
+def schedule_preview_report():
+    """Auto-send the timetable image + by-day preview to the Send Preview recipients on WhatsApp."""
+    from app.services.users import get_system_setting
+    from app.services.waha_client import use_waha_user, send_image, send_text, phone_chat_id
+    test = bool((request.get_json(silent=True) or {}).get("test"))
+    if not test and not get_system_setting("schedule_preview_enabled", False):
+        return jsonify({"ok": True, "skipped": True})
+    recips = get_system_setting("schedule_recipients", []) or []
+    if not recips:
+        return jsonify({"error": "No preview recipients set — add them in Send Preview"}), 400
+    png = _build_schedule_image(g.profile.id)
+    text = _build_schedule_byday_text(g.profile.id)
+    if not png or not text:
+        return jsonify({"error": "No schedule to send — add class times first"}), 400
+    sent, errors = 0, []
+    with use_waha_user(g.profile.id, assign=False):
+        for r in recips:
+            cid = phone_chat_id(r.get("phone"))
+            if not cid:
+                continue
+            try:
+                send_image(cid, png, caption="", filename="timetable.png")
+                send_text(cid, text)
+                sent += 1
+            except Exception as e:
+                errors.append(f"{r.get('name') or r.get('phone')}: {e}")
+    if sent == 0 and errors:
+        return jsonify({"error": errors[0]}), 502
+    return jsonify({"ok": True, "sent": sent, "errors": errors})
 
 
 # ── Password reset requests ──────────────────────────────────────────────────
