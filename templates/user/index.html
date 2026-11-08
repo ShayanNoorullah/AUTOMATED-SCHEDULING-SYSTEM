@@ -23,11 +23,11 @@
 </script>
 <link rel="preconnect" href="https://api.fontshare.com">
 <link href="https://api.fontshare.com/v2/css?f[]=satoshi@400,500,700,900&display=swap" rel="stylesheet">
-<link href="{{ url_for('static', filename='css/app.css') }}?v=poc52" rel="stylesheet"/>
-<link href="{{ url_for('static', filename='css/compat.css') }}?v=poc52" rel="stylesheet"/>
-<link href="{{ url_for('static', filename='css/dashboard.css') }}?v=poc52" rel="stylesheet"/>
-<link href="{{ url_for('static', filename='css/components.css') }}?v=poc52" rel="stylesheet"/>
-<link href="{{ url_for('static', filename='css/visual-editor.css') }}?v=poc52" rel="stylesheet"/>
+<link href="{{ url_for('static', filename='css/app.css') }}?v=poc53" rel="stylesheet"/>
+<link href="{{ url_for('static', filename='css/compat.css') }}?v=poc53" rel="stylesheet"/>
+<link href="{{ url_for('static', filename='css/dashboard.css') }}?v=poc53" rel="stylesheet"/>
+<link href="{{ url_for('static', filename='css/components.css') }}?v=poc53" rel="stylesheet"/>
+<link href="{{ url_for('static', filename='css/visual-editor.css') }}?v=poc53" rel="stylesheet"/>
 <script>
 window.SSIES_USER = {{ {"email": email|default(username), "display_name": username, "role": role, "photo_url": photo_url|default(none)} | tojson }};
 </script>
@@ -711,6 +711,32 @@ window.SSIES_USER = {{ {"email": email|default(username), "display_name": userna
                   </div>
                 </div>
               </div>
+              <div class="sec" style="margin-top:16px">
+                <div class="sec-h">Class reminders</div>
+                <div class="sec-b">
+                  <div class="srow">
+                    <div><div class="st">Remind each group before its class</div><div class="sd">Auto-send a WhatsApp reminder to a group a set time before every class in its schedule.</div></div>
+                    <label class="toggle"><input type="checkbox" id="rmEnabled" onchange="saveReminders()"/><span class="tk"></span></label>
+                  </div>
+                  <div class="srow">
+                    <div><div class="st">Remind this many minutes before</div><div class="sd">Lead time before the class start.</div></div>
+                    <input class="num" type="number" id="rmLead" min="0" max="1440" style="max-width:110px" onchange="saveReminders()"/>
+                  </div>
+                  <div class="srow">
+                    <div><div class="st">Your timezone (minutes ahead of UTC)</div><div class="sd">Class times are your local clock. Pakistan (PKT) is 300. Negative if behind UTC.</div></div>
+                    <input class="num" type="number" id="rmTz" min="-720" max="840" style="max-width:110px" onchange="saveReminders()"/>
+                  </div>
+                  <div class="srow srow-stack" style="gap:10px">
+                    <div><div class="st">Reminder message</div><div class="sd">Use <code>{group}</code>, <code>{time}</code> and <code>{lead}</code> as placeholders.</div></div>
+                    <textarea class="field" id="rmTemplate" rows="2" style="width:100%;resize:vertical" placeholder="⏰ Reminder: *{group}* class starts at {time} (in {lead} min)."></textarea>
+                  </div>
+                  <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+                    <button class="btn btn-soft btn-sm" type="button" onclick="saveReminders()">Save</button>
+                    <button class="btn btn-primary btn-sm" type="button" onclick="sendTestReminder()">Send test reminder</button>
+                    <span class="hint" id="rmStatus" style="margin:0"></span>
+                  </div>
+                </div>
+              </div>
             </div>
 
             <div class="stab-panel" id="stab-security">
@@ -953,10 +979,10 @@ window.SSIES_USER = {{ {"email": email|default(username), "display_name": userna
 
 <div class="toast" id="toast" role="status" aria-live="polite" aria-atomic="true"></div>
 
-<script src="{{ url_for('static', filename='js/chrome.js') }}?v=poc52"></script>
-<script src="{{ url_for('static', filename='js/theme.js') }}?v=poc52"></script>
-<script src="{{ url_for('static', filename='js/whatsapp.js') }}?v=poc52"></script>
-<script src="{{ url_for('static', filename='js/waha.js') }}?v=poc52"></script>
+<script src="{{ url_for('static', filename='js/chrome.js') }}?v=poc53"></script>
+<script src="{{ url_for('static', filename='js/theme.js') }}?v=poc53"></script>
+<script src="{{ url_for('static', filename='js/whatsapp.js') }}?v=poc53"></script>
+<script src="{{ url_for('static', filename='js/waha.js') }}?v=poc53"></script>
 <script>
 const DAYS = {{ days | tojson }};
 const _asUser = new URLSearchParams(location.search).get("asUser");
@@ -1118,7 +1144,7 @@ function showView(v){
   if (v==="wa-direct") renderDirectPanel();
   if (v==="wa-auto") renderAutoSendPanel();
   if (v==="history") loadReleaseHistory();
-  if (v==="settings") { loadScheduledJob(); loadEmailReport(); loadPreviewReport(); }
+  if (v==="settings") { loadScheduledJob(); loadEmailReport(); loadPreviewReport(); loadReminders(); }
   if (window.innerWidth<=820) document.getElementById("shell").classList.remove("rail-open");
   if(typeof syncNavSched==="function") syncNavSched();
 }
@@ -2445,6 +2471,35 @@ async function sendTestPreviewReport(){
     toast(n?("Preview sent to "+n+" ✓"):"No preview recipients — add them in Send Preview", n?"ok":"err");
   }catch(e){ if(st) st.textContent=""; toast(e.message||"Send failed","err"); }
 }
+async function loadReminders(){
+  try{
+    const d=await (await fetch("/api/reminders/config")).json();
+    const e=document.getElementById("rmEnabled"); if(e) e.checked=!!d.enabled;
+    const l=document.getElementById("rmLead"); if(l) l.value=d.lead!=null?d.lead:60;
+    const tz=document.getElementById("rmTz"); if(tz) tz.value=d.tz!=null?d.tz:300;
+    const t=document.getElementById("rmTemplate"); if(t) t.value=d.template||"";
+  }catch(_){}
+}
+async function saveReminders(){
+  const body={ enabled:document.getElementById("rmEnabled").checked,
+    lead:parseInt(document.getElementById("rmLead").value)||0,
+    tz:parseInt(document.getElementById("rmTz").value)||0,
+    template:document.getElementById("rmTemplate").value };
+  try{
+    const res=await fetch("/api/reminders/config",put(body));
+    const d=await res.json().catch(()=>({})); if(!res.ok) throw new Error(d.error||"Save failed");
+    toast("Reminder settings saved ✓");
+  }catch(e){ toast(e.message||"Save failed","err"); }
+}
+async function sendTestReminder(){
+  const st=document.getElementById("rmStatus"); if(st) st.textContent="Sending…";
+  try{
+    await saveReminders();
+    const res=await fetch("/api/reminders/test",post({}));
+    const d=await res.json().catch(()=>({})); if(!res.ok) throw new Error(d.error||"Send failed");
+    if(st) st.textContent="Sent to "+(d.group||"group")+" ✓"; toast("Test reminder sent to "+(d.group||"group")+" ✓");
+  }catch(e){ if(st) st.textContent=""; toast(e.message||"Send failed","err"); }
+}
 function setBusy(spin,btn,txt,busy,label){const b=document.getElementById(btn); if(b) b.disabled=busy;
   const x=document.getElementById(txt); if(x) x.textContent=busy?"Sending…":label; document.getElementById(spin)?.classList.toggle("hidden",!busy);}
 function resetBusy(){["relAll","relTbl","relCAll","auto"].forEach(p=>{const b=document.getElementById(p+"Btn");if(b){b.disabled=false;const s=document.getElementById(p+"Spin");if(s)s.classList.add("hidden");}});
@@ -2577,10 +2632,10 @@ async function copyText(t){try{await navigator.clipboard.writeText(t);toast("Cop
 let tt;function toast(m,type="ok"){const e=document.getElementById("toast");e.textContent=m;e.className=`toast ${type} show`;clearTimeout(tt);tt=setTimeout(()=>e.classList.remove("show"),3000);}
 
 </script>
-<script src="{{ url_for('static', filename='js/lists.js') }}?v=poc52"></script>
-<script src="{{ url_for('static', filename='js/features.js') }}?v=poc52"></script>
-<script src="{{ url_for('static', filename='js/workspace.js') }}?v=poc52"></script>
-<script src="{{ url_for('static', filename='js/visual_editor.js') }}?v=poc52"></script>
+<script src="{{ url_for('static', filename='js/lists.js') }}?v=poc53"></script>
+<script src="{{ url_for('static', filename='js/features.js') }}?v=poc53"></script>
+<script src="{{ url_for('static', filename='js/workspace.js') }}?v=poc53"></script>
+<script src="{{ url_for('static', filename='js/visual_editor.js') }}?v=poc53"></script>
 <script>boot();</script>
 </body>
 </html>

@@ -696,6 +696,70 @@ def schedule_preview_report():
     return jsonify({"ok": True, "sent": sent, "errors": errors})
 
 
+# ── Class reminders (WhatsApp reminder to each group before its class) ─────────
+
+@bp.route("/api/reminders/config", methods=["GET"])
+@login_required
+def get_reminders_config():
+    from app.services.users import get_system_setting
+    from app.services.scheduler import _DEFAULT_REMINDER
+    return jsonify({
+        "enabled": bool(get_system_setting("reminders_enabled", False)),
+        "lead": int(get_system_setting("reminder_lead_min", 60) or 60),
+        "tz": int(get_system_setting("reminder_tz_offset_min", 300) or 300),
+        "template": get_system_setting("reminder_template", "") or _DEFAULT_REMINDER,
+        "canEdit": g.profile.is_admin(),
+    })
+
+
+@bp.route("/api/reminders/config", methods=["PUT"])
+@login_required
+def put_reminders_config():
+    from app.services.users import set_system_setting
+    if not g.profile.is_admin():
+        return jsonify({"error": "Only admins can change reminder settings"}), 403
+    data = request.get_json(silent=True) or {}
+    if "enabled" in data:
+        set_system_setting("reminders_enabled", bool(data.get("enabled")))
+    if "lead" in data:
+        try:
+            set_system_setting("reminder_lead_min", max(0, min(1440, int(data.get("lead")))))
+        except (TypeError, ValueError):
+            pass
+    if "tz" in data:
+        try:
+            set_system_setting("reminder_tz_offset_min", max(-720, min(840, int(data.get("tz")))))
+        except (TypeError, ValueError):
+            pass
+    if "template" in data:
+        set_system_setting("reminder_template", str(data.get("template") or "").strip()[:500])
+    db.session.commit()
+    return jsonify({"ok": True})
+
+
+@bp.route("/api/reminders/test", methods=["POST"])
+@login_required
+def test_reminder():
+    from app.services.users import get_system_setting
+    from app.services.scheduler import build_reminder, send_group_reminder, _DEFAULT_REMINDER
+    data = request.get_json(silent=True) or {}
+    rows = Group.query.filter_by(user_id=g.profile.id).order_by(Group.position, Group.id).all()
+    name = str(data.get("group") or "").strip()
+    grp = next((x for x in rows if x.name == name), None) if name else None
+    if not grp:
+        grp = next((x for x in rows if any((e.get("from") or "").strip() for e in (x.schedule or []))), None) or (rows[0] if rows else None)
+    if not grp:
+        return jsonify({"error": "Add a group with a schedule first"}), 400
+    e = next((x for x in (grp.schedule or []) if (x.get("from") or "").strip()), None)
+    time_str = e["from"] if e else "the scheduled time"
+    lead = int(get_system_setting("reminder_lead_min", 60) or 60)
+    tmpl = get_system_setting("reminder_template", "") or _DEFAULT_REMINDER
+    ok, err = send_group_reminder(g.profile.id, grp.name, build_reminder(tmpl, grp.name, time_str, lead))
+    if not ok:
+        return jsonify({"error": err or "Send failed — is WhatsApp linked?"}), 502
+    return jsonify({"ok": True, "group": grp.name})
+
+
 # ── Password reset requests ──────────────────────────────────────────────────
 # Pending password is stored as Fernet ciphertext (APP_ENCRYPTION_KEY), not plaintext
 # and not a one-way hash — so approve can decrypt → Supabase admin.update_user → wipe.
