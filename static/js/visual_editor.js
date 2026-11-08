@@ -57,7 +57,16 @@
   }
   // overlap of two items on the same day
   const overlaps = (x, y) => x.day === y.day && x.a < y.b && y.a < x.b;
-  function hasClash(it) { return veItems.some((o) => o !== it && overlaps(o, it)); }
+  // a clash the user marked acceptable (shared with the Table view) doesn't warn
+  function pairAccepted(x, y) {
+    try {
+      if (typeof acceptedClashes === "function" && typeof clashKey === "function")
+        return acceptedClashes().has(clashKey(x.day, groups[x.gi].name, groups[y.gi].name));
+    } catch (e) {}
+    return false;
+  }
+  const clashing = (x, y) => overlaps(x, y) && !pairAccepted(x, y);
+  function hasClash(it) { return veItems.some((o) => o !== it && clashing(o, it)); }
 
   /* lane packing per day so overlapping classes sit side by side */
   function layout(day) {
@@ -146,7 +155,7 @@
     const el2 = document.getElementById("veClash"); if (!el2) return;
     const pairs = [];
     for (let i = 0; i < veItems.length; i++) for (let j = i + 1; j < veItems.length; j++)
-      if (overlaps(veItems[i], veItems[j])) pairs.push([veItems[i], veItems[j]]);
+      if (clashing(veItems[i], veItems[j])) pairs.push([veItems[i], veItems[j]]);
     if (!pairs.length) { el2.className = "ve-clash ok"; el2.textContent = "✓ No time clashes"; return; }
     el2.className = "ve-clash warn";
     el2.textContent = `⚠ ${pairs.length} clash${pairs.length === 1 ? "" : "es"} — ` +

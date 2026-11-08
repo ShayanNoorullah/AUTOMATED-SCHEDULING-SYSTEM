@@ -23,11 +23,11 @@
 </script>
 <link rel="preconnect" href="https://api.fontshare.com">
 <link href="https://api.fontshare.com/v2/css?f[]=satoshi@400,500,700,900&display=swap" rel="stylesheet">
-<link href="{{ url_for('static', filename='css/app.css') }}?v=poc51" rel="stylesheet"/>
-<link href="{{ url_for('static', filename='css/compat.css') }}?v=poc51" rel="stylesheet"/>
-<link href="{{ url_for('static', filename='css/dashboard.css') }}?v=poc51" rel="stylesheet"/>
-<link href="{{ url_for('static', filename='css/components.css') }}?v=poc51" rel="stylesheet"/>
-<link href="{{ url_for('static', filename='css/visual-editor.css') }}?v=poc51" rel="stylesheet"/>
+<link href="{{ url_for('static', filename='css/app.css') }}?v=poc52" rel="stylesheet"/>
+<link href="{{ url_for('static', filename='css/compat.css') }}?v=poc52" rel="stylesheet"/>
+<link href="{{ url_for('static', filename='css/dashboard.css') }}?v=poc52" rel="stylesheet"/>
+<link href="{{ url_for('static', filename='css/components.css') }}?v=poc52" rel="stylesheet"/>
+<link href="{{ url_for('static', filename='css/visual-editor.css') }}?v=poc52" rel="stylesheet"/>
 <script>
 window.SSIES_USER = {{ {"email": email|default(username), "display_name": username, "role": role, "photo_url": photo_url|default(none)} | tojson }};
 </script>
@@ -953,10 +953,10 @@ window.SSIES_USER = {{ {"email": email|default(username), "display_name": userna
 
 <div class="toast" id="toast" role="status" aria-live="polite" aria-atomic="true"></div>
 
-<script src="{{ url_for('static', filename='js/chrome.js') }}?v=poc51"></script>
-<script src="{{ url_for('static', filename='js/theme.js') }}?v=poc51"></script>
-<script src="{{ url_for('static', filename='js/whatsapp.js') }}?v=poc51"></script>
-<script src="{{ url_for('static', filename='js/waha.js') }}?v=poc51"></script>
+<script src="{{ url_for('static', filename='js/chrome.js') }}?v=poc52"></script>
+<script src="{{ url_for('static', filename='js/theme.js') }}?v=poc52"></script>
+<script src="{{ url_for('static', filename='js/whatsapp.js') }}?v=poc52"></script>
+<script src="{{ url_for('static', filename='js/waha.js') }}?v=poc52"></script>
 <script>
 const DAYS = {{ days | tojson }};
 const _asUser = new URLSearchParams(location.search).get("asUser");
@@ -2059,8 +2059,15 @@ function closeColMeta(){ document.getElementById("colMetaModal").classList.remov
 async function saveColMeta(){ if(cmIdx==null) return; const name=document.getElementById("cmName").value.trim(); if(!name){ toast("Group name is required","err"); return; } groups[cmIdx].name=name; groups[cmIdx].nickname=document.getElementById("cmNick").value.trim(); tableDirty=true; closeColMeta(); applyColWidthsFromState(); if(await saveTable()) toast("Group updated ✓"); else renderTable(); }
 function toggleClash(){ clashOn=!clashOn; localStorage.setItem("sched-clash", clashOn?"on":"off"); syncClashBtn(); refreshClashes(); }
 function syncClashBtn(){ const b=document.getElementById("clashBtn"); if(b) b.classList.toggle("on", clashOn); }
-function computeClashes(){ const cells=new Set(), pairs=[]; DAYS.forEach((day)=>{ const items=[]; groups.forEach((g,ci)=>{ const e=g.schedule.find((x)=>x.day===day); if(!e) return; const a=parseTimeMin(e.from); if(a==null) return; let b=parseTimeMin(e.to); if(b==null||b<=a) b=a+30; items.push({ci,a,b}); }); for(let i=0;i<items.length;i++) for(let j=i+1;j<items.length;j++){ if(items[i].a<items[j].b && items[j].a<items[i].b){ cells.add(items[i].ci+"|"+day); cells.add(items[j].ci+"|"+day); pairs.push({day,a:items[i].ci,b:items[j].ci}); } } }); return {cells,pairs}; }
-function refreshClashes(){ syncClashBtn(); document.querySelectorAll("[data-cell].cell-clash").forEach((el)=>el.classList.remove("cell-clash")); const banner=document.getElementById("clashBanner"); if(!clashOn){ if(banner) banner.innerHTML=""; return; } const {cells,pairs}=computeClashes(); cells.forEach((key)=>{ const el=document.querySelector(`[data-cell="${key}"]`); if(el) el.classList.add("cell-clash"); }); if(!banner) return; if(!pairs.length){ banner.innerHTML=`<div class="clash-bar ok"><span class="clash-ico">✓</span><span>No time clashes — every class has a distinct slot.</span></div>`; } else { const lines=pairs.map((p)=>`<span class="clash-pill">${esc(p.day.slice(0,3))}: ${esc(colDisplay(groups[p.a]))} ↔ ${esc(colDisplay(groups[p.b]))}</span>`).join(""); banner.innerHTML=`<div class="clash-bar warn"><span class="clash-ico">⚠</span><div class="clash-body"><b>${pairs.length} time clash${pairs.length===1?"":"es"} detected</b><div class="clash-pills">${lines}</div></div></div>`; } }
+/* Accepted clashes — some overlaps are intentional (e.g. two groups you message
+   back-to-back). Mark them acceptable (stored per browser) and they stop warning. */
+function clashKey(day,na,nb){ return day+"\u0001"+[String(na||""),String(nb||"")].sort().join("\u0001"); }
+function acceptedClashes(){ try{ return new Set(JSON.parse(localStorage.getItem("sched-accepted-clashes")||"[]")); }catch(e){ return new Set(); } }
+function _setAcceptedClashes(s){ try{ localStorage.setItem("sched-accepted-clashes", JSON.stringify([...s])); }catch(e){} }
+function acceptClash(k){ k=decodeURIComponent(k); const s=acceptedClashes(); s.add(k); _setAcceptedClashes(s); refreshClashes(); }
+function unacceptClash(k){ k=decodeURIComponent(k); const s=acceptedClashes(); s.delete(k); _setAcceptedClashes(s); refreshClashes(); }
+function computeClashes(){ const acc=acceptedClashes(), pairs=[]; DAYS.forEach((day)=>{ const items=[]; groups.forEach((g,ci)=>{ const e=g.schedule.find((x)=>x.day===day); if(!e) return; const a=parseTimeMin(e.from); if(a==null) return; let b=parseTimeMin(e.to); if(b==null||b<=a) b=a+30; items.push({ci,a,b}); }); for(let i=0;i<items.length;i++) for(let j=i+1;j<items.length;j++){ if(items[i].a<items[j].b && items[j].a<items[i].b){ const ca=items[i].ci, cb=items[j].ci; const key=clashKey(day, groups[ca].name, groups[cb].name); pairs.push({day,a:ca,b:cb,key,accepted:acc.has(key)}); } } }); return {pairs}; }
+function refreshClashes(){ syncClashBtn(); document.querySelectorAll("[data-cell].cell-clash,[data-cell].cell-clash-ok").forEach((el)=>el.classList.remove("cell-clash","cell-clash-ok")); const banner=document.getElementById("clashBanner"); if(!clashOn){ if(banner) banner.innerHTML=""; return; } const {pairs}=computeClashes(); const warn=new Set(), okc=new Set(); pairs.forEach(p=>{ const ka=p.a+"|"+p.day, kb=p.b+"|"+p.day; if(p.accepted){ okc.add(ka); okc.add(kb); } else { warn.add(ka); warn.add(kb); } }); warn.forEach((key)=>{ const el=document.querySelector(`[data-cell="${key}"]`); if(el) el.classList.add("cell-clash"); }); okc.forEach((key)=>{ if(warn.has(key)) return; const el=document.querySelector(`[data-cell="${key}"]`); if(el) el.classList.add("cell-clash-ok"); }); if(!banner) return; const open=pairs.filter(p=>!p.accepted), accepted=pairs.filter(p=>p.accepted); if(!open.length && !accepted.length){ banner.innerHTML=`<div class="clash-bar ok"><span class="clash-ico">✓</span><span>No time clashes — every class has a distinct slot.</span></div>`; return; } let html=""; if(open.length){ const lines=open.map((p)=>`<span class="clash-pill">${esc(p.day.slice(0,3))}: ${esc(colDisplay(groups[p.a]))} ↔ ${esc(colDisplay(groups[p.b]))} <button class="clash-accept" type="button" title="Mark this overlap as acceptable" onclick="acceptClash('${encodeURIComponent(p.key).replace(/'/g,'%27')}')">✓ Accept</button></span>`).join(""); html+=`<div class="clash-bar warn"><span class="clash-ico">⚠</span><div class="clash-body"><b>${open.length} time clash${open.length===1?"":"es"} detected</b><div class="clash-pills">${lines}</div></div></div>`; } if(accepted.length){ const lines=accepted.map((p)=>`<span class="clash-pill accepted">${esc(p.day.slice(0,3))}: ${esc(colDisplay(groups[p.a]))} ↔ ${esc(colDisplay(groups[p.b]))} <button class="clash-accept" type="button" title="Treat as a clash again" onclick="unacceptClash('${encodeURIComponent(p.key).replace(/'/g,'%27')}')">✕</button></span>`).join(""); html+=`<div class="clash-bar ok"${open.length?' style="margin-top:8px"':''}><span class="clash-ico">✓</span><div class="clash-body"><b>${accepted.length} accepted overlap${accepted.length===1?"":"s"}</b><div class="clash-pills">${lines}</div></div></div>`; } banner.innerHTML=html; }
 function showLog(){ const p=document.getElementById("statusPanel"); p.classList.remove("hidden"); p.classList.remove("collapsed"); syncLogCollapseBtn(); }
 function toggleStatusLog(){ const p=document.getElementById("statusPanel"); p.classList.toggle("collapsed"); syncLogCollapseBtn(); }
 function clearStatusLog(){ const l=document.getElementById("logLines"); if(l) l.innerHTML=""; toast("Status log cleared"); }
@@ -2570,10 +2577,10 @@ async function copyText(t){try{await navigator.clipboard.writeText(t);toast("Cop
 let tt;function toast(m,type="ok"){const e=document.getElementById("toast");e.textContent=m;e.className=`toast ${type} show`;clearTimeout(tt);tt=setTimeout(()=>e.classList.remove("show"),3000);}
 
 </script>
-<script src="{{ url_for('static', filename='js/lists.js') }}?v=poc51"></script>
-<script src="{{ url_for('static', filename='js/features.js') }}?v=poc51"></script>
-<script src="{{ url_for('static', filename='js/workspace.js') }}?v=poc51"></script>
-<script src="{{ url_for('static', filename='js/visual_editor.js') }}?v=poc51"></script>
+<script src="{{ url_for('static', filename='js/lists.js') }}?v=poc52"></script>
+<script src="{{ url_for('static', filename='js/features.js') }}?v=poc52"></script>
+<script src="{{ url_for('static', filename='js/workspace.js') }}?v=poc52"></script>
+<script src="{{ url_for('static', filename='js/visual_editor.js') }}?v=poc52"></script>
 <script>boot();</script>
 </body>
 </html>
