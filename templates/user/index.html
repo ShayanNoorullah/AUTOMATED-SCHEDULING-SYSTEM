@@ -23,10 +23,11 @@
 </script>
 <link rel="preconnect" href="https://api.fontshare.com">
 <link href="https://api.fontshare.com/v2/css?f[]=satoshi@400,500,700,900&display=swap" rel="stylesheet">
-<link href="{{ url_for('static', filename='css/app.css') }}?v=poc50" rel="stylesheet"/>
-<link href="{{ url_for('static', filename='css/compat.css') }}?v=poc50" rel="stylesheet"/>
-<link href="{{ url_for('static', filename='css/dashboard.css') }}?v=poc50" rel="stylesheet"/>
-<link href="{{ url_for('static', filename='css/components.css') }}?v=poc50" rel="stylesheet"/>
+<link href="{{ url_for('static', filename='css/app.css') }}?v=poc51" rel="stylesheet"/>
+<link href="{{ url_for('static', filename='css/compat.css') }}?v=poc51" rel="stylesheet"/>
+<link href="{{ url_for('static', filename='css/dashboard.css') }}?v=poc51" rel="stylesheet"/>
+<link href="{{ url_for('static', filename='css/components.css') }}?v=poc51" rel="stylesheet"/>
+<link href="{{ url_for('static', filename='css/visual-editor.css') }}?v=poc51" rel="stylesheet"/>
 <script>
 window.SSIES_USER = {{ {"email": email|default(username), "display_name": username, "role": role, "photo_url": photo_url|default(none)} | tojson }};
 </script>
@@ -253,6 +254,7 @@ window.SSIES_USER = {{ {"email": email|default(username), "display_name": userna
           </div>
           <div class="sched-toolbar-right">
             <span class="sched-sel-count" id="schedSelCount"></span>
+            <button class="btn btn-soft btn-sm" type="button" onclick="openVisualEditor()" title="Open the drag-and-drop timetable editor"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-2px;margin-right:4px"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18M8 4v16"/></svg>Visual Editor</button>
             <button class="btn btn-soft btn-sm" type="button" onclick="openSuperadminReport()" title="Preview and send the whole weekly schedule to configured recipients on WhatsApp">Send Preview</button>
             <button class="btn btn-soft btn-sm" type="button" onclick="saveTable()">Save</button>
             <button class="btn btn-primary btn-sm" type="button" id="relTblBtn" onclick="releaseTable()">
@@ -951,10 +953,10 @@ window.SSIES_USER = {{ {"email": email|default(username), "display_name": userna
 
 <div class="toast" id="toast" role="status" aria-live="polite" aria-atomic="true"></div>
 
-<script src="{{ url_for('static', filename='js/chrome.js') }}?v=poc50"></script>
-<script src="{{ url_for('static', filename='js/theme.js') }}?v=poc50"></script>
-<script src="{{ url_for('static', filename='js/whatsapp.js') }}?v=poc50"></script>
-<script src="{{ url_for('static', filename='js/waha.js') }}?v=poc50"></script>
+<script src="{{ url_for('static', filename='js/chrome.js') }}?v=poc51"></script>
+<script src="{{ url_for('static', filename='js/theme.js') }}?v=poc51"></script>
+<script src="{{ url_for('static', filename='js/whatsapp.js') }}?v=poc51"></script>
+<script src="{{ url_for('static', filename='js/waha.js') }}?v=poc51"></script>
 <script>
 const DAYS = {{ days | tojson }};
 const _asUser = new URLSearchParams(location.search).get("asUser");
@@ -2568,9 +2570,10 @@ async function copyText(t){try{await navigator.clipboard.writeText(t);toast("Cop
 let tt;function toast(m,type="ok"){const e=document.getElementById("toast");e.textContent=m;e.className=`toast ${type} show`;clearTimeout(tt);tt=setTimeout(()=>e.classList.remove("show"),3000);}
 
 </script>
-<script src="{{ url_for('static', filename='js/lists.js') }}?v=poc50"></script>
-<script src="{{ url_for('static', filename='js/features.js') }}?v=poc50"></script>
-<script src="{{ url_for('static', filename='js/workspace.js') }}?v=poc50"></script>
+<script src="{{ url_for('static', filename='js/lists.js') }}?v=poc51"></script>
+<script src="{{ url_for('static', filename='js/features.js') }}?v=poc51"></script>
+<script src="{{ url_for('static', filename='js/workspace.js') }}?v=poc51"></script>
+<script src="{{ url_for('static', filename='js/visual_editor.js') }}?v=poc51"></script>
 <script>boot();</script>
 </body>
 </html>
