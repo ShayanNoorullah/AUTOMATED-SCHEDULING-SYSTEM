@@ -255,6 +255,7 @@ window.SSIES_USER = {{ {"email": email|default(username), "display_name": userna
           <div class="sched-toolbar-right">
             <span class="sched-sel-count" id="schedSelCount"></span>
             <button class="btn btn-soft btn-sm" type="button" onclick="openVisualEditor()" title="Open the drag-and-drop timetable editor"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-2px;margin-right:4px"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18M8 4v16"/></svg>Visual Editor</button>
+            <button class="btn btn-soft btn-sm" type="button" onclick="openBroadcast()" title="Send a quick cancel or reschedule notice to a group's WhatsApp chat"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-2px;margin-right:4px"><path d="M3 11l18-5v12L3 14v-3z"/><path d="M11.6 16.8a3 3 0 0 1-5.8-1.6"/></svg>Notify</button>
             <button class="btn btn-soft btn-sm" type="button" onclick="openSuperadminReport()" title="Preview and send the whole weekly schedule to configured recipients on WhatsApp">Send Preview</button>
             <button class="btn btn-soft btn-sm" type="button" onclick="saveTable()">Save</button>
             <button class="btn btn-primary btn-sm" type="button" id="relTblBtn" onclick="releaseTable()">
@@ -892,6 +893,26 @@ window.SSIES_USER = {{ {"email": email|default(username), "display_name": userna
       <div class="profile-field"><label>Nickname <span class="field-hint" style="display:inline">short label shown in tables</span></label><input id="cmNick" placeholder="e.g. Batch AM" onkeydown="if(event.key==='Enter')saveColMeta()"/></div>
     </div>
     <div class="modal-f"><button class="btn btn-soft" type="button" onclick="closeColMeta()">Cancel</button><button class="btn btn-primary" type="button" onclick="saveColMeta()">Save</button></div>
+  </div>
+</div>
+
+<!-- Cancel / reschedule broadcast -->
+<div class="modal-scrim" id="broadcastModal">
+  <div class="modal">
+    <div class="modal-h"><span>Notify a group</span><button class="modal-x" type="button" onclick="closeBroadcast()">✕</button></div>
+    <div class="modal-b">
+      <div class="profile-field"><label>Group</label><select id="bcGroup" onchange="bcPreview()"></select></div>
+      <div class="profile-field"><label>Notice</label>
+        <div class="seg" style="display:flex;gap:6px">
+          <label class="seg-op"><input type="radio" name="bcKind" value="cancel" checked onchange="bcSync()"/> Cancel</label>
+          <label class="seg-op"><input type="radio" name="bcKind" value="reschedule" onchange="bcSync()"/> Reschedule</label>
+        </div>
+      </div>
+      <div class="profile-field" id="bcTimeField" style="display:none"><label>New time</label><input id="bcTime" list="timeOptions" placeholder="e.g. 5:00pm" oninput="bcPreview()"/></div>
+      <div class="profile-field"><label>Note <span class="field-hint" style="display:inline">optional — added to the message</span></label><input id="bcNote" placeholder="e.g. apologies for the short notice" oninput="bcPreview()"/></div>
+      <div class="profile-field"><label>Message <span class="field-hint" style="display:inline">edit before sending</span></label><textarea class="field" id="bcMsg" style="min-height:90px"></textarea></div>
+    </div>
+    <div class="modal-f"><span class="hint" id="bcStatus" style="margin-right:auto"></span><button class="btn btn-soft" type="button" onclick="closeBroadcast()">Cancel</button><button class="btn btn-primary" type="button" id="bcSendBtn" onclick="sendBroadcast()">Send to group</button></div>
   </div>
 </div>
 
@@ -2087,6 +2108,43 @@ function applyColWidthsFromState(){
 function editColMeta(ci){ cmIdx=ci; const g=groups[ci]; document.getElementById("cmName").value=g.name||""; document.getElementById("cmNick").value=g.nickname||""; document.getElementById("colMetaModal").classList.add("show"); setTimeout(()=>document.getElementById("cmName").focus(),30); }
 function closeColMeta(){ document.getElementById("colMetaModal").classList.remove("show"); }
 async function saveColMeta(){ if(cmIdx==null) return; const name=document.getElementById("cmName").value.trim(); if(!name){ toast("Group name is required","err"); return; } groups[cmIdx].name=name; groups[cmIdx].nickname=document.getElementById("cmNick").value.trim(); tableDirty=true; closeColMeta(); applyColWidthsFromState(); if(await saveTable()) toast("Group updated ✓"); else renderTable(); }
+// Cancel / reschedule broadcast — one-off WhatsApp notice to a group's chat (leaves the stored timetable alone).
+function bcDefaultMsg(){
+  const name=document.getElementById("bcGroup").value;
+  const kind=document.querySelector('input[name=bcKind]:checked').value;
+  const day=DAYS[(new Date().getDay()+6)%7];
+  const note=document.getElementById("bcNote").value.trim();
+  let m=kind==="reschedule"
+    ? `🔄 *${name}* — today's class (${day}) is moved to ${document.getElementById("bcTime").value.trim()||"a new time"}.`
+    : `🚫 *${name}* — today's class (${day}) is cancelled.`;
+  if(note) m+=" "+note;
+  return m;
+}
+function bcPreview(){ document.getElementById("bcMsg").value=bcDefaultMsg(); }
+function bcSync(){ document.getElementById("bcTimeField").style.display=document.querySelector('input[name=bcKind]:checked').value==="reschedule"?"":"none"; bcPreview(); }
+function openBroadcast(){
+  if(!groups.length){ toast("Add a group first","err"); return; }
+  const sel=document.getElementById("bcGroup");
+  sel.innerHTML=groups.map(g=>`<option value="${escA(g.name)}">${esc(g.name)}</option>`).join("");
+  document.querySelector('input[name=bcKind][value=cancel]').checked=true;
+  document.getElementById("bcTime").value=""; document.getElementById("bcNote").value=""; document.getElementById("bcStatus").textContent="";
+  bcSync();
+  document.getElementById("broadcastModal").classList.add("show");
+}
+function closeBroadcast(){ document.getElementById("broadcastModal").classList.remove("show"); }
+async function sendBroadcast(){
+  const name=document.getElementById("bcGroup").value;
+  const msg=document.getElementById("bcMsg").value.trim();
+  if(!msg){ toast("Message is empty","err"); return; }
+  const btn=document.getElementById("bcSendBtn"), st=document.getElementById("bcStatus");
+  btn.disabled=true; st.textContent="Sending…";
+  try{
+    const res=await fetch("/api/schedule/broadcast",post({group:name,message:msg}));
+    const d=await res.json().catch(()=>({})); if(!res.ok) throw new Error(d.error||"Send failed");
+    toast("Notice sent to "+name+" ✓"); closeBroadcast();
+  }catch(e){ st.textContent=""; toast(e.message||"Send failed","err"); }
+  finally{ btn.disabled=false; }
+}
 function toggleClash(){ clashOn=!clashOn; localStorage.setItem("sched-clash", clashOn?"on":"off"); syncClashBtn(); refreshClashes(); }
 function syncClashBtn(){ const b=document.getElementById("clashBtn"); if(b) b.classList.toggle("on", clashOn); }
 /* Accepted clashes — some overlaps are intentional (e.g. two groups you message

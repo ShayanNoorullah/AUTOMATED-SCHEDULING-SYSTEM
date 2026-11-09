@@ -760,6 +760,28 @@ def test_reminder():
     return jsonify({"ok": True, "group": grp.name})
 
 
+@bp.route("/api/schedule/broadcast", methods=["POST"])
+@login_required
+def schedule_broadcast():
+    """Send a one-off cancel / reschedule notice to a group's WhatsApp chat.
+    The message text is built client-side (so it can be previewed/edited); the
+    stored timetable is left untouched — these are one-off changes, not a
+    permanent schedule edit."""
+    from app.services.scheduler import send_group_reminder
+    data = request.get_json(silent=True) or {}
+    name = str(data.get("group") or "").strip()
+    grp = Group.query.filter_by(user_id=g.profile.id, name=name).first() if name else None
+    if not grp:
+        return jsonify({"error": "Unknown group"}), 400
+    msg = str(data.get("message") or "").strip()
+    if not msg:
+        return jsonify({"error": "Message is empty"}), 400
+    ok, err = send_group_reminder(g.profile.id, grp.name, msg[:1000])
+    if not ok:
+        return jsonify({"error": err or "Send failed — is WhatsApp linked?"}), 502
+    return jsonify({"ok": True, "group": grp.name})
+
+
 # ── Password reset requests ──────────────────────────────────────────────────
 # Pending password is stored as Fernet ciphertext (APP_ENCRYPTION_KEY), not plaintext
 # and not a one-way hash — so approve can decrypt → Supabase admin.update_user → wipe.
