@@ -5,23 +5,30 @@
    The editor works on a snapshot (veItems) so Close discards; Save commits.
    ───────────────────────────────────────────────────────────────────────── */
 (function () {
-  const COLORS = ["#3B5BDB", "#1C7ED6", "#0F9F74", "#2F9E44", "#E8890C", "#D9A400",
-    "#D6336C", "#7048E8", "#1098AD", "#C92A2A", "#5C7CFA", "#F76707"];
+  // Ordered so consecutive groups get contrasting hues (no two blues/greens adjacent).
+  const COLORS = ["#3B5BDB", "#E8890C", "#0F9F74", "#D6336C", "#7048E8", "#2F9E44",
+    "#1098AD", "#C92A2A", "#D9A400", "#1C7ED6", "#F76707", "#5C7CFA"];
   const HOUR_PX = 56;          // vertical pixels per hour
   const SNAP = 0.25;           // 15-minute grid
   const MIN_LEN = 0.25;        // shortest class
   let veItems = [];            // [{gi, day, a, b}]  a/b in hours
   let veStart = 8, veEnd = 22; // visible window (hours)
+  let winAuto = true;          // window follows the data until the user sets it
   let drag = null, movedFlag = false;
+  const undoStack = [];        // snapshots of veItems for Ctrl+Z / Undo button
+
+  function snapshot() { return veItems.map((i) => ({ ...i })); }
+  function pushUndo() { undoStack.push(snapshot()); if (undoStack.length > 40) undoStack.shift(); refreshUndo(); }
+  function veUndo() { if (!undoStack.length) return; veItems = undoStack.pop(); render(); refreshUndo(); }
+  function refreshUndo() { const b = document.getElementById("veUndoBtn"); if (b) b.disabled = !undoStack.length; }
 
   /* ---- colour per group (deterministic, with a per-browser override) ---- */
   function veColors() { try { return JSON.parse(localStorage.getItem("ve-colors") || "{}"); } catch (e) { return {}; } }
   function colorFor(gi) {
     const g = groups[gi]; if (!g) return COLORS[0];
     const ov = veColors(); if (ov[g.name]) return ov[g.name];
-    let h = 0; const key = (g.name || "") + "#" + gi;
-    for (let i = 0; i < key.length; i++) h = (h * 31 + key.charCodeAt(i)) >>> 0;
-    return COLORS[h % COLORS.length];
+    // Assign by position so adjacent groups never collide (the old hash did).
+    return COLORS[((gi % COLORS.length) + COLORS.length) % COLORS.length];
   }
   function setColor(gi, c) {
     const ov = veColors(); ov[groups[gi].name] = c;
@@ -54,6 +61,31 @@
     lo = Math.max(0, Math.floor(lo - 1)); hi = Math.min(24, Math.ceil(hi + 1));
     if (hi - lo < 8) hi = Math.min(24, lo + 8);
     return [lo, hi];
+  }
+  function setWindow(start, end) {
+    winAuto = false;
+    if (start != null) veStart = Math.max(0, Math.min(23, start));
+    if (end != null) veEnd = Math.min(24, Math.max(veStart + 1, end));
+    if (veEnd <= veStart) veEnd = Math.min(24, veStart + 1);
+    render();
+  }
+  function winLabel(h) { return (h === 24 ? "12" : (h % 12 || 12)) + (h < 12 || h === 24 ? "am" : "pm"); }
+  function fillWindowSelects() {
+    const s = document.getElementById("veWinStart"), e = document.getElementById("veWinEnd");
+    if (!s || !e) return;
+    s.innerHTML = Array.from({ length: 24 }, (_, h) => `<option value="${h}">${winLabel(h)}</option>`).join("");
+    e.innerHTML = Array.from({ length: 24 }, (_, h) => h + 1).map((h) => `<option value="${h}">${winLabel(h)}</option>`).join("");
+    s.value = String(veStart); e.value = String(veEnd);
+    const auto = document.getElementById("veWinAuto"); if (auto) auto.classList.toggle("on", winAuto);
+  }
+  function vePrint() { document.body.classList.add("ve-print"); window.print(); setTimeout(() => document.body.classList.remove("ve-print"), 400); }
+  // red "now" line on today's column when the current time is inside the window
+  function nowMarker() {
+    const DAYS_ = (typeof DAYS !== "undefined") ? DAYS : [];
+    const now = new Date(), di = DAYS_.indexOf(["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"][now.getDay()]);
+    const h = now.getHours() + now.getMinutes() / 60;
+    if (di < 0 || h < veStart || h > veEnd) return null;
+    return { di, top: (h - veStart) * HOUR_PX };
   }
   // overlap of two items on the same day
   const overlaps = (x, y) => x.day === y.day && x.a < y.b && y.a < x.b;
@@ -134,8 +166,18 @@
         cols.appendChild(b);
       });
     });
+    // "now" line over today's column
+    const nm = nowMarker();
+    if (nm) {
+      const line = el("div", "ve-now");
+      line.style.top = nm.top + "px";
+      line.style.left = (nm.di / 7 * 100) + "%";
+      line.style.width = (100 / 7) + "%";
+      cols.appendChild(line);
+    }
     cols.addEventListener("pointerdown", onEmptyDown);
     body.appendChild(cols);
+    fillWindowSelects();
     renderLegend();
     renderClashSummary();
   }
@@ -144,13 +186,20 @@
 
   function renderLegend() {
     const lg = document.getElementById("veLegend"); if (!lg) return;
-    const seen = new Map();
-    veItems.forEach((it) => { if (!seen.has(it.gi)) seen.set(it.gi, colorFor(it.gi)); });
-    lg.innerHTML = [...seen].map(([gi, c]) => {
+    const hrs = new Map();                 // gi -> total hours
+    veItems.forEach((it) => hrs.set(it.gi, (hrs.get(it.gi) || 0) + Math.max(0, it.b - it.a)));
+    const order = [...hrs.keys()].sort((a, b) => a - b);
+    lg.innerHTML = order.map((gi) => {
       const g = groups[gi]; const nm = (typeof colDisplay === "function" ? colDisplay(g) : (g.nickname || g.name)) || "—";
-      return `<span class="ve-lg"><i style="background:${c}"></i>${veEsc(nm)}</span>`;
+      return `<span class="ve-lg"><i style="background:${colorFor(gi)}"></i>${veEsc(nm)}<b class="ve-lh">${fmtHrs(hrs.get(gi))}</b></span>`;
     }).join("") || '<span class="ve-muted">No classes yet — click a slot to add one.</span>';
+    const tot = document.getElementById("veTotal");
+    if (tot) {
+      const total = [...hrs.values()].reduce((s, v) => s + v, 0);
+      tot.textContent = veItems.length ? `${veItems.length} class${veItems.length === 1 ? "" : "es"} · ${fmtHrs(total)}/week` : "";
+    }
   }
+  function fmtHrs(h) { const r = Math.round(h * 10) / 10; return (Number.isInteger(r) ? r : r.toFixed(1)) + "h"; }
   function renderClashSummary() {
     const el2 = document.getElementById("veClash"); if (!el2) return;
     const pairs = [];
@@ -174,7 +223,7 @@
     e.stopPropagation();
     const hnd = e.target.closest(".ve-hnd");
     const mode = hnd ? (hnd.classList.contains("n") ? "t0" : "t1") : "move";
-    drag = { it, bEl, mode, y0: e.clientY, x0: e.clientX, a0: it.a, b0: it.b, grabA: hourFromY(e.clientY) - it.a };
+    drag = { it, bEl, mode, y0: e.clientY, x0: e.clientX, a0: it.a, b0: it.b, grabA: hourFromY(e.clientY) - it.a, pre: snapshot() };
     movedFlag = false;
     bEl.classList.add("dragging"); bEl.setPointerCapture?.(e.pointerId);
     document.addEventListener("pointermove", onMove);
@@ -205,9 +254,10 @@
     // one entry per (group, day): if another block of the same group lands on this day, bounce back
     const dup = veItems.find((o) => o !== it && o.gi === it.gi && o.day === it.day);
     if (dup) { it.a = drag.a0; it.b = drag.b0; veToast("That group already has a class that day"); }
-    drag = null;
-    if (!movedFlag) openForm(it);     // a click (no move) opens the editor
-    else render();
+    const pre = drag.pre; drag = null;
+    if (!movedFlag) { openForm(it); return; }   // a click (no move) opens the editor
+    undoStack.push(pre); if (undoStack.length > 40) undoStack.shift(); refreshUndo();
+    render();
   }
 
   /* ---- click empty space → add ---- */
@@ -261,6 +311,7 @@
     if (b == null || b <= a) b = a + 1;
     const editing = dlg._it;
     if (veItems.some((o) => o !== editing && o.gi === gi && o.day === day)) return err(short(gi) + " already has a class on " + day + ".");
+    pushUndo();
     const chosen = document.querySelector('#veSwatches button[aria-pressed="true"]');
     if (chosen) setColor(gi, chosen.dataset.c);
     if (editing) { editing.gi = gi; editing.day = day; editing.a = a; editing.b = b; }
@@ -269,7 +320,7 @@
   }
   function deleteForm() {
     const dlg = document.getElementById("veForm");
-    if (dlg._it) veItems = veItems.filter((o) => o !== dlg._it);
+    if (dlg._it) { pushUndo(); veItems = veItems.filter((o) => o !== dlg._it); }
     closeForm(); render();
   }
   function closeForm() { const d = document.getElementById("veForm"); d.close ? d.close() : (d.open = false); }
@@ -292,6 +343,7 @@
   function openEditor() {
     if (typeof groups === "undefined" || !groups || !groups.length) { veToast("Add a group first"); return; }
     veItems = buildItems();
+    winAuto = true; undoStack.length = 0;
     [veStart, veEnd] = computeWindow();
     let ov = document.getElementById("veOverlay");
     if (!ov) { ov = buildOverlay(); document.body.appendChild(ov); }
@@ -304,7 +356,15 @@
     document.body.classList.remove("ve-lock");
     document.removeEventListener("keydown", onKey);
   }
-  function onKey(e) { if (e.key === "Escape") { const f = document.getElementById("veForm"); if (f && f.open) { closeForm(); return; } closeEditor(); } }
+  function onKey(e) {
+    if (e.key === "Escape") { const f = document.getElementById("veForm"); if (f && f.open) { closeForm(); return; } closeEditor(); return; }
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "z") {
+      const f = document.getElementById("veForm");
+      if (f && f.open) return;
+      if (/^(input|select|textarea)$/i.test(e.target.tagName)) return;
+      e.preventDefault(); veUndo();
+    }
+  }
 
   function buildOverlay() {
     const ov = el("div"); ov.id = "veOverlay"; ov.className = "ve-overlay";
@@ -316,10 +376,19 @@
           <div class="ve-ttl"><b>Visual Editor</b><span>drag to move · drag an edge to resize · click a slot to add</span></div>
           <div class="ve-clash ok" id="veClash"></div>
           <div class="ve-actions">
+            <button class="btn btn-ghost btn-sm" type="button" id="veUndoBtn" title="Undo (Ctrl+Z)" disabled>↶ Undo</button>
+            <button class="btn btn-ghost btn-sm" type="button" id="vePrintBtn" title="Print timetable">Print</button>
             <button class="btn btn-ghost btn-sm" type="button" id="veCloseBtn">Close</button>
             <button class="btn btn-primary btn-sm" type="button" id="veSaveBtn">Save &amp; apply</button>
           </div>
         </header>
+        <div class="ve-tools">
+          <label class="ve-win">Day starts<select id="veWinStart"></select></label>
+          <label class="ve-win">Day ends<select id="veWinEnd"></select></label>
+          <button class="btn btn-ghost btn-sm" type="button" id="veWinAuto" title="Fit the window to your classes">Auto-fit</button>
+          <span class="ve-spacer"></span>
+          <span class="ve-total" id="veTotal"></span>
+        </div>
         <div class="ve-head">
           <div class="ve-corner">Time</div>
           ${DAYS_.map((d, i) => `<div class="ve-dh"><span class="ve-dh-full">${d}</span><span class="ve-dh-short">${SHORT[i]}</span></div>`).join("")}
@@ -348,6 +417,11 @@
     ov.addEventListener("click", (e) => { if (e.target === ov) closeEditor(); });
     ov.querySelector("#veCloseBtn").onclick = closeEditor;
     ov.querySelector("#veSaveBtn").onclick = veSave;
+    ov.querySelector("#veUndoBtn").onclick = veUndo;
+    ov.querySelector("#vePrintBtn").onclick = vePrint;
+    ov.querySelector("#veWinAuto").onclick = () => { winAuto = true; [veStart, veEnd] = computeWindow(); render(); };
+    ov.querySelector("#veWinStart").onchange = (e) => setWindow(+e.target.value, null);
+    ov.querySelector("#veWinEnd").onchange = (e) => setWindow(null, +e.target.value);
     ov.querySelector("#veFormEl").addEventListener("submit", saveForm);
     ov.querySelector("#veCancel").onclick = closeForm;
     ov.querySelector("#veDelete").onclick = deleteForm;

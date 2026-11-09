@@ -23,11 +23,11 @@
 </script>
 <link rel="preconnect" href="https://api.fontshare.com">
 <link href="https://api.fontshare.com/v2/css?f[]=satoshi@400,500,700,900&display=swap" rel="stylesheet">
-<link href="{{ url_for('static', filename='css/app.css') }}?v=poc53" rel="stylesheet"/>
-<link href="{{ url_for('static', filename='css/compat.css') }}?v=poc53" rel="stylesheet"/>
-<link href="{{ url_for('static', filename='css/dashboard.css') }}?v=poc53" rel="stylesheet"/>
-<link href="{{ url_for('static', filename='css/components.css') }}?v=poc53" rel="stylesheet"/>
-<link href="{{ url_for('static', filename='css/visual-editor.css') }}?v=poc53" rel="stylesheet"/>
+<link href="{{ url_for('static', filename='css/app.css') }}?v=poc54" rel="stylesheet"/>
+<link href="{{ url_for('static', filename='css/compat.css') }}?v=poc54" rel="stylesheet"/>
+<link href="{{ url_for('static', filename='css/dashboard.css') }}?v=poc54" rel="stylesheet"/>
+<link href="{{ url_for('static', filename='css/components.css') }}?v=poc54" rel="stylesheet"/>
+<link href="{{ url_for('static', filename='css/visual-editor.css') }}?v=poc54" rel="stylesheet"/>
 <script>
 window.SSIES_USER = {{ {"email": email|default(username), "display_name": username, "role": role, "photo_url": photo_url|default(none)} | tojson }};
 </script>
@@ -567,6 +567,10 @@ window.SSIES_USER = {{ {"email": email|default(username), "display_name": userna
                     </div>
                   </div>
                   <div class="srow">
+                    <div><div class="st">Auto-collapse sidebar</div><div class="sd">Collapse the rail to icons after 15s of inactivity. Click the logo to reopen it.</div></div>
+                    <label class="toggle"><input type="checkbox" id="autoCollapseToggle" onchange="setAutoCollapse(this.checked)"/><span class="tk"></span></label>
+                  </div>
+                  <div class="srow">
                     <div><div class="st">Navigation layout</div><div class="sd">Sidebar rail or top navbar on desktop.</div></div>
                     <div class="seg" id="navLayoutSeg">
                       <button data-val="sidebar" onclick="setPref('nav-layout','sidebar')">Sidebar</button>
@@ -979,10 +983,10 @@ window.SSIES_USER = {{ {"email": email|default(username), "display_name": userna
 
 <div class="toast" id="toast" role="status" aria-live="polite" aria-atomic="true"></div>
 
-<script src="{{ url_for('static', filename='js/chrome.js') }}?v=poc53"></script>
-<script src="{{ url_for('static', filename='js/theme.js') }}?v=poc53"></script>
-<script src="{{ url_for('static', filename='js/whatsapp.js') }}?v=poc53"></script>
-<script src="{{ url_for('static', filename='js/waha.js') }}?v=poc53"></script>
+<script src="{{ url_for('static', filename='js/chrome.js') }}?v=poc54"></script>
+<script src="{{ url_for('static', filename='js/theme.js') }}?v=poc54"></script>
+<script src="{{ url_for('static', filename='js/whatsapp.js') }}?v=poc54"></script>
+<script src="{{ url_for('static', filename='js/waha.js') }}?v=poc54"></script>
 <script>
 const DAYS = {{ days | tojson }};
 const _asUser = new URLSearchParams(location.search).get("asUser");
@@ -2632,10 +2636,10 @@ async function copyText(t){try{await navigator.clipboard.writeText(t);toast("Cop
 let tt;function toast(m,type="ok"){const e=document.getElementById("toast");e.textContent=m;e.className=`toast ${type} show`;clearTimeout(tt);tt=setTimeout(()=>e.classList.remove("show"),3000);}
 
 </script>
-<script src="{{ url_for('static', filename='js/lists.js') }}?v=poc53"></script>
-<script src="{{ url_for('static', filename='js/features.js') }}?v=poc53"></script>
-<script src="{{ url_for('static', filename='js/workspace.js') }}?v=poc53"></script>
-<script src="{{ url_for('static', filename='js/visual_editor.js') }}?v=poc53"></script>
+<script src="{{ url_for('static', filename='js/lists.js') }}?v=poc54"></script>
+<script src="{{ url_for('static', filename='js/features.js') }}?v=poc54"></script>
+<script src="{{ url_for('static', filename='js/workspace.js') }}?v=poc54"></script>
+<script src="{{ url_for('static', filename='js/visual_editor.js') }}?v=poc54"></script>
 <script>boot();</script>
 </body>
 </html>

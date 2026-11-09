@@ -9,7 +9,7 @@ const THEME_KEYS = {
   fontSize: "font-size", density: "ui-density", radius: "corner-radius", rail: "sidebar-width",
   defaultPage: "default-page", sendMode: "default-send-mode", statusLog: "status-log",
   zebra: "table-zebra", navIcons: "nav-icon-style", railCollapsed: "rail-collapsed",
-  navLayout: "nav-layout",
+  navLayout: "nav-layout", autoCollapse: "auto-collapse",
 };
 
 /* Run before paint to avoid flash — call inline in <head> too */
@@ -105,6 +105,7 @@ function syncSettingsUI() {
 
   const at = document.getElementById("animToggle"); if (at) at.checked = localStorage.getItem(THEME_KEYS.anim) !== "off";
   const ct = document.getElementById("compactToggle"); if (ct) ct.checked = localStorage.getItem(THEME_KEYS.compact) === "on" || localStorage.getItem(THEME_KEYS.density) === "compact";
+  const act = document.getElementById("autoCollapseToggle"); if (act) act.checked = autoCollapseEnabled();
 
   syncSeg("fontSeg", localStorage.getItem(THEME_KEYS.fontSize) || "medium");
   syncSeg("densitySeg", localStorage.getItem(THEME_KEYS.density) || "comfortable");
@@ -442,6 +443,32 @@ function toggleRailFromLogo() {
   localStorage.setItem(THEME_KEYS.railCollapsed, shell.classList.contains("rail-collapsed") ? "1" : "0");
   if (typeof updateLogoChevron === "function") updateLogoChevron();
 }
+/* Auto-collapse: after 15s of no activity, collapse the sidebar to reclaim
+   space. Opt-in (settings toggle). Any pointer/key/scroll re-arms the timer;
+   the user re-opens manually via the logo. No-ops on mobile/navbar (no rail to
+   collapse) and when already collapsed. */
+const IDLE_MS = 15000;
+let _idleTimer = null;
+function autoCollapseEnabled() { return localStorage.getItem(THEME_KEYS.autoCollapse) === "on"; }
+function armIdleCollapse() {
+  clearTimeout(_idleTimer);
+  if (!autoCollapseEnabled() || window.innerWidth <= 860) return;
+  if (document.documentElement.getAttribute("data-nav") === "navbar") return;
+  _idleTimer = setTimeout(() => {
+    const shell = document.getElementById("shell") || document.getElementById("app");
+    if (!shell || shell.classList.contains("rail-collapsed")) return;
+    shell.classList.add("rail-collapsed");
+    try { localStorage.setItem(THEME_KEYS.railCollapsed, "1"); } catch (e) {}
+    updateLogoChevron();
+  }, IDLE_MS);
+}
+function setAutoCollapse(on) { localStorage.setItem(THEME_KEYS.autoCollapse, on ? "on" : "off"); armIdleCollapse(); }
+function initIdleCollapse() {
+  ["mousemove", "keydown", "pointerdown", "scroll", "touchstart", "wheel"].forEach((ev) =>
+    document.addEventListener(ev, armIdleCollapse, { passive: true }));
+  armIdleCollapse();
+}
+
 function updateLogoChevron() {
   const shell = document.getElementById("shell") || document.getElementById("app");
   const chev = document.getElementById("logoChev");
@@ -566,6 +593,7 @@ function initMotion() {
   const shell = document.getElementById("shell") || document.getElementById("app");
   if (shell && localStorage.getItem(THEME_KEYS.railCollapsed) === "1") shell.classList.add("rail-collapsed");
   updateLogoChevron();
+  initIdleCollapse();
   if (typeof refreshNotifications === "function") refreshNotifications();
   requestAnimationFrame(reflowNavbar);
 }

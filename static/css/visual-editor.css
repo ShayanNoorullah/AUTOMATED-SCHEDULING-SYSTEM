@@ -20,6 +20,15 @@ body.ve-lock{ overflow:hidden; }
 .ve-clash.ok{ color:var(--success,#0f9f74); background:color-mix(in srgb,var(--success,#0f9f74) 13%,transparent); }
 .ve-clash.warn{ color:var(--danger,#c0392b); background:color-mix(in srgb,var(--danger,#c0392b) 13%,transparent); }
 
+/* tools bar: time-window controls + weekly total */
+.ve-tools{ display:flex; align-items:center; gap:12px; padding:9px 18px; border-bottom:1px solid var(--border); background:var(--surface); flex-wrap:wrap; }
+.ve-win{ display:inline-flex; align-items:center; gap:7px; font-size:.74rem; font-weight:650; color:var(--text-muted); white-space:nowrap; }
+.ve-win select{ font:600 .8rem inherit; padding:5px 8px; border:1.5px solid var(--border); border-radius:var(--r-sm,8px); background:var(--surface-2); color:var(--text); cursor:pointer; }
+.ve-tools .btn.on{ color:var(--accent); border-color:color-mix(in srgb,var(--accent) 45%,transparent); }
+.ve-spacer{ flex:1; }
+.ve-total{ font-size:.78rem; font-weight:650; color:var(--text-muted); white-space:nowrap; }
+#veUndoBtn:disabled{ opacity:.4; cursor:default; }
+
 .ve-head{ display:flex; padding:0 0 0 0; border-bottom:2px solid var(--border); background:var(--surface-2); }
 .ve-corner{ width:var(--ve-gutter); flex:none; padding:9px 8px; font-size:.68rem; font-weight:700; letter-spacing:.06em; text-transform:uppercase; color:var(--text-muted); }
 .ve-dh{ flex:1; min-width:0; text-align:center; padding:9px 4px; font-weight:750; font-size:.9rem; border-left:1px solid var(--border); }
@@ -35,16 +44,25 @@ body.ve-lock{ overflow:hidden; }
 .ve-col{ position:absolute; top:0; bottom:0; border-left:1px solid var(--border); pointer-events:none; }
 .ve-col[data-dayi="0"]{ border-left:none; }
 
-.ve-block{ position:absolute; border-radius:9px; background:var(--c); color:#fff; padding:3px 7px; overflow:hidden;
-  cursor:grab; user-select:none; touch-action:none; box-shadow:inset 0 -3px 0 rgba(0,0,0,.18),0 4px 10px color-mix(in srgb,var(--c) 34%,transparent);
-  display:flex; flex-direction:column; justify-content:center; }
+.ve-block{ position:absolute; border-radius:10px; background:var(--c); color:#fff; padding:4px 8px; overflow:hidden;
+  cursor:grab; user-select:none; touch-action:none; box-shadow:0 1px 2px rgba(0,0,0,.14),0 6px 14px -6px color-mix(in srgb,var(--c) 60%,transparent);
+  display:flex; flex-direction:column; justify-content:center; transition:box-shadow .12s ease,transform .12s ease; }
+.ve-block:hover{ box-shadow:0 2px 4px rgba(0,0,0,.18),0 10px 22px -8px color-mix(in srgb,var(--c) 66%,transparent); }
 .ve-block.clash{ outline:2px dashed #fff; outline-offset:-3px; box-shadow:inset 0 -3px 0 rgba(0,0,0,.18),0 0 0 2px var(--danger,#c0392b); }
 .ve-block.dragging{ cursor:grabbing; z-index:6; box-shadow:0 14px 30px rgba(0,0,0,.34); opacity:.96; }
 .ve-bin{ min-width:0; }
 .ve-block b{ font-size:.78rem; font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; display:block; }
 .ve-block span{ font-size:.66rem; opacity:.92; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; display:block; }
-.ve-hnd{ position:absolute; left:0; right:0; height:9px; cursor:ns-resize; z-index:2; }
-.ve-hnd.n{ top:-2px; } .ve-hnd.s{ bottom:-2px; }
+.ve-hnd{ position:absolute; left:0; right:0; height:10px; cursor:ns-resize; z-index:2; display:flex; align-items:center; justify-content:center; opacity:0; transition:opacity .12s ease; }
+.ve-hnd::after{ content:""; width:26px; max-width:60%; height:3px; border-radius:99px; background:rgba(255,255,255,.75); }
+.ve-block:hover .ve-hnd,.ve-block.dragging .ve-hnd{ opacity:1; }
+.ve-hnd.n{ top:-1px; } .ve-hnd.s{ bottom:-1px; }
+
+/* current-time line on today's column */
+.ve-now{ position:absolute; height:2px; background:var(--danger,#c0392b); z-index:5; pointer-events:none; box-shadow:0 0 0 1px color-mix(in srgb,var(--danger,#c0392b) 30%,transparent); }
+.ve-now::before{ content:""; position:absolute; left:-1px; top:-3px; width:8px; height:8px; border-radius:50%; background:var(--danger,#c0392b); }
+
+.ve-lh{ font-weight:700; color:var(--text); opacity:.7; margin-left:3px; font-variant-numeric:tabular-nums; }
 
 .ve-foot{ padding:10px 16px; border-top:1px solid var(--border); background:var(--surface-2); }
 .ve-legend{ display:flex; flex-wrap:wrap; gap:6px 14px; font-size:.78rem; color:var(--text-muted); }
@@ -70,4 +88,18 @@ body.ve-lock{ overflow:hidden; }
   .ve-dh-full{ display:none; } .ve-dh-short{ display:inline; }
   :root{ --ve-gutter:44px; }
   .ve-clash{ max-width:40vw; }
+  .ve-tools{ padding:8px 12px; gap:8px; }
+  .ve-total{ width:100%; order:5; }
+}
+
+/* Print: the panel becomes the page, no internal scroll, colours kept. */
+@media print{
+  body.ve-print *{ visibility:hidden; }
+  body.ve-print .ve-overlay,body.ve-print .ve-overlay *{ visibility:visible; }
+  body.ve-print .ve-overlay{ position:absolute; inset:0; display:block; background:#fff; backdrop-filter:none; padding:0; }
+  body.ve-print .ve-panel{ width:100%; height:auto; max-height:none; box-shadow:none; border:none; border-radius:0; animation:none; }
+  body.ve-print .ve-actions,body.ve-print .ve-tools .btn,body.ve-print .ve-hnd{ display:none !important; }
+  body.ve-print .ve-scroll{ overflow:visible; }
+  body.ve-print .ve-block{ box-shadow:none; -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+  @page{ size:landscape; margin:10mm; }
 }

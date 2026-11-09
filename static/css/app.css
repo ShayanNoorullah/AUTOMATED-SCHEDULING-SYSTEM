@@ -391,6 +391,9 @@ table.data a:hover{text-decoration:underline;}
 .rail-brand .mark::after{content:"";position:absolute;inset:-1px;border-radius:15px;padding:1px;background:var(--grad-accent);
   -webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;mask-composite:exclude;opacity:.6;}
 .rail-brand .mark img{width:100%;height:100%;object-fit:contain;}
+/* Logo is a <button> that toggles the sidebar — reset it (portal pages don't
+   load dashboard.css, so the reset must live here where app.css always loads). */
+.rail-brand .mark.logo{border:0;cursor:pointer;-webkit-appearance:none;appearance:none;}
 /* The SSIES badge art sits on a white plate with transparent corners, so in
    dark mode the surface shows through the corners/padding. Keep the plate
    white in dark mode so the white fills the whole rounded logo area. */

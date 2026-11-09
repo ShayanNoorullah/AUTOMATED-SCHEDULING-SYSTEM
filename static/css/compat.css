@@ -44,10 +44,11 @@
    keeping the 1260px cap (which forced wide tables into an internal scroll). */
 .app.rail-collapsed .content,.app.rail-collapsed .page-pad,
 .shell.rail-collapsed .content,.shell.rail-collapsed .page-pad{max-width:none;}
-/* Floating notif bell: centre it under the 72px rail and lift it clear of the
-   collapsed footer (avatar + logout) so it no longer sits on top of them. */
+/* Floating notif bell: perfectly centre it under the 72px rail (bell is 44px →
+   (72-44)/2 = 14px) and anchor it at the rail bottom. The collapsed footer is
+   hidden in sidebar mode, so nothing sits below it. */
 .app.rail-collapsed .notif-wrap:not(.in-bar),
-.shell.rail-collapsed .notif-wrap:not(.in-bar){left:12px;bottom:96px;}
+.shell.rail-collapsed .notif-wrap:not(.in-bar){left:14px;bottom:20px;}
 /* Collapsed rail hover hints — native title tooltips are set from labels in JS. */
 
 /* Portal chrome mapped onto POC tokens */
