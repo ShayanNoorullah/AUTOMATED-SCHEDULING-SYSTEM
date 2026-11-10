@@ -16,8 +16,9 @@
     "#1098AD", "#C92A2A", "#D9A400", "#1C7ED6", "#F76707", "#5C7CFA"];
   const SHORT = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
   const HOUR_PX = 56;          // vertical pixels per hour (week vertical + day)
-  const LANE_H = 30;           // horizontal week: pixels per overlap lane
-  const CMP_LANE_H = 20;       // compact: denser lanes
+  const LANE_H = 40;           // horizontal week: pixels per overlap lane (incl. gap)
+  const LANE_GAP = 9;          // horizontal: vertical gap between stacked lanes
+  const CMP_LANE_H = 24;       // compact: denser lanes
   const SNAP = 0.25;           // 15-minute grid
   const MIN_LEN = 0.25;        // shortest class
   let veItems = [];            // [{gi, day, a, b}]  a/b in hours
@@ -137,7 +138,9 @@
   function makeBlock(it, orient) {
     const b = el("div", "ve-block" + (orient === "h" ? " h" : "") + (hasClash(it) ? " clash" : ""));
     b.style.setProperty("--c", colorFor(it.gi));
-    b.innerHTML = `<div class="ve-hnd n"></div><div class="ve-bin"><b>${veEsc(nameOf(it.gi))}</b><span>${fmt(it.a)} – ${fmt(it.b)}</span></div><div class="ve-hnd s"></div>`;
+    const t = orient === "h" ? fmt(it.a) : `${fmt(it.a)} – ${fmt(it.b)}`;  // horizontal: start only (width shows the span)
+    b.innerHTML = `<div class="ve-hnd n"></div><div class="ve-bin"><b>${veEsc(nameOf(it.gi))}</b><span>${t}</span></div><div class="ve-hnd s"></div>`;
+    if (orient === "h") b.title = `${nameOf(it.gi)} · ${fmt(it.a)} – ${fmt(it.b)} · ${it.day}`;
     b._it = it;
     b.addEventListener("pointerdown", (e) => onDown(e, b, it));
     return b;
@@ -189,7 +192,8 @@
     const compact = !!(opts && opts.compact);
     GEO = compact ? { mode: "none" } : { mode: "hgrid" };
     const DG = days(), span = veEnd - veStart, laneH = compact ? CMP_LANE_H : LANE_H;
-    const rowH = (n) => Math.max(1, n) * laneH + 8;
+    const gap = compact ? 5 : LANE_GAP, pad = compact ? 5 : 8, blockH = laneH - gap;
+    const rowH = (n) => Math.max(1, n) * laneH + 2 * pad;
     const rows = DG.map((d) => { const items = layout(d); return { day: d, items, lanes: items.length ? items[0]._lanes : 1 }; });
     const total = rows.reduce((t, r) => t + rowH(r.lanes), 0);
 
@@ -213,10 +217,10 @@
       lbl.style.top = top + "px"; lbl.style.height = h + "px"; gut.appendChild(lbl);
       r.items.forEach((it) => {
         const node = compact ? makeChip(it) : makeBlock(it, "h");
-        node.style.left = ((it.a - veStart) / span * 100) + "%";
-        node.style.width = "calc(" + ((it.b - it.a) / span * 100) + "% - 3px)";
-        node.style.top = (top + it._lane * laneH + 4) + "px";
-        node.style.height = (laneH - 4) + "px";
+        node.style.left = "calc(" + ((it.a - veStart) / span * 100) + "% + 2px)";
+        node.style.width = "calc(" + ((it.b - it.a) / span * 100) + "% - 4px)";
+        node.style.top = (top + pad + it._lane * laneH) + "px";
+        node.style.height = blockH + "px";
         canvas.appendChild(node);
       });
       top += h;

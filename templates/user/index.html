@@ -27,7 +27,7 @@
 <link href="{{ url_for('static', filename='css/compat.css') }}?v=poc54" rel="stylesheet"/>
 <link href="{{ url_for('static', filename='css/dashboard.css') }}?v=poc54" rel="stylesheet"/>
 <link href="{{ url_for('static', filename='css/components.css') }}?v=poc54" rel="stylesheet"/>
-<link href="{{ url_for('static', filename='css/visual-editor.css') }}?v=poc55" rel="stylesheet"/>
+<link href="{{ url_for('static', filename='css/visual-editor.css') }}?v=poc56" rel="stylesheet"/>
 <script>
 window.SSIES_USER = {{ {"email": email|default(username), "display_name": username, "role": role, "photo_url": photo_url|default(none)} | tojson }};
 </script>
@@ -2697,7 +2697,7 @@ let tt;function toast(m,type="ok"){const e=document.getElementById("toast");e.te
 <script src="{{ url_for('static', filename='js/lists.js') }}?v=poc54"></script>
 <script src="{{ url_for('static', filename='js/features.js') }}?v=poc54"></script>
 <script src="{{ url_for('static', filename='js/workspace.js') }}?v=poc54"></script>
-<script src="{{ url_for('static', filename='js/visual_editor.js') }}?v=poc55"></script>
+<script src="{{ url_for('static', filename='js/visual_editor.js') }}?v=poc56"></script>
 <script>boot();</script>
 </body>
 </html>
