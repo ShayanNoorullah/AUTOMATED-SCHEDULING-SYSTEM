@@ -116,6 +116,24 @@ body.ve-lock{ overflow:hidden; }
 .ve-daytab .short{ display:none; }
 .ve-day1{ left:0; }
 
+/* ── rooms view: Room columns × Time rows for the selected day ── */
+.ve-head-rooms{ display:block; padding:8px 12px 0; }
+.ve-roomsbtn{ margin-left:auto; font:650 .78rem inherit; padding:6px 12px; border:1.5px solid var(--border); border-radius:999px; background:var(--surface-2); color:var(--text); cursor:pointer; white-space:nowrap; }
+.ve-rhead{ display:flex; margin-top:8px; }
+.ve-rhead-sp{ width:var(--ve-gutter,58px); flex:none; }
+.ve-rh{ flex:none; text-align:center; padding:7px 4px; font-weight:750; font-size:.82rem; border-left:1px solid var(--border); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.ve-rh.un{ color:var(--text-muted); font-style:italic; }
+.ve-block.roomclash{ outline:2px solid var(--danger,#c0392b); outline-offset:-2px; box-shadow:0 0 0 3px color-mix(in srgb,var(--danger,#c0392b) 30%,transparent); }
+
+/* ── rooms manager dialog ── */
+#veRoomsDlg{ width:min(420px,94vw); }
+.ve-roomrow{ display:flex; align-items:center; gap:8px; margin-bottom:8px; }
+.ve-roomname{ flex:1; min-width:0; font:500 .9rem inherit; padding:8px 10px; border:1.5px solid var(--border); border-radius:var(--r-sm,8px); background:var(--surface-2); color:var(--text); }
+.ve-roomcnt{ font-size:.72rem; color:var(--text-muted); white-space:nowrap; }
+.ve-roomdel{ border:0; background:none; color:var(--text-muted); font-size:1rem; cursor:pointer; padding:4px 6px; border-radius:6px; }
+.ve-roomdel:hover{ color:var(--danger,#c0392b); background:color-mix(in srgb,var(--danger,#c0392b) 12%,transparent); }
+.ve-aroom{ display:inline-block; margin-left:6px; padding:0 6px; border-radius:99px; font-size:.64rem; font-weight:650; background:color-mix(in srgb,var(--text) 10%,transparent); color:var(--text-muted); vertical-align:1px; }
+
 /* ── agenda ── */
 .ve-body-plain{ display:block; height:auto; overflow:visible; }
 .ve-agenda{ display:grid; grid-template-columns:repeat(auto-fill,minmax(260px,1fr)); gap:14px; padding:16px; }

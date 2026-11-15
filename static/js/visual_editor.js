@@ -29,8 +29,9 @@
   let veDayIdx = todayIdx();   // day view: selected day
   let drag = null, movedFlag = false;
   const undoStack = [];        // snapshots of veItems for Ctrl+Z / Undo button
-  let GEO = { mode: "vgrid" }; // vgrid | hgrid | day | none — drives pointer→(day,hour)
+  let GEO = { mode: "vgrid" }; // vgrid | hgrid | day | rooms | none — drives pointer→(day,hour)
   let _rowTops = [], _rowDays = []; // hgrid: pixel top + day name per row (for drag)
+  let _roomCols = [];               // rooms view: room key per column (for drag → reassign)
 
   function days() { return (typeof DAYS !== "undefined" && DAYS) ? DAYS : ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]; }
   function todayIdx() { return (new Date().getDay() + 6) % 7; }         // Mon=0 … Sun=6
@@ -43,7 +44,7 @@
   function refreshUndo() { const b = document.getElementById("veUndoBtn"); if (b) b.disabled = !undoStack.length; }
 
   function savePrefs() { try { localStorage.setItem("ve-view", veView); localStorage.setItem("ve-swap", veSwap ? "1" : "0"); } catch (e) {} }
-  function loadPrefs() { try { const v = localStorage.getItem("ve-view"); if (["week", "compact", "day", "agenda"].includes(v)) veView = v; veSwap = localStorage.getItem("ve-swap") === "1"; } catch (e) {} }
+  function loadPrefs() { try { const v = localStorage.getItem("ve-view"); if (["week", "compact", "day", "rooms", "agenda"].includes(v)) veView = v; veSwap = localStorage.getItem("ve-swap") === "1"; } catch (e) {} }
 
   /* ---- colour per group (deterministic, with a per-browser override) ---- */
   function veColors() { try { return JSON.parse(localStorage.getItem("ve-colors") || "{}"); } catch (e) { return {}; } }
@@ -74,10 +75,23 @@
     (groups || []).forEach((g, gi) => (g.schedule || []).forEach((e) => {
       const a = toH(e.from); if (a == null) return;
       let b = toH(e.to); if (b == null || b <= a) b = a + 1;
-      out.push({ gi, day: e.day, a, b });
+      out.push({ gi, day: e.day, a, b, room: (e.room || "").trim() });
     }));
     return out;
   }
+
+  /* ---- rooms (VE-only organizational layer; persists as an optional
+     `room` key on each schedule entry — the main scheduler ignores it) ---- */
+  let veRooms = [];
+  function loadRooms() {
+    let saved = [];
+    try { saved = JSON.parse(localStorage.getItem("ve-rooms") || "[]"); } catch (e) {}
+    const seen = []; const add = (s) => { s = (s || "").trim(); if (s && !seen.includes(s)) seen.push(s); };
+    (Array.isArray(saved) ? saved : []).forEach(add);
+    veItems.forEach((i) => add(i.room));           // never lose a room already assigned in the data
+    veRooms = seen;
+  }
+  function persistRooms() { try { localStorage.setItem("ve-rooms", JSON.stringify(veRooms)); } catch (e) {} }
   function computeWindow() {
     if (!veItems.length) return [8, 22];
     let lo = Math.min(...veItems.map((i) => i.a)), hi = Math.max(...veItems.map((i) => i.b));
@@ -114,10 +128,13 @@
   }
   const clashing = (x, y) => overlaps(x, y) && !pairAccepted(x, y);
   function hasClash(it) { return veItems.some((o) => o !== it && clashing(o, it)); }
+  // two classes in the same (non-empty) room at an overlapping time = a room double-booking
+  const roomClash = (x, y) => x !== y && x.day === y.day && !!x.room && x.room === y.room && x.a < y.b && y.a < x.b;
+  function hasRoomClash(it) { return !!it.room && veItems.some((o) => roomClash(o, it)); }
 
-  /* lane packing per day so overlapping classes sit side by side */
-  function layout(day) {
-    const items = veItems.filter((i) => i.day === day).sort((a, b) => a.a - b.a || a.b - b.b);
+  /* lane packing so overlapping classes sit side by side */
+  function packLanes(items) {
+    items.sort((a, b) => a.a - b.a || a.b - b.b);
     const lanes = [];
     items.forEach((it) => {
       let l = lanes.findIndex((end) => end <= it.a + 1e-6);
@@ -128,6 +145,7 @@
     items.forEach((it) => (it._lanes = n));
     return items;
   }
+  function layout(day) { return packLanes(veItems.filter((i) => i.day === day)); }
 
   /* ---- element helpers ---- */
   function el(tag, cls, html) { const e = document.createElement(tag); if (cls) e.className = cls; if (html != null) e.innerHTML = html; return e; }
@@ -236,16 +254,24 @@
     body.appendChild(gut); body.appendChild(scroll);
   }
 
+  /* day tabs (shared by Day + Rooms views) */
+  function dayTabsHTML() {
+    const DG = days(), ti = todayIdx();
+    let th = `<button type="button" class="ve-step" data-d="-1" aria-label="Previous day">‹</button>`;
+    DG.forEach((d, i) => { th += `<button type="button" class="ve-daytab${i === ti ? " today" : ""}" data-i="${i}" aria-pressed="${i === veDayIdx}"><span class="full">${d}</span><span class="short">${SHORT[i]}</span></button>`; });
+    return th + `<button type="button" class="ve-step" data-d="1" aria-label="Next day">›</button>`;
+  }
+  function wireDayTabs(head) {
+    head.querySelectorAll(".ve-daytab").forEach((b) => (b.onclick = () => { veDayIdx = +b.dataset.i; render(); }));
+    head.querySelectorAll(".ve-step").forEach((b) => (b.onclick = () => { veDayIdx = (veDayIdx + (+b.dataset.d) + 7) % 7; render(); }));
+  }
+
   /* ─── view: single day (interactive, time down, lanes across) ─── */
   function renderDay(head, body) {
     GEO = { mode: "day" };
     const DG = days(), ti = todayIdx(), span = veEnd - veStart;
-    let th = `<button type="button" class="ve-step" data-d="-1" aria-label="Previous day">‹</button>`;
-    DG.forEach((d, i) => { th += `<button type="button" class="ve-daytab${i === ti ? " today" : ""}" data-i="${i}" aria-pressed="${i === veDayIdx}"><span class="full">${d}</span><span class="short">${SHORT[i]}</span></button>`; });
-    th += `<button type="button" class="ve-step" data-d="1" aria-label="Next day">›</button>`;
-    head.className = "ve-head ve-head-day"; head.innerHTML = `<div class="ve-daytabs">${th}</div>`;
-    head.querySelectorAll(".ve-daytab").forEach((b) => (b.onclick = () => { veDayIdx = +b.dataset.i; render(); }));
-    head.querySelectorAll(".ve-step").forEach((b) => (b.onclick = () => { veDayIdx = (veDayIdx + (+b.dataset.d) + 7) % 7; render(); }));
+    head.className = "ve-head ve-head-day"; head.innerHTML = `<div class="ve-daytabs">${dayTabsHTML()}</div>`;
+    wireDayTabs(head);
 
     const day = DG[veDayIdx];
     body.style.setProperty("--ve-h", (span * HOUR_PX) + "px");
@@ -267,6 +293,48 @@
     body.appendChild(cols);
   }
 
+  /* ─── view: rooms (one day; Room columns × Time rows — drag across to
+     reassign a class's room, down to change its time) ─── */
+  function renderRooms(head, body) {
+    GEO = { mode: "rooms" };
+    const DG = days(), ti = todayIdx(), span = veEnd - veStart, day = DG[veDayIdx];
+    const cols = veRooms.map((r) => ({ label: r, key: r })).concat([{ label: "Unassigned", key: "" }]);
+    const nc = cols.length;
+    _roomCols = cols.map((c) => c.key);
+
+    let rh = `<div class="ve-rhead"><div class="ve-rhead-sp"></div>`;
+    cols.forEach((c) => { rh += `<div class="ve-rh${c.key === "" ? " un" : ""}" style="width:${100 / nc}%">${veEsc(c.label)}</div>`; });
+    rh += `</div>`;
+    head.className = "ve-head ve-head-rooms";
+    head.innerHTML = `<div class="ve-daytabs">${dayTabsHTML()}</div>` + rh;
+    wireDayTabs(head);
+    const mgr = el("button", "ve-roomsbtn", "⚙ Rooms"); mgr.type = "button"; mgr.onclick = openRoomsManager;
+    head.querySelector(".ve-daytabs").appendChild(mgr);
+
+    body.style.setProperty("--ve-h", (span * HOUR_PX) + "px");
+    const gutter = el("div", "ve-gutter");
+    for (let h = veStart; h <= veEnd; h++) { const lab = el("div", "ve-tl", hourLab(h)); lab.style.top = ((h - veStart) * HOUR_PX) + "px"; gutter.appendChild(lab); }
+    body.appendChild(gutter);
+
+    const canvas = el("div", "ve-cols ve-day1"); canvas.id = "veCanvas";
+    for (let h = veStart; h <= veEnd; h++) { const line = el("div", "ve-hline" + (h % 1 ? "" : " hr")); line.style.top = ((h - veStart) * HOUR_PX) + "px"; canvas.appendChild(line); }
+    for (let c = 0; c < nc; c++) { const col = el("div", "ve-col"); col.style.left = (c / nc * 100) + "%"; col.style.width = (100 / nc) + "%"; col.dataset.dayi = c; canvas.appendChild(col); }
+    cols.forEach((c, ci) => {
+      const items = packLanes(veItems.filter((i) => i.day === day && (i.room || "") === c.key));
+      const nl = items.length ? items[0]._lanes : 1, laneW = (100 / nc) / nl;
+      items.forEach((it) => {
+        const b = makeBlock(it, "v");
+        if (hasRoomClash(it)) b.classList.add("roomclash");
+        b.style.left = (ci / nc * 100 + it._lane * laneW) + "%"; b.style.width = "calc(" + laneW + "% - 3px)";
+        b.style.top = ((it.a - veStart) * HOUR_PX) + "px"; b.style.height = Math.max(16, (it.b - it.a) * HOUR_PX - 2) + "px";
+        canvas.appendChild(b);
+      });
+    });
+    if (veDayIdx === ti) { const nh = nowHour(); if (nh >= veStart && nh <= veEnd) { const line = el("div", "ve-now"); line.style.top = ((nh - veStart) * HOUR_PX) + "px"; line.style.left = "0"; line.style.width = "100%"; canvas.appendChild(line); } }
+    canvas.addEventListener("pointerdown", onEmptyDown);
+    body.appendChild(canvas);
+  }
+
   /* ─── view: agenda (list + weekly hours by group) ─── */
   function renderAgenda(head, body) {
     GEO = { mode: "none" };
@@ -283,7 +351,8 @@
       }
       items.forEach((it) => {
         const r = el("div", "ve-arow" + (hasClash(it) ? " clash" : "")); r.style.setProperty("--c", colorFor(it.gi)); r.tabIndex = 0;
-        r.innerHTML = `<i></i><div class="ve-amid"><div class="ve-an">${veEsc(nameOf(it.gi))}</div><div class="ve-at">${fmt(it.a)} – ${fmt(it.b)}</div></div><div class="ve-ah">${fmtHrs(it.b - it.a)}</div>`;
+        const roomTag = it.room ? ` <span class="ve-aroom">${veEsc(it.room)}</span>` : "";
+        r.innerHTML = `<i></i><div class="ve-amid"><div class="ve-an">${veEsc(nameOf(it.gi))}</div><div class="ve-at">${fmt(it.a)} – ${fmt(it.b)}${roomTag}</div></div><div class="ve-ah">${fmtHrs(it.b - it.a)}</div>`;
         r.onclick = () => openForm(it); r.onkeydown = (e) => { if (e.key === "Enter") openForm(it); };
         card.appendChild(r);
       });
@@ -314,6 +383,7 @@
     if (veView === "week") (veSwap ? renderHorizontal : renderVertical)(head, body);
     else if (veView === "compact") renderHorizontal(head, body, { compact: true });
     else if (veView === "day") renderDay(head, body);
+    else if (veView === "rooms") renderRooms(head, body);
     else renderAgenda(head, body);
 
     fillWindowSelects(); renderLegend(); renderClashSummary(); savePrefs();
@@ -334,19 +404,21 @@
   function fmtHrs(h) { const r = Math.round(h * 10) / 10; return (Number.isInteger(r) ? r : r.toFixed(1)) + "h"; }
   function renderClashSummary() {
     const e2 = document.getElementById("veClash"); if (!e2) return;
-    const pairs = [];
-    for (let i = 0; i < veItems.length; i++) for (let j = i + 1; j < veItems.length; j++) if (clashing(veItems[i], veItems[j])) pairs.push([veItems[i], veItems[j]]);
-    if (!pairs.length) { e2.className = "ve-clash ok"; e2.textContent = "✓ No time clashes"; return; }
+    const pairs = [], rooms = veView === "rooms";
+    for (let i = 0; i < veItems.length; i++) for (let j = i + 1; j < veItems.length; j++)
+      if (rooms ? roomClash(veItems[i], veItems[j]) : clashing(veItems[i], veItems[j])) pairs.push([veItems[i], veItems[j]]);
+    if (!pairs.length) { e2.className = "ve-clash ok"; e2.textContent = rooms ? "✓ No room double-bookings" : "✓ No time clashes"; return; }
     e2.className = "ve-clash warn";
-    e2.textContent = `⚠ ${pairs.length} clash${pairs.length === 1 ? "" : "es"} — ` +
-      pairs.slice(0, 3).map(([a, b]) => `${a.day.slice(0, 3)} ${nameOf(a.gi)}↔${nameOf(b.gi)}`).join(", ") + (pairs.length > 3 ? "…" : "");
+    const word = rooms ? "room double-booking" : "clash";
+    e2.textContent = `⚠ ${pairs.length} ${word}${pairs.length === 1 ? "" : "s"} — ` +
+      pairs.slice(0, 3).map(([a, b]) => rooms ? `${a.day.slice(0, 3)} ${veEsc(a.room)}` : `${a.day.slice(0, 3)} ${nameOf(a.gi)}↔${nameOf(b.gi)}`).join(", ") + (pairs.length > 3 ? "…" : "");
   }
 
   /* ---- geometry: pointer → (day, hour) for the current view ---- */
   function canvasRect() { const c = document.getElementById("veCanvas"); return c ? c.getBoundingClientRect() : null; }
   function evDay(e) {
     const r = canvasRect(); if (!r) return null;
-    if (GEO.mode === "day") return days()[veDayIdx];
+    if (GEO.mode === "day" || GEO.mode === "rooms") return days()[veDayIdx];
     if (GEO.mode === "hgrid") { const y = e.clientY - r.top; let idx = 0; for (let i = 0; i < _rowTops.length; i++) if (y >= _rowTops[i]) idx = i; return _rowDays[idx]; }
     const colW = r.width / 7; return days()[Math.max(0, Math.min(6, Math.floor((e.clientX - r.left) / colW)))];
   }
@@ -354,6 +426,12 @@
     const r = canvasRect(); if (!r) return veStart;
     if (GEO.mode === "hgrid") { const span = veEnd - veStart; return snap(veStart + (e.clientX - r.left) / (r.width / span)); }
     return snap(veStart + (e.clientY - r.top) / HOUR_PX);
+  }
+  // rooms view: which room column is the pointer over
+  function evRoom(e) {
+    const r = canvasRect(); if (!r || !_roomCols.length) return "";
+    const nc = _roomCols.length, idx = Math.max(0, Math.min(nc - 1, Math.floor((e.clientX - r.left) / (r.width / nc))));
+    return _roomCols[idx];
   }
 
   /* ---- drag / resize existing block ---- */
@@ -377,6 +455,7 @@
       a = Math.max(veStart, Math.min(veEnd - len, a));
       it.a = a; it.b = a + len;
       const d = evDay(e); if (d) it.day = d;
+      if (GEO.mode === "rooms") it.room = evRoom(e);   // drag across columns reassigns the room
     } else if (drag.mode === "t0") {
       it.a = Math.max(veStart, Math.min(it.b - MIN_LEN, evHour(e)));
     } else {
@@ -403,14 +482,14 @@
     if (e.button !== 0 || e.target.closest(".ve-block")) return;
     const day = evDay(e); if (!day) return;
     const a = Math.max(veStart, Math.min(veEnd - 1, evHour(e)));
-    openForm(null, { day, a, b: Math.min(veEnd, a + 1) });
+    openForm(null, { day, a, b: Math.min(veEnd, a + 1), room: GEO.mode === "rooms" ? evRoom(e) : "" });
   }
 
   /* ---- add / edit form ---- */
   function openForm(it, preset) {
     const dlg = document.getElementById("veForm"); if (!dlg) return;
     const editing = !!it;
-    const v = it || { gi: firstFreeGroup(preset ? preset.day : null), day: preset.day, a: preset.a, b: preset.b };
+    const v = it || { gi: firstFreeGroup(preset ? preset.day : null), day: preset.day, a: preset.a, b: preset.b, room: (preset && preset.room) || "" };
     dlg.dataset.editing = editing ? "1" : "0";
     dlg._it = it || null; dlg._preset = v;
     const gsel = document.getElementById("veGroup");
@@ -421,6 +500,11 @@
     dsel.value = v.day;
     document.getElementById("veFrom").value = fmt(v.a);
     document.getElementById("veTo").value = fmt(v.b);
+    const rsel = document.getElementById("veRoom");
+    const vroom = (v.room || "");
+    const opts = [""].concat(veRooms);
+    if (vroom && !opts.includes(vroom)) opts.push(vroom);
+    rsel.innerHTML = opts.map((r) => `<option value="${veEsc(r)}"${r === vroom ? " selected" : ""}>${r ? veEsc(r) : "— none —"}</option>`).join("");
     const sw = document.getElementById("veSwatches");
     sw.innerHTML = COLORS.map((c) => `<button type="button" data-c="${c}" style="background:${c}" aria-label="${c}"></button>`).join("");
     markSwatch(colorFor(+gsel.value));
@@ -448,11 +532,12 @@
     if (b == null || b <= a) b = a + 1;
     const editing = dlg._it;
     if (veItems.some((o) => o !== editing && o.gi === gi && o.day === day)) return err(nameOf(gi) + " already has a class on " + day + ".");
+    const room = (document.getElementById("veRoom").value || "").trim();
     pushUndo();
     const chosen = document.querySelector('#veSwatches button[aria-pressed="true"]');
     if (chosen) setColor(gi, chosen.dataset.c);
-    if (editing) { editing.gi = gi; editing.day = day; editing.a = a; editing.b = b; }
-    else veItems.push({ gi, day, a, b });
+    if (editing) { editing.gi = gi; editing.day = day; editing.a = a; editing.b = b; editing.room = room; }
+    else veItems.push({ gi, day, a, b, room });
     closeForm(); render();
   }
   function deleteForm() {
@@ -468,7 +553,7 @@
     (groups || []).forEach((g, gi) => {
       g.schedule = veItems.filter((i) => i.gi === gi)
         .sort((x, y) => DG.indexOf(x.day) - DG.indexOf(y.day))
-        .map((i) => ({ day: i.day, from: fmt(i.a), to: fmt(i.b) }));
+        .map((i) => (i.room ? { day: i.day, from: fmt(i.a), to: fmt(i.b), room: i.room } : { day: i.day, from: fmt(i.a), to: fmt(i.b) }));
     });
     if (typeof tableDirty !== "undefined") tableDirty = true;
     if (typeof saveTable === "function") { const ok = await saveTable(); if (!ok) return; }
@@ -481,6 +566,7 @@
     if (typeof groups === "undefined" || !groups || !groups.length) { veToast("Add a group first"); return; }
     veItems = buildItems();
     winAuto = true; undoStack.length = 0; veDayIdx = todayIdx();
+    loadRooms();
     loadPrefs();
     [veStart, veEnd] = computeWindow();
     let ov = document.getElementById("veOverlay");
@@ -494,11 +580,15 @@
     document.body.classList.remove("ve-lock");
     document.removeEventListener("keydown", onKey);
   }
+  function anyDlgOpen() { return ["veForm", "veRoomsDlg"].some((id) => { const d = document.getElementById(id); return d && d.open; }); }
   function onKey(e) {
-    if (e.key === "Escape") { const f = document.getElementById("veForm"); if (f && f.open) { closeForm(); return; } closeEditor(); return; }
+    if (e.key === "Escape") {
+      const f = document.getElementById("veForm"); if (f && f.open) { closeForm(); return; }
+      const rd = document.getElementById("veRoomsDlg"); if (rd && rd.open) { rd.close ? rd.close() : (rd.open = false); return; }
+      closeEditor(); return;
+    }
     if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "z") {
-      const f = document.getElementById("veForm");
-      if (f && f.open) return;
+      if (anyDlgOpen()) return;
       if (/^(input|select|textarea)$/i.test(e.target.tagName)) return;
       e.preventDefault(); veUndo();
     }
@@ -523,6 +613,7 @@
             <button type="button" data-v="week">Week</button>
             <button type="button" data-v="compact">Compact</button>
             <button type="button" data-v="day">Day</button>
+            <button type="button" data-v="rooms">Rooms</button>
             <button type="button" data-v="agenda">Agenda</button>
           </div>
           <button class="btn btn-ghost btn-sm" type="button" id="veSwapBtn" title="Swap the day and time axes">⇄ Swap axes</button>
@@ -542,7 +633,10 @@
         <form method="dialog" id="veFormEl">
           <h3>Class</h3>
           <label class="ve-f">Group<select id="veGroup"></select></label>
-          <label class="ve-f">Day<select id="veDay"></select></label>
+          <div class="ve-f2">
+            <label class="ve-f">Day<select id="veDay"></select></label>
+            <label class="ve-f">Room<select id="veRoom"></select></label>
+          </div>
           <div class="ve-f2">
             <label class="ve-f">From<input id="veFrom" list="timeOptions" placeholder="3:00pm"></label>
             <label class="ve-f">To<input id="veTo" list="timeOptions" placeholder="4:30pm"></label>
@@ -555,6 +649,13 @@
             <button type="submit" class="btn btn-primary btn-sm">Save</button>
           </div>
         </form>
+      </dialog>
+      <dialog class="ve-dlg" id="veRoomsDlg">
+        <h3>Rooms</h3>
+        <p class="ve-muted" style="margin:-6px 0 10px">Organise classes by room (VE only — doesn't change how schedules are sent). Deleting a room un-assigns its classes.</p>
+        <div id="veRoomsList"></div>
+        <button type="button" class="btn btn-soft btn-sm" id="veRoomAdd" style="margin-top:4px">+ Add room</button>
+        <div class="ve-dlg-actions"><button type="button" class="btn btn-primary btn-sm" id="veRoomsClose">Done</button></div>
       </dialog>`;
     ov.addEventListener("click", (e) => { if (e.target === ov) closeEditor(); });
     ov.querySelector("#veCloseBtn").onclick = closeEditor;
@@ -569,8 +670,47 @@
     ov.querySelector("#veFormEl").addEventListener("submit", saveForm);
     ov.querySelector("#veCancel").onclick = closeForm;
     ov.querySelector("#veDelete").onclick = deleteForm;
+    ov.querySelector("#veRoomAdd").onclick = roomAdd;
+    ov.querySelector("#veRoomsClose").onclick = () => { const d = document.getElementById("veRoomsDlg"); d.close ? d.close() : (d.open = false); };
     window.addEventListener("resize", () => { if (ov.classList.contains("open")) render(); });
     return ov;
+  }
+
+  /* ---- rooms manager ---- */
+  function openRoomsManager() { renderRoomsList(); const d = document.getElementById("veRoomsDlg"); d.showModal ? d.showModal() : (d.open = true); }
+  function renderRoomsList() {
+    const wrap = document.getElementById("veRoomsList"); if (!wrap) return;
+    wrap.innerHTML = veRooms.length ? "" : '<p class="ve-muted" style="margin:0 0 8px">No rooms yet — add one below.</p>';
+    veRooms.forEach((name, i) => {
+      const row = el("div", "ve-roomrow");
+      const inp = el("input"); inp.value = name; inp.className = "ve-roomname"; inp.setAttribute("aria-label", "Room name");
+      inp.onchange = () => roomRename(i, inp.value);
+      const del = el("button", "ve-roomdel", "✕"); del.type = "button"; del.title = "Delete room"; del.onclick = () => roomDelete(i);
+      const used = veItems.filter((it) => it.room === name).length;
+      const cnt = el("span", "ve-roomcnt", used ? `${used} class${used === 1 ? "" : "es"}` : "unused");
+      row.append(inp, cnt, del); wrap.appendChild(row);
+    });
+  }
+  function roomAdd() {
+    let n = 1; while (veRooms.includes("Room " + n)) n++;
+    veRooms.push("Room " + n); persistRooms(); renderRoomsList(); render();
+  }
+  function roomRename(i, raw) {
+    const name = (raw || "").trim(); const old = veRooms[i];
+    if (!name) { renderRoomsList(); return; }
+    if (name === old) return;
+    if (veRooms.some((r, j) => j !== i && r === name)) { veToast("A room called “" + name + "” already exists"); renderRoomsList(); return; }
+    pushUndo();
+    veRooms[i] = name;
+    veItems.forEach((it) => { if (it.room === old) it.room = name; });
+    persistRooms(); renderRoomsList(); render();
+  }
+  function roomDelete(i) {
+    const name = veRooms[i];
+    pushUndo();
+    veRooms.splice(i, 1);
+    veItems.forEach((it) => { if (it.room === name) it.room = ""; });   // un-assign, keep the class
+    persistRooms(); renderRoomsList(); render();
   }
 
   function veToast(m) { if (typeof toast === "function") toast(m, "err"); }
