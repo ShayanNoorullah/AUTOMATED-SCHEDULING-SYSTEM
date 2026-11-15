@@ -157,8 +157,10 @@
     const b = el("div", "ve-block" + (orient === "h" ? " h" : "") + (hasClash(it) ? " clash" : ""));
     b.style.setProperty("--c", colorFor(it.gi));
     const t = orient === "h" ? fmt(it.a) : `${fmt(it.a)} – ${fmt(it.b)}`;  // horizontal: start only (width shows the span)
-    b.innerHTML = `<div class="ve-hnd n"></div><div class="ve-bin"><b>${veEsc(nameOf(it.gi))}</b><span>${t}</span></div><div class="ve-hnd s"></div>`;
+    const roomTag = (orient !== "h" && it.room) ? `<em class="ve-broom">${veEsc(it.room)}</em>` : "";
+    b.innerHTML = `<div class="ve-hnd n"></div><div class="ve-bin"><b>${veEsc(nameOf(it.gi))}</b><span>${t}</span>${roomTag}</div><div class="ve-hnd s"></div>`;
     if (orient === "h") b.title = `${nameOf(it.gi)} · ${fmt(it.a)} – ${fmt(it.b)} · ${it.day}`;
+    else if (it.room) b.title = `${nameOf(it.gi)} · ${fmt(it.a)} – ${fmt(it.b)} · ${it.room}`;
     b._it = it;
     b.addEventListener("pointerdown", (e) => onDown(e, b, it));
     return b;
@@ -308,8 +310,6 @@
     head.className = "ve-head ve-head-rooms";
     head.innerHTML = `<div class="ve-daytabs">${dayTabsHTML()}</div>` + rh;
     wireDayTabs(head);
-    const mgr = el("button", "ve-roomsbtn", "⚙ Rooms"); mgr.type = "button"; mgr.onclick = openRoomsManager;
-    head.querySelector(".ve-daytabs").appendChild(mgr);
 
     body.style.setProperty("--ve-h", (span * HOUR_PX) + "px");
     const gutter = el("div", "ve-gutter");
@@ -389,7 +389,11 @@
     fillWindowSelects(); renderLegend(); renderClashSummary(); savePrefs();
   }
 
-  function setView(v) { veView = v; render(); }
+  function setView(v) {
+    veView = v; render();
+    const b = document.getElementById("veBody");          // one-shot fade (view switches only, never during drag)
+    if (b) { b.classList.remove("ve-anim"); void b.offsetWidth; b.classList.add("ve-anim"); }
+  }
 
   function renderLegend() {
     const lg = document.getElementById("veLegend"); if (!lg) return;
@@ -576,6 +580,12 @@
     document.addEventListener("keydown", onKey);
   }
   function closeEditor() {
+    // close any open <dialog> first — a modal dialog left open keeps its backdrop
+    // in the browser's top layer and freezes the whole page even once the overlay hides.
+    ["veForm", "veRoomsDlg"].forEach((id) => { const d = document.getElementById(id); if (d && d.open) { try { d.close(); } catch (e) {} } });
+    document.removeEventListener("pointermove", onMove);   // drop any interrupted drag
+    document.removeEventListener("pointerup", onUp);
+    drag = null;
     const ov = document.getElementById("veOverlay"); if (ov) ov.classList.remove("open");
     document.body.classList.remove("ve-lock");
     document.removeEventListener("keydown", onKey);
@@ -622,6 +632,7 @@
             <label class="ve-win">Day ends<select id="veWinEnd"></select></label>
             <button class="btn btn-ghost btn-sm" type="button" id="veWinAuto" title="Fit the window to your classes">Auto-fit</button>
           </span>
+          <button class="btn btn-ghost btn-sm" type="button" id="veRoomsBtn" title="Manage rooms">⚙ Rooms</button>
           <span class="ve-spacer"></span>
           <span class="ve-total" id="veTotal"></span>
         </div>
@@ -670,8 +681,17 @@
     ov.querySelector("#veFormEl").addEventListener("submit", saveForm);
     ov.querySelector("#veCancel").onclick = closeForm;
     ov.querySelector("#veDelete").onclick = deleteForm;
+    ov.querySelector("#veRoomsBtn").onclick = openRoomsManager;
     ov.querySelector("#veRoomAdd").onclick = roomAdd;
     ov.querySelector("#veRoomsClose").onclick = () => { const d = document.getElementById("veRoomsDlg"); d.close ? d.close() : (d.open = false); };
+    // light-dismiss: clicking the dim backdrop of a dialog closes just that dialog
+    ["veForm", "veRoomsDlg"].forEach((id) => {
+      const d = ov.querySelector("#" + id);
+      d.addEventListener("click", (e) => {
+        const r = d.getBoundingClientRect();
+        if (e.clientX < r.left || e.clientX > r.right || e.clientY < r.top || e.clientY > r.bottom) { d.close ? d.close() : (d.open = false); }
+      });
+    });
     window.addEventListener("resize", () => { if (ov.classList.contains("open")) render(); });
     return ov;
   }

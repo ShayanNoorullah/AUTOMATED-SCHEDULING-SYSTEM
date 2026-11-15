@@ -197,6 +197,18 @@ html[data-theme="dark"] .msg-edit:focus{background:var(--surface);}
 }
 .view-seg button svg{flex-shrink:0;opacity:.85;}
 .view-seg button.on svg{opacity:1;}
+/* ── scheduler toolbar: lighter, grouped, animated ── */
+.sched-toolbar{animation:schedToolbarIn .3s ease;}
+@keyframes schedToolbarIn{from{opacity:0;transform:translateY(-4px);}to{opacity:1;transform:none;}}
+.sched-toolbar .btn{transition:transform .12s ease,background .16s ease,color .16s ease,border-color .16s ease,box-shadow .16s ease;}
+.sched-toolbar .btn:hover:not(:disabled){transform:translateY(-1px);}
+.sched-toolbar .btn:active:not(:disabled){transform:translateY(0);}
+.sched-sel-actions{padding-left:8px;margin-left:2px;border-left:1px solid color-mix(in srgb,var(--border) 55%,transparent);}
+.sched-sel-actions .btn-ghost{color:var(--text-muted);}
+.sched-sel-actions .btn-ghost:hover{color:var(--text);background:color-mix(in srgb,var(--text) 6%,transparent);}
+.sched-toolbar-right{gap:6px;}
+.sched-toolbar-right .btn-primary{margin-left:9px;position:relative;}
+.sched-toolbar-right .btn-primary::before{content:"";position:absolute;left:-9px;top:18%;height:64%;width:1px;background:color-mix(in srgb,var(--border) 70%,transparent);}
 .sched-canvas{
   flex:1;min-height:0;overflow:auto;-webkit-overflow-scrolling:touch;
 }
