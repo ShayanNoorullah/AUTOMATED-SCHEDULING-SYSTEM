@@ -125,6 +125,22 @@ body.ve-lock{ overflow:hidden; }
 .ve-chip span{ font-size:.62rem; opacity:.9; white-space:nowrap; flex:none; }
 .ve-chip.clash{ outline:2px dashed #fff; outline-offset:-3px; box-shadow:0 0 0 2px var(--danger,#c0392b); }
 
+/* ── Week as a Day × Room matrix (days rows, room sub-rows, time across) ── */
+:root{ --ve-rmgut:152px; --ve-rm-dayw:80px; }
+.ve-head-rm .ve-hcorner{ width:var(--ve-rmgut); border-right:1px solid var(--border); }
+.ve-rm-gut{ width:var(--ve-rmgut); flex:none; position:sticky; left:0; z-index:3; background:var(--surface); border-right:1px solid var(--border); }
+.ve-rm-day{ position:absolute; left:0; width:var(--ve-rm-dayw); display:flex; align-items:center; justify-content:center; text-align:center;
+  font-weight:800; font-size:.92rem; letter-spacing:-.01em; color:var(--accent); border-right:1px solid color-mix(in srgb,var(--border) 70%,transparent);
+  border-top:2px solid color-mix(in srgb,var(--border) 85%,transparent); }
+.ve-rm-day .short{ display:none; }
+.ve-rm-day.today{ background:color-mix(in srgb,var(--accent) 8%,transparent); }
+.ve-rm-room{ position:absolute; left:var(--ve-rm-dayw); right:0; display:flex; align-items:center; padding:0 10px;
+  font-weight:650; font-size:.76rem; color:var(--text); border-top:1px solid color-mix(in srgb,var(--border) 50%,transparent); }
+.ve-rm-room.un{ color:var(--text-muted); font-style:italic; }
+.ve-rm-sub{ position:absolute; left:0; right:0; border-top:1px solid color-mix(in srgb,var(--border) 45%,transparent); }
+.ve-rm-sub.alt{ background:color-mix(in srgb,var(--text) 2.5%,transparent); }
+.ve-rm-daysep{ position:absolute; left:0; right:0; border-top:2px solid color-mix(in srgb,var(--border) 85%,transparent); pointer-events:none; z-index:1; }
+
 /* ── day view: day tabs ── */
 .ve-head-day{ display:block; padding:8px 12px; }
 .ve-daytabs{ display:flex; gap:6px; align-items:center; overflow-x:auto; }
@@ -202,10 +218,12 @@ body.ve-lock{ overflow:hidden; }
   .ve-clash{ max-width:40vw; }
   .ve-tools{ padding:8px 12px; gap:8px; }
   .ve-total{ width:100%; order:5; }
-  .ve-overlay{ --ve-hgut:62px; }
+  .ve-overlay{ --ve-hgut:62px; --ve-rmgut:92px; --ve-rm-dayw:40px; }
   .ve-hlabel{ padding:0 8px; font-size:.78rem; gap:5px; }
-  .ve-hlabel .full,.ve-daytab .full{ display:none; }
-  .ve-hlabel .short,.ve-daytab .short{ display:inline; }
+  .ve-hlabel .full,.ve-daytab .full,.ve-rm-day .full{ display:none; }
+  .ve-hlabel .short,.ve-daytab .short,.ve-rm-day .short{ display:inline; }
+  .ve-rm-day{ font-size:.74rem; }
+  .ve-rm-room{ padding:0 5px; font-size:.66rem; }
   .ve-hlabel::before{ display:none; }
   .ve-hcorner{ padding:10px 8px; }
   .ve-block.h .ve-bin span,.ve-chip span{ display:none; }

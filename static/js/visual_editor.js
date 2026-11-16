@@ -32,6 +32,7 @@
   let GEO = { mode: "vgrid" }; // vgrid | hgrid | day | rooms | none — drives pointer→(day,hour)
   let _rowTops = [], _rowDays = []; // hgrid: pixel top + day name per row (for drag)
   let _roomCols = [];               // rooms view: room key per column (for drag → reassign)
+  let _subRows = [];                // roomsgrid (Week matrix): {top,h,day,room} per sub-row
 
   function days() { return (typeof DAYS !== "undefined" && DAYS) ? DAYS : ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]; }
   function todayIdx() { return (new Date().getDay() + 6) % 7; }         // Mon=0 … Sun=6
@@ -256,6 +257,66 @@
     body.appendChild(gut); body.appendChild(scroll);
   }
 
+  /* ─── Week as a Day × Room matrix (days as rows, one sub-row per room,
+     time across) — the reference layout. Drag vertically between sub-rows to
+     reassign day/room, horizontally to change time. ─── */
+  function renderRoomsMatrix(head, body) {
+    GEO = { mode: "roomsgrid" };
+    const DG = days(), span = veEnd - veStart, laneH = LANE_H, pad = 4, gap = 8, blockH = laneH - gap;
+    const hasUnassigned = veItems.some((i) => !i.room);
+    const rooms = veRooms.slice().sort((a, b) => a.localeCompare(b, undefined, { numeric: true })).concat(hasUnassigned ? [""] : []);   // "" = Unassigned sub-row
+    const subH = (lanes) => Math.max(1, lanes) * laneH + 2 * pad;
+
+    head.className = "ve-head ve-head-h ve-head-rm";
+    let hh = `<div class="ve-hcorner ve-rm-corner">Day / Room</div><div class="ve-hhours">`;
+    for (let h = veStart; h <= veEnd; h++) hh += `<div class="ve-hhr" style="left:${(h - veStart) / span * 100}%">${hourLab(h)}</div>`;
+    head.innerHTML = hh + `</div>`;
+
+    const gut = el("div", "ve-rm-gut");
+    const scroll = el("div", "ve-hscroll");
+    const canvas = el("div", "ve-hcanvas"); canvas.id = "veCanvas";
+
+    _subRows = []; let top = 0;
+    DG.forEach((day) => {
+      const dayTop = top, isToday = day === todayName();
+      rooms.forEach((room, ri) => {
+        const items = packLanes(veItems.filter((i) => i.day === day && (i.room || "") === room));
+        const h = subH(items.length ? items[0]._lanes : 1);
+        _subRows.push({ top: top, h: h, day: day, room: room });
+        const band = el("div", "ve-rm-sub" + (ri % 2 ? " alt" : "")); band.style.top = top + "px"; band.style.height = h + "px"; canvas.appendChild(band);
+        const rl = el("div", "ve-rm-room" + (room ? "" : " un"), room ? veEsc(room) : "Unassigned"); rl.style.top = top + "px"; rl.style.height = h + "px"; gut.appendChild(rl);
+        items.forEach((it) => {
+          const node = makeBlock(it, "h");
+          node.classList.remove("clash");                           // same time / different room is fine here
+          if (hasRoomClash(it)) node.classList.add("roomclash");    // only true room double-bookings warn
+          node.style.left = "calc(" + ((it.a - veStart) / span * 100) + "% + 2px)";
+          node.style.width = "calc(" + ((it.b - it.a) / span * 100) + "% - 4px)";
+          node.style.top = (top + pad + it._lane * laneH) + "px";
+          node.style.height = blockH + "px";
+          canvas.appendChild(node);
+        });
+        top += h;
+      });
+      const dayH = top - dayTop;
+      const dl = el("div", "ve-rm-day" + (isToday ? " today" : ""), `<span class="full">${day}</span><span class="short">${SHORT[DG.indexOf(day)]}</span>`);
+      dl.style.top = dayTop + "px"; dl.style.height = dayH + "px"; gut.appendChild(dl);
+      const sep = el("div", "ve-rm-daysep"); sep.style.top = dayTop + "px"; canvas.appendChild(sep);  // day separator
+    });
+    const total = top;
+    canvas.style.height = total + "px"; body.style.setProperty("--ve-h", total + "px");
+
+    for (let h = veStart; h <= veEnd; h++) { const ln = el("div", "ve-vline" + (h % 1 ? "" : " hr")); ln.style.left = ((h - veStart) / span * 100) + "%"; canvas.appendChild(ln); }
+    const nh = nowHour(), tDay = todayName();
+    if (nh >= veStart && nh <= veEnd) {
+      const band = _subRows.filter((s) => s.day === tDay);
+      if (band.length) { const y0 = band[0].top, y1 = band[band.length - 1].top + band[band.length - 1].h;
+        const line = el("div", "ve-vnow"); line.style.left = ((nh - veStart) / span * 100) + "%"; line.style.top = y0 + "px"; line.style.height = (y1 - y0) + "px"; canvas.appendChild(line); }
+    }
+    canvas.addEventListener("pointerdown", onEmptyDown);
+    scroll.appendChild(canvas);
+    body.appendChild(gut); body.appendChild(scroll);
+  }
+
   /* day tabs (shared by Day + Rooms views) */
   function dayTabsHTML() {
     const DG = days(), ti = todayIdx();
@@ -324,6 +385,7 @@
       const nl = items.length ? items[0]._lanes : 1, laneW = (100 / nc) / nl;
       items.forEach((it) => {
         const b = makeBlock(it, "v");
+        b.classList.remove("clash");                           // same time / different room is fine here
         if (hasRoomClash(it)) b.classList.add("roomclash");
         b.style.left = (ci / nc * 100 + it._lane * laneW) + "%"; b.style.width = "calc(" + laneW + "% - 3px)";
         b.style.top = ((it.a - veStart) * HOUR_PX) + "px"; b.style.height = Math.max(16, (it.b - it.a) * HOUR_PX - 2) + "px";
@@ -372,15 +434,17 @@
   function render() {
     const body = document.getElementById("veBody"), head = document.getElementById("veHead");
     if (!body || !head) return;
-    body.className = "ve-body" + (veView === "agenda" ? " ve-body-plain" : (veSwap && veView === "week") || veView === "compact" ? " ve-body-h" : "");
+    const weekRooms = veView === "week" && veRooms.length > 0;   // Week shows the Day×Room matrix when rooms exist
+    const horiz = weekRooms || (veSwap && veView === "week") || veView === "compact";
+    body.className = "ve-body" + (veView === "agenda" ? " ve-body-plain" : horiz ? " ve-body-h" : "");
     body.style.removeProperty("--ve-h"); body.innerHTML = "";
     head.className = "ve-head"; head.innerHTML = ""; head.style.display = (veView === "agenda") ? "none" : "";
 
     document.querySelectorAll("#veViewSeg button").forEach((b) => b.setAttribute("aria-pressed", b.dataset.v === veView));
-    const sw = document.getElementById("veSwapBtn"); if (sw) { sw.style.display = veView === "week" ? "" : "none"; sw.classList.toggle("on", veSwap); }
+    const sw = document.getElementById("veSwapBtn"); if (sw) { sw.style.display = (veView === "week" && !weekRooms) ? "" : "none"; sw.classList.toggle("on", veSwap); }
     const winBar = document.getElementById("veWinWrap"); if (winBar) winBar.style.display = veView === "agenda" ? "none" : "";
 
-    if (veView === "week") (veSwap ? renderHorizontal : renderVertical)(head, body);
+    if (veView === "week") (weekRooms ? renderRoomsMatrix : veSwap ? renderHorizontal : renderVertical)(head, body);
     else if (veView === "compact") renderHorizontal(head, body, { compact: true });
     else if (veView === "day") renderDay(head, body);
     else if (veView === "rooms") renderRooms(head, body);
@@ -408,7 +472,7 @@
   function fmtHrs(h) { const r = Math.round(h * 10) / 10; return (Number.isInteger(r) ? r : r.toFixed(1)) + "h"; }
   function renderClashSummary() {
     const e2 = document.getElementById("veClash"); if (!e2) return;
-    const pairs = [], rooms = veView === "rooms";
+    const pairs = [], rooms = veView === "rooms" || (veView === "week" && veRooms.length > 0);
     for (let i = 0; i < veItems.length; i++) for (let j = i + 1; j < veItems.length; j++)
       if (rooms ? roomClash(veItems[i], veItems[j]) : clashing(veItems[i], veItems[j])) pairs.push([veItems[i], veItems[j]]);
     if (!pairs.length) { e2.className = "ve-clash ok"; e2.textContent = rooms ? "✓ No room double-bookings" : "✓ No time clashes"; return; }
@@ -420,20 +484,27 @@
 
   /* ---- geometry: pointer → (day, hour) for the current view ---- */
   function canvasRect() { const c = document.getElementById("veCanvas"); return c ? c.getBoundingClientRect() : null; }
+  function subRowAt(e) {   // roomsgrid: the (day, room) sub-row under the pointer
+    const r = canvasRect(); if (!r || !_subRows.length) return null;
+    const y = e.clientY - r.top; let s = _subRows[0];
+    for (const row of _subRows) if (y >= row.top) s = row;
+    return s;
+  }
   function evDay(e) {
     const r = canvasRect(); if (!r) return null;
     if (GEO.mode === "day" || GEO.mode === "rooms") return days()[veDayIdx];
+    if (GEO.mode === "roomsgrid") { const s = subRowAt(e); return s ? s.day : null; }
     if (GEO.mode === "hgrid") { const y = e.clientY - r.top; let idx = 0; for (let i = 0; i < _rowTops.length; i++) if (y >= _rowTops[i]) idx = i; return _rowDays[idx]; }
     const colW = r.width / 7; return days()[Math.max(0, Math.min(6, Math.floor((e.clientX - r.left) / colW)))];
   }
   function evHour(e) {
     const r = canvasRect(); if (!r) return veStart;
-    if (GEO.mode === "hgrid") { const span = veEnd - veStart; return snap(veStart + (e.clientX - r.left) / (r.width / span)); }
+    if (GEO.mode === "hgrid" || GEO.mode === "roomsgrid") { const span = veEnd - veStart; return snap(veStart + (e.clientX - r.left) / (r.width / span)); }
     return snap(veStart + (e.clientY - r.top) / HOUR_PX);
   }
-  // rooms view: which room column is the pointer over
   function evRoom(e) {
-    const r = canvasRect(); if (!r || !_roomCols.length) return "";
+    if (GEO.mode === "roomsgrid") { const s = subRowAt(e); return s ? s.room : ""; }
+    const r = canvasRect(); if (!r || !_roomCols.length) return "";   // rooms (single-day) view: column
     const nc = _roomCols.length, idx = Math.max(0, Math.min(nc - 1, Math.floor((e.clientX - r.left) / (r.width / nc))));
     return _roomCols[idx];
   }
@@ -459,7 +530,7 @@
       a = Math.max(veStart, Math.min(veEnd - len, a));
       it.a = a; it.b = a + len;
       const d = evDay(e); if (d) it.day = d;
-      if (GEO.mode === "rooms") it.room = evRoom(e);   // drag across columns reassigns the room
+      if (GEO.mode === "rooms" || GEO.mode === "roomsgrid") it.room = evRoom(e);   // drag between rooms reassigns
     } else if (drag.mode === "t0") {
       it.a = Math.max(veStart, Math.min(it.b - MIN_LEN, evHour(e)));
     } else {
@@ -486,7 +557,7 @@
     if (e.button !== 0 || e.target.closest(".ve-block")) return;
     const day = evDay(e); if (!day) return;
     const a = Math.max(veStart, Math.min(veEnd - 1, evHour(e)));
-    openForm(null, { day, a, b: Math.min(veEnd, a + 1), room: GEO.mode === "rooms" ? evRoom(e) : "" });
+    openForm(null, { day, a, b: Math.min(veEnd, a + 1), room: (GEO.mode === "rooms" || GEO.mode === "roomsgrid") ? evRoom(e) : "" });
   }
 
   /* ---- add / edit form ---- */
