@@ -23,7 +23,7 @@
 </script>
 <link rel="preconnect" href="https://api.fontshare.com">
 <link href="https://api.fontshare.com/v2/css?f[]=satoshi@400,500,700,900&display=swap" rel="stylesheet">
-<link href="{{ url_for('static', filename='css/app.css') }}?v=poc60" rel="stylesheet"/>
+<link href="{{ url_for('static', filename='css/app.css') }}?v=poc61" rel="stylesheet"/>
 <link href="{{ url_for('static', filename='css/compat.css') }}?v=poc54" rel="stylesheet"/>
 <link href="{{ url_for('static', filename='css/dashboard.css') }}?v=poc58" rel="stylesheet"/>
 <link href="{{ url_for('static', filename='css/components.css') }}?v=poc54" rel="stylesheet"/>
@@ -211,13 +211,14 @@ window.SSIES_USER = {{ {"email": email|default(username), "display_name": userna
             <button class="btn btn-soft btn-sm" type="button" onclick="openVisualEditor()" title="Open the drag-and-drop timetable editor"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-2px;margin-right:4px"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18M8 4v16"/></svg>Visual Editor</button>
             <button class="btn btn-soft btn-sm" type="button" onclick="openBroadcast()" title="Send a quick cancel or reschedule notice to a group's WhatsApp chat"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-2px;margin-right:4px"><path d="M3 11l18-5v12L3 14v-3z"/><path d="M11.6 16.8a3 3 0 0 1-5.8-1.6"/></svg>Notify</button>
             <button class="btn btn-soft btn-sm" type="button" onclick="openSuperadminReport()" title="Preview and send the whole weekly schedule to configured recipients on WhatsApp">Send Preview</button>
-            <button class="btn btn-soft btn-sm" type="button" onclick="saveTable()">Save</button>
+            <button class="btn btn-soft btn-sm" type="button" id="schedSaveBtn" onclick="saveTable()" title="Save (Ctrl+S)">Save</button>
             <button class="btn btn-primary btn-sm" type="button" id="relTblBtn" onclick="releaseTable()">
               <span id="relTblTxt">Send selected</span><div class="spinner hidden" id="relTblSpin"></div>
             </button>
           </div>
         </div>
         <div id="clashBanner"></div>
+        <p class="sched-keys"><kbd>Enter</kbd> next day <kbd>Ctrl</kbd>+<kbd>D</kbd> copy to next day <kbd>Ctrl</kbd>+<kbd>←</kbd><kbd>→</kbd> switch group <kbd>Ctrl</kbd>+<kbd>Del</kbd> clear <kbd>Ctrl</kbd>+<kbd>S</kbd> save</p>
         <div class="view-pad table-view-pad">
           <div id="tableWrap" class="sched-canvas"></div>
         </div>
@@ -837,6 +838,7 @@ window.SSIES_USER = {{ {"email": email|default(username), "display_name": userna
 </dialog>
 
 <datalist id="timeOptions"></datalist>
+<datalist id="waGroupNames"></datalist>
 
 <!-- Column name / nickname editor -->
 <dialog class="modal-scrim" id="colMetaModal">
@@ -1066,68 +1068,7 @@ function nextScheduledSend(job){
   target.setDate(target.getDate()+add);
   return target;
 }
-async function renderUserDashboard(){
-  const el=document.getElementById("dashHome"); if(!el) return;
-  const u=typeof currentUser==="function" ? currentUser() : {displayName:document.getElementById("userDot")?.textContent||"User",email:""};
-  let hist=[];
-  try{ hist=await (await fetch("/api/release-history")).json(); if(!Array.isArray(hist)) hist=hist.items||hist.rows||[]; }catch(e){ hist=[]; }
-  const successCount=hist.filter((h)=> (h.status||"")==="success").length;
-  const failCount=Math.max(0, hist.length-successCount);
-  const rate=hist.length ? Math.round((successCount/hist.length)*100) : 100;
-  const job=typeof scheduledJobState!=="undefined" ? scheduledJobState : {enabled:false};
-  const scheduled=!!job.enabled;
-  const nextSend=nextScheduledSend(job);
-  let sess=false;
-  try{ if(typeof fetchSessionStatusCached==="function"){ const st=await fetchSessionStatusCached(false); sess=!!(st&&(st.connected||st.ready||st.status==="WORKING")); } }catch(e){}
-  const now=new Date(); const hr=now.getHours();
-  const greet=hr<12?"Good morning":hr<18?"Good afternoon":"Good evening";
-  const firstName=((u&& (u.displayName||u.email))||"there").split(" ")[0];
-  const weekdayName=now.toLocaleDateString(undefined,{weekday:"long"});
-  const todayGroups=(groups||[]).filter((g)=>(g.schedule||[]).some((e)=>e.day===weekdayName && (e.from||"").trim()));
-  const days7=[];
-  for(let i=6;i>=0;i--){ const dd=new Date(now); dd.setDate(now.getDate()-i); const key=dd.toDateString(); const cnt=hist.filter((h)=> new Date(h.at||h.created_at||0).toDateString()===key).length; days7.push({label:dd.toLocaleDateString(undefined,{weekday:"short"})[0],cnt}); }
-  const maxCnt=Math.max(1,...days7.map((x)=>x.cnt));
-  const DA={sched:'<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M3 15h18M9 3v18"/></svg>',auto:'<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>',direct:'<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><path d="M15 3h6v6"/><path d="M10 14 21 3"/></svg>',tpl:'<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg>'};
-  el.innerHTML=`
-    <div class="dash-hero">
-      <div><h2>${greet}, ${esc(firstName)}</h2><p>${now.toLocaleDateString(undefined,{weekday:"long",day:"numeric",month:"long"})} — schedule overview.</p></div>
-      <div class="dash-hero-actions"><button class="btn btn-soft" onclick="navGo('table')">Open Scheduler</button><button class="btn btn-primary" onclick="navGo('groups');newGroupDetail()">+ New group</button></div>
-    </div>
-    <div class="cards" style="margin-top:18px">
-      <div class="stat dash-stat" onclick="navGo('groups')"><div class="n">${groups.length}</div><div class="l">Groups</div></div>
-      <div class="stat dash-stat" onclick="navGo('contacts')"><div class="n">${contacts.length}</div><div class="l">Contacts</div></div>
-      <div class="stat dash-stat" onclick="navGo('templates')"><div class="n">${templates.length}</div><div class="l">Templates</div></div>
-      <div class="stat dash-stat" onclick="navGo('history')"><div class="n">${successCount}</div><div class="l">Delivered</div></div>
-      <div class="stat"><div class="n">${rate}%</div><div class="l">Success rate</div></div>
-    </div>
-    <div class="dash-grid">
-      <div class="sec"><div class="sec-h">Quick actions</div><div class="sec-b dash-actions">
-        <button class="dash-action" onclick="navGo('table')"><span class="da-ico">${DA.sched}</span><span class="da-body"><b>Open Scheduler</b><i>Edit weekly timings</i></span></button>
-        <button class="dash-action" onclick="navGo('wa-auto')"><span class="da-ico">${DA.auto}</span><span class="da-body"><b>Automated Send</b><i>Link &amp; send</i></span></button>
-        <button class="dash-action" onclick="navGo('wa-direct')"><span class="da-ico">${DA.direct}</span><span class="da-body"><b>Open in WhatsApp</b><i>Direct links</i></span></button>
-        <button class="dash-action" onclick="navGo('templates')"><span class="da-ico">${DA.tpl}</span><span class="da-body"><b>Templates</b><i>Reusable messages</i></span></button>
-      </div></div>
-      <div class="sec"><div class="sec-h">Session &amp; automation</div><div class="sec-b">
-        <div class="dash-status-row"><span class="dot-live ${sess?"on":""}"></span><span>${sess?"WhatsApp connected":"Not connected"}</span><button class="btn btn-soft btn-sm" style="margin-left:auto" onclick="navGo('wa-auto')">Manage</button></div>
-        <div class="dash-status-row"><span>Scheduled weekly send</span><span class="chip ${scheduled?"chip-default":""}" style="margin-left:auto">${scheduled?"On":"Off"}</span></div>
-        ${nextSend?`<div class="dash-status-row"><span>Next send</span><span style="margin-left:auto;font-weight:700">${nextSend.toLocaleDateString(undefined,{weekday:"short",day:"numeric",month:"short"})} · ${nextSend.toLocaleTimeString(undefined,{hour:"2-digit",minute:"2-digit"})}</span></div>`:""}
-        <div class="dash-status-row"><span>Automated delay</span><span style="margin-left:auto;font-weight:700">${(settings&&settings.delaySeconds!=null)?settings.delaySeconds:5}s</span></div>
-      </div></div>
-    </div>
-    <div class="dash-grid dash-grid-2">
-      <div class="sec"><div class="sec-h">Today · ${esc(weekdayName)}<span class="chip" style="margin-left:auto">${todayGroups.length} scheduled</span></div><div class="sec-b">
-        ${todayGroups.length?todayGroups.map((g)=>{const e=(g.schedule||[]).find((x)=>x.day===weekdayName)||{};return `<div class="dash-today-row"><div class="av small">${avatarInner(g.name,entityPic(g))}</div><div style="min-width:0;flex:1"><b>${esc(g.name)}</b><div class="hint" style="margin:0">${esc(e.from||"")}${e.to?" – "+esc(e.to):""}</div></div><button class="btn btn-soft btn-sm" onclick="openGroupDetailByName('${escA(g.name)}')">Open</button></div>`;}).join(""):'<p class="hint">No groups scheduled for today.</p>'}
-      </div></div>
-      <div class="sec"><div class="sec-h">Weekly activity</div><div class="sec-b">
-        <div class="dash-spark">${days7.map((x)=>`<div class="spark-col"><div class="spark-bar" style="height:${Math.round((x.cnt/maxCnt)*100)}%"></div><span class="spark-lbl">${x.label}</span></div>`).join("")}</div>
-        <div class="dash-mini-stats"><span><b>${hist.length}</b> total</span><span><b class="ok-text">${successCount}</b> delivered</span><span><b class="err-text">${failCount}</b> failed</span></div>
-      </div></div>
-    </div>
-    <div class="sec" style="margin-top:16px"><div class="sec-h">Recent sends<button class="btn btn-soft btn-sm" style="margin-left:auto" onclick="navGo('history')">View all</button></div><div class="sec-b">
-      ${hist.length?hist.slice(0,5).map((h)=>`<div class="dash-hist"><span class="hstatus ${(h.status||"")==="success"?"ok":"err"}"><span class="hdot"></span>${(h.status||"")==="success"?"Delivered":"Failed"}</span><b>${esc(h.target_name||h.targetName||"")}</b><span class="hint" style="margin:0 0 0 auto">${new Date(h.at||h.created_at||Date.now()).toLocaleDateString()}</span></div>`).join(""):'<p class="hint">No sends yet.</p>'}
-    </div></div>`;
-  if(typeof animateCounters==="function") animateCounters();
-}
+/* renderUserDashboard lives in static/js/dashboard.js */
 
 function showView(v){
   const from=(document.querySelector(".view.active")?.id||"").slice(5);
@@ -1461,7 +1402,7 @@ function toggleNotes(){
   notesUpdateHint();
   if(!collapsed){ notesAutoGrow(); document.getElementById("tableNotes")?.focus(); }
 }
-async function loadGroups(){ groups=await (await fetch("/api/groups")).json();
+async function loadGroups(){ groups=await (await fetch("/api/groups")).json(); markUnsaved(false);
   groups.forEach(g=>{ if(g.message===undefined)g.message=""; normalize(g); if(!g.pic && (g.photoUrl||g.photo_url)) g.pic=g.photoUrl||g.photo_url; });
   groupsChanged();
 }
@@ -1579,7 +1520,7 @@ function directAllGroups(){groups.forEach((g,i)=>setTimeout(()=>directOneGroup(i
 
 /* ════ GROUPS: table / cards + detail ════ */
 let groupsMode = localStorage.getItem("groups-mode") || "table";
-let gdIdx = null, gdEdit = false, gdWorking = null, gdPendingFile = null;
+let gdIdx = null, gdEdit = false, gdWorking = null, gdPendingFile = null, gdDirty = false;
 function entityPic(e){ return (e && (e.pic || e.photoUrl || e.photo_url)) || ""; }
 function readImageAsDataURL(file, cb){
   if(!file || !file.type || !file.type.startsWith("image/")){ toast("Choose an image file","err"); return; }
@@ -1637,7 +1578,7 @@ function renderGroupTable(){
     }).join("")+`</tbody></table></div>`;
 }
 function openGroupDetail(i){
-  gdIdx=i; gdEdit=false; gdPendingFile=null;
+  gdIdx=i; gdEdit=false; gdPendingFile=null; gdDirty=false;
   gdWorking=JSON.parse(JSON.stringify(groups[i]));
   if(!gdWorking.pic) gdWorking.pic=entityPic(gdWorking);
   if(!gdWorking.inviteLink) gdWorking.inviteLink=gdWorking.invite_link||"";
@@ -1645,7 +1586,7 @@ function openGroupDetail(i){
 }
 function openGroupDetailByName(name){ const i=groups.findIndex((g)=>g.name===name); if(i>=0) openGroupDetail(i); }
 function newGroupDetail(){
-  gdIdx=null; gdPendingFile=null;
+  gdIdx=null; gdPendingFile=null; gdDirty=false;
   gdWorking={name:"",nickname:"",schedule:[],message:"",inviteLink:"",pic:"",waLinked:false,lastReleased:""};
   gdEdit=true; showView("group-detail");
 }
@@ -1656,19 +1597,21 @@ function gdToggleEdit(){
   renderGroupDetail();
 }
 function gdRefreshAvatar(){ const el=document.getElementById("gdAvatar"); if(el){ el.className="editor-av"+(gdWorking.pic?" has-img":""); el.innerHTML=avatarInner(gdWorking.name,gdWorking.pic); } }
-function gdSetField(f,v){ gdWorking[f]=v; if(f==="name") gdRefreshAvatar(); gdPreview(); }
+function gdSetField(f,v){ gdWorking[f]=v; gdDirty=true; if(f==="name") gdRefreshAvatar(); gdSyncMsgBox(); gdPreview(); }
+/* While the message is the automatic one, keep the editor box in step with the schedule. */
+function gdSyncMsgBox(){ const ta=document.getElementById("gdMsg"); if(ta && document.activeElement!==ta && !(gdWorking.message||"").trim()) ta.value=genMessage(gdWorking.schedule||[]); }
 function gdSetCell(day,field,val){
   let e=(gdWorking.schedule||[]).find((x)=>x.day===day);
   if(!e){ e={day,from:"",to:""}; gdWorking.schedule.push(e); }
   e[field]=val.trim();
   if(!e.from&&!e.to) gdWorking.schedule=gdWorking.schedule.filter((x)=>x.day!==day);
   gdWorking.schedule.sort((a,b)=>DAYS.indexOf(a.day)-DAYS.indexOf(b.day));
-  gdPreview();
+  gdDirty=true; gdSyncMsgBox(); gdPreview();
 }
 function gdPickImage(input){
   const f=input.files[0]; input.value="";
   if(!f) return;
-  gdPendingFile=f;
+  gdPendingFile=f; gdDirty=true;
   readImageAsDataURL(f,(url)=>{ gdWorking.pic=url; gdRefreshAvatar(); toast("Photo updated — save to keep"); });
 }
 async function gdSave(){
@@ -1690,7 +1633,7 @@ async function gdSave(){
     gdPendingFile=null;
   }
   gdWorking=JSON.parse(JSON.stringify(groups[gdIdx])); if(!gdWorking.pic) gdWorking.pic=entityPic(gdWorking);
-  gdEdit=false; renderGroupDetail(); toast("Group saved ✓");
+  gdEdit=false; gdDirty=false; renderGroupDetail(); toast("Group saved ✓");
 }
 async function gdDelete(){
   if(gdIdx==null){ backToGroups(); return; }
@@ -1707,6 +1650,7 @@ function gdPreview(){
   const el=document.getElementById("gdPreview"); if(!el) return;
   const rendered=replaceTokens(messageFor(gdWorking));
   el.innerHTML=`<div class="preview-h">WhatsApp preview</div><div class="preview-b">${typeof renderWhatsAppPreview==="function"?renderWhatsAppPreview(rendered):esc(rendered)||"<i>No message</i>"}</div>`;
+  const cnt=document.getElementById("gdMsgCount"); if(cnt) cnt.textContent=`${rendered.length} characters${(gdWorking.message||"").trim()?"":" · automatic"}`;
 }
 function renderGroupDetail(){
   const el=document.getElementById("groupDetail"); if(!el) return;
@@ -1715,25 +1659,25 @@ function renderGroupDetail(){
   const scheduleRows=DAYS.map((day)=>{
     const e=(g.schedule||[]).find((x)=>x.day===day)||{}; const f=e.from||"", t=e.to||"";
     return gdEdit
-      ? `<tr><td class="day-col">${day}</td><td><div class="crange"><input class="cell" list="timeOptions" value="${escA(f)}" placeholder="From" oninput="gdSetCell('${day}','from',this.value)"/><span class="dash">–</span><input class="cell" list="timeOptions" value="${escA(t)}" placeholder="To" oninput="gdSetCell('${day}','to',this.value)"/></div></td></tr>`
+      ? `<tr><td class="day-col">${day}</td><td><div class="crange"><input class="cell" list="timeOptions" value="${escA(f)}" placeholder="From" oninput="gdSetCell('${day}','from',this.value)" onchange="gdAutoTo('${day}',this)"/><span class="dash">–</span><input class="cell" list="timeOptions" value="${escA(t)}" placeholder="To" oninput="gdSetCell('${day}','to',this.value)"/></div></td></tr>`
       : `<tr class="${f||t?"filled":""}"><td class="day-col">${day}</td><td>${(f||t)?`<b>${esc(f)}</b> – <b>${esc(t)}</b>`:'<span class="hint" style="margin:0">—</span>'}</td></tr>`;
   }).join("");
   const pic=entityPic(g);
   el.innerHTML=`
-    <div class="detail-top"><button class="btn btn-soft btn-sm" onclick="backToGroups()">← Back to groups</button><div style="flex:1"></div>
-      ${gdEdit?`<button class="btn btn-soft btn-sm" onclick="gdToggleEdit()">Cancel</button><button class="btn btn-primary btn-sm" onclick="gdSave()">Save changes</button>`:`<button class="btn btn-primary btn-sm" onclick="gdToggleEdit()">✎ Edit details</button><button class="btn btn-soft btn-sm" onclick="gdReleaseCurrent()">Send</button><button class="icon-btn" title="Delete" onclick="gdDelete()">${TRASH_ICO}</button>`}
+    <div class="detail-top"><button class="btn btn-soft btn-sm" onclick="gdBack()">← Back to groups</button><div style="flex:1"></div>
+      ${gdEdit?`<button class="btn btn-soft btn-sm" onclick="gdCancel()">Cancel</button><button class="btn btn-primary btn-sm" onclick="gdSave()">Save changes</button>`:`<button class="btn btn-primary btn-sm" onclick="gdToggleEdit()">✎ Edit details</button><button class="btn btn-soft btn-sm" onclick="gdReleaseCurrent()">Send</button><button class="icon-btn" title="Delete" onclick="gdDelete()">${TRASH_ICO}</button>`}
     </div>
     <div class="detail-hero">
       <div class="detail-av-wrap"><div class="editor-av${pic?" has-img":""}" id="gdAvatar" style="${vtn("ag",g)}">${avatarInner(g.name,pic)}</div>${gdEdit?`<button class="editor-av-edit" type="button" onclick="document.getElementById('gdImg').click()" title="Change photo"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg></button><input id="gdImg" type="file" accept="image/*" hidden onchange="gdPickImage(this)"/>`:""}</div>
       <div class="detail-hero-body">
-        ${gdEdit?`<input class="field detail-name-input" value="${escA(g.name)}" oninput="gdSetField('name',this.value)" placeholder="WhatsApp group name"/><input class="field detail-nick-input" value="${escA(g.nickname||"")}" oninput="gdSetField('nickname',this.value)" placeholder="Short nickname for tables (optional)"/>`:`<h2>${esc(g.name||"Untitled group")}</h2>`}
+        ${gdEdit?`<input class="field detail-name-input" value="${escA(g.name)}" list="waGroupNames" onfocus="gdLoadWaNames()" oninput="gdSetField('name',this.value)" placeholder="WhatsApp group name — start typing to pick from WhatsApp"/><input class="field detail-nick-input" value="${escA(g.nickname||"")}" oninput="gdSetField('nickname',this.value)" placeholder="Short nickname for tables (optional)"/>`:`<h2>${esc(g.name||"Untitled group")}</h2>`}
         <div class="detail-badges"><span class="chip">${(g.schedule||[]).length} day${(g.schedule||[]).length===1?"":"s"}</span>${g.waLinked?'<span class="chip chip-default">On WhatsApp</span>':""}${g.lastReleased?`<span class="chip">Sent ${relTime(g.lastReleased)}</span>`:""}</div>
       </div>
     </div>
     <div class="detail-grid">
-      <div class="sec"><div class="sec-h">Weekly schedule${gdEdit?'<span class="hint" style="margin:0 0 0 auto">editable</span>':""}</div><div class="sec-b" style="padding:0"><div class="sched-canvas" style="border:none;box-shadow:none"><table class="sched detail-sched"><tbody>${scheduleRows}</tbody></table></div></div></div>
+      <div class="sec"><div class="sec-h">Weekly schedule</div><div class="sec-b" style="padding:0">${gdEdit?`<div class="gd-tools"><span>Copy first day to</span><button class="chip-btn" type="button" onclick="gdCopyFirst(WEEKDAYS)">Weekdays</button><button class="chip-btn" type="button" onclick="gdCopyFirst(DAYS)">Every day</button><span class="gd-tools-sep">Length</span><button class="chip-btn" type="button" onclick="gdSetLength(60)">1h</button><button class="chip-btn" type="button" onclick="gdSetLength(90)">1.5h</button><button class="chip-btn" type="button" onclick="gdSetLength(120)">2h</button></div>`:""}<div class="sched-canvas" style="border:none;box-shadow:none"><table class="sched detail-sched"><tbody>${scheduleRows}</tbody></table></div></div></div>
       <div class="sec"><div class="sec-h">Message &amp; details</div><div class="sec-b">
-        ${gdEdit?`<div class="g-field" style="margin-bottom:14px"><div class="flabel">Invite link <span class="flabel-soft">optional</span></div><input class="field" value="${escA(g.inviteLink||"")}" oninput="gdSetField('inviteLink',this.value)" placeholder="https://chat.whatsapp.com/…"/></div><div class="g-field" style="margin-bottom:10px"><div class="flabel">Message</div><textarea class="field" style="min-height:150px" oninput="gdSetField('message',this.value)">${esc(messageFor(g))}</textarea></div>`:(g.inviteLink?'<div class="hint" style="margin:0 0 10px">Invite link set · opens the group directly.</div>':"")}
+        ${gdEdit?`<div class="g-field" style="margin-bottom:14px"><div class="flabel">Invite link <span class="flabel-soft">optional</span></div><input class="field" value="${escA(g.inviteLink||"")}" oninput="gdSetField('inviteLink',this.value)" placeholder="https://chat.whatsapp.com/…"/></div><div class="g-field" style="margin-bottom:10px"><div class="flabel">Message</div><textarea class="field" id="gdMsg" style="min-height:150px" oninput="gdSetField('message',this.value)">${esc(messageFor(g))}</textarea><div class="gd-tools gd-msg-tools"><span>Insert</span><button class="chip-btn" type="button" onclick="gdInsertToken('{date}')">{date}</button><button class="chip-btn" type="button" onclick="gdInsertToken('{weekday}')">{weekday}</button><button class="chip-btn" type="button" title="Go back to the message generated from the schedule" onclick="gdAutoMessage()">Use automatic</button><span class="hint" id="gdMsgCount" style="margin:0 0 0 auto"></span></div></div>`:(g.inviteLink?'<div class="hint" style="margin:0 0 10px">Invite link set · opens the group directly.</div>':"")}
         <div class="msg-preview" id="gdPreview"></div>
       </div></div>
     </div>
@@ -1957,8 +1901,9 @@ function renderScheduleGrid(w){
       <div class="resizer" onmousedown="startResize(event,${ci})"></div></th>`;
   });
   h+='</tr></thead><tbody>';
+  const today=todayName();
   DAYS.forEach(day=>{
-    h+=`<tr><td class="day-col"><span class="day-short">${day.slice(0,3)}</span><span class="day-full">${day}</span></td>`;
+    h+=`<tr class="${day===today?"is-today":""}"><td class="day-col"><span class="day-short">${day.slice(0,3)}</span><span class="day-full">${day}</span></td>`;
     groups.forEach((g,ci)=>{
       const e=g.schedule.find(x=>x.day===day)||{}; const f=e.from||"", tv=e.to||"";
       const dim=tableSelected[ci]===false;
@@ -1990,7 +1935,7 @@ function renderScheduleBoard(w){
       <div class="sb-days">`;
     DAYS.forEach(day=>{
       const e=g.schedule.find(x=>x.day===day)||{}; const f=e.from||"", tv=e.to||"";
-      h+=`<div class="sb-day${(f||tv)?" filled":""}" data-cell="${ci}|${day}" data-day="${day}">
+      h+=`<div class="sb-day${(f||tv)?" filled":""}${day===todayName()?" is-today":""}" data-cell="${ci}|${day}" data-day="${day}">
         <span class="sb-day-name">${day.slice(0,3)}</span>
         <div class="crange">
           <input class="cell" list="timeOptions" value="${escA(f)}" placeholder="From" ${dim?"disabled":""} aria-label="${escA(g.name)} ${day} from" oninput="updateCell(${ci},'${day}','from',this)"/>
@@ -2059,7 +2004,7 @@ function moveGroup(fromIdx,toIdx){
     if(fromIdx<gSel&&toIdx>=gSel) gSel--;
     else if(fromIdx>gSel&&toIdx<=gSel) gSel++;
   }
-  tableDirty=true;
+  tableDirty=true; markUnsaved();
   renderTable();
   renderGroupList();
 }
@@ -2075,7 +2020,7 @@ function updateCell(ci,day,field,inp){const g=groups[ci];let e=g.schedule.find(x
     const meta=card.querySelector(".sb-meta");
     if(meta) meta.textContent=`${n} day${n===1?"":"s"}`;
   }
-  tableDirty=true; if(clashOn) refreshClashes();}
+  tableDirty=true; markUnsaved(); if(clashOn) refreshClashes();}
 function toggleColExpand(ci){ colCollapsed[ci]=!colCollapsed[ci]; applyColWidthsFromState(); renderTable(); }
 function expandAllCols(expand){ groups.forEach((_,ci)=>{ colCollapsed[ci]=!expand; }); applyColWidthsFromState(); renderTable(); }
 function colTextWidth(text){
@@ -2114,10 +2059,11 @@ function bcDefaultMsg(){
 }
 function bcPreview(){ document.getElementById("bcMsg").value=bcDefaultMsg(); }
 function bcSync(){ document.getElementById("bcTimeField").style.display=document.querySelector('input[name=bcKind]:checked').value==="reschedule"?"":"none"; bcPreview(); }
-function openBroadcast(){
+function openBroadcast(name){
   if(!groups.length){ toast("Add a group first","err"); return; }
   const sel=document.getElementById("bcGroup");
   sel.innerHTML=groups.map(g=>`<option value="${escA(g.name)}">${esc(g.name)}</option>`).join("");
+  if(name) sel.value=name;
   document.querySelector('input[name=bcKind][value=cancel]').checked=true;
   document.getElementById("bcTime").value=""; document.getElementById("bcNote").value=""; document.getElementById("bcStatus").textContent="";
   bcSync();
@@ -2147,15 +2093,15 @@ function _setAcceptedClashes(s){ try{ localStorage.setItem("sched-accepted-clash
 function acceptClash(k){ k=decodeURIComponent(k); const s=acceptedClashes(); s.add(k); _setAcceptedClashes(s); refreshClashes(); }
 function unacceptClash(k){ k=decodeURIComponent(k); const s=acceptedClashes(); s.delete(k); _setAcceptedClashes(s); refreshClashes(); }
 function computeClashes(){ const acc=acceptedClashes(), pairs=[]; DAYS.forEach((day)=>{ const items=[]; groups.forEach((g,ci)=>{ const e=g.schedule.find((x)=>x.day===day); if(!e) return; const a=parseTimeMin(e.from); if(a==null) return; let b=parseTimeMin(e.to); if(b==null||b<=a) b=a+30; items.push({ci,a,b}); }); for(let i=0;i<items.length;i++) for(let j=i+1;j<items.length;j++){ if(items[i].a<items[j].b && items[j].a<items[i].b){ const ca=items[i].ci, cb=items[j].ci; const key=clashKey(day, groups[ca].name, groups[cb].name); pairs.push({day,a:ca,b:cb,key,accepted:acc.has(key)}); } } }); return {pairs}; }
-function refreshClashes(){ syncClashBtn(); document.querySelectorAll("[data-cell].cell-clash,[data-cell].cell-clash-ok").forEach((el)=>el.classList.remove("cell-clash","cell-clash-ok")); const banner=document.getElementById("clashBanner"); if(!clashOn){ if(banner) banner.innerHTML=""; return; } const {pairs}=computeClashes(); const warn=new Set(), okc=new Set(); pairs.forEach(p=>{ const ka=p.a+"|"+p.day, kb=p.b+"|"+p.day; if(p.accepted){ okc.add(ka); okc.add(kb); } else { warn.add(ka); warn.add(kb); } }); warn.forEach((key)=>{ const el=document.querySelector(`[data-cell="${key}"]`); if(el) el.classList.add("cell-clash"); }); okc.forEach((key)=>{ if(warn.has(key)) return; const el=document.querySelector(`[data-cell="${key}"]`); if(el) el.classList.add("cell-clash-ok"); }); if(!banner) return; const open=pairs.filter(p=>!p.accepted), accepted=pairs.filter(p=>p.accepted); if(!open.length && !accepted.length){ banner.innerHTML=`<div class="clash-bar ok"><span class="clash-ico">✓</span><span>No time clashes — every class has a distinct slot.</span></div>`; return; } let html=""; if(open.length){ const lines=open.map((p)=>`<span class="clash-pill">${esc(p.day.slice(0,3))}: ${esc(colDisplay(groups[p.a]))} ↔ ${esc(colDisplay(groups[p.b]))} <button class="clash-accept" type="button" title="Mark this overlap as acceptable" onclick="acceptClash('${encodeURIComponent(p.key).replace(/'/g,'%27')}')">✓ Accept</button></span>`).join(""); html+=`<div class="clash-bar warn"><span class="clash-ico">⚠</span><div class="clash-body"><b>${open.length} time clash${open.length===1?"":"es"} detected</b><div class="clash-pills">${lines}</div></div></div>`; } if(accepted.length){ const lines=accepted.map((p)=>`<span class="clash-pill accepted">${esc(p.day.slice(0,3))}: ${esc(colDisplay(groups[p.a]))} ↔ ${esc(colDisplay(groups[p.b]))} <button class="clash-accept" type="button" title="Treat as a clash again" onclick="unacceptClash('${encodeURIComponent(p.key).replace(/'/g,'%27')}')">✕</button></span>`).join(""); html+=`<div class="clash-bar ok"${open.length?' style="margin-top:8px"':''}><span class="clash-ico">✓</span><div class="clash-body"><b>${accepted.length} accepted overlap${accepted.length===1?"":"s"}</b><div class="clash-pills">${lines}</div></div></div>`; } banner.innerHTML=html; }
+function refreshClashes(){ syncClashBtn(); document.querySelectorAll("[data-cell].cell-clash,[data-cell].cell-clash-ok").forEach((el)=>el.classList.remove("cell-clash","cell-clash-ok")); const banner=document.getElementById("clashBanner"); if(!clashOn){ if(banner) banner.innerHTML=""; return; } const {pairs}=computeClashes(); const warn=new Set(), okc=new Set(); pairs.forEach(p=>{ const ka=p.a+"|"+p.day, kb=p.b+"|"+p.day; if(p.accepted){ okc.add(ka); okc.add(kb); } else { warn.add(ka); warn.add(kb); } }); warn.forEach((key)=>{ const el=document.querySelector(`[data-cell="${key}"]`); if(el) el.classList.add("cell-clash"); }); okc.forEach((key)=>{ if(warn.has(key)) return; const el=document.querySelector(`[data-cell="${key}"]`); if(el) el.classList.add("cell-clash-ok"); }); if(!banner) return; const open=pairs.filter(p=>!p.accepted), accepted=pairs.filter(p=>p.accepted); if(!open.length && !accepted.length){ banner.innerHTML=`<div class="clash-bar ok"><span class="clash-ico">✓</span><span>No time clashes — every class has a distinct slot.</span></div>`; return; } let html=""; if(open.length){ const lines=open.map((p)=>`<span class="clash-pill clash-jump" title="Show these two in the table" onclick="focusClash(${p.a},${p.b},'${p.day}')">${esc(p.day.slice(0,3))}: ${esc(colDisplay(groups[p.a]))} ↔ ${esc(colDisplay(groups[p.b]))} <button class="clash-accept" type="button" title="Mark this overlap as acceptable" onclick="event.stopPropagation();acceptClash('${encodeURIComponent(p.key).replace(/'/g,'%27')}')">✓ Accept</button></span>`).join(""); html+=`<div class="clash-bar warn"><span class="clash-ico">⚠</span><div class="clash-body"><b>${open.length} time clash${open.length===1?"":"es"} detected</b><div class="clash-pills">${lines}</div></div></div>`; } if(accepted.length){ const lines=accepted.map((p)=>`<span class="clash-pill accepted">${esc(p.day.slice(0,3))}: ${esc(colDisplay(groups[p.a]))} ↔ ${esc(colDisplay(groups[p.b]))} <button class="clash-accept" type="button" title="Treat as a clash again" onclick="unacceptClash('${encodeURIComponent(p.key).replace(/'/g,'%27')}')">✕</button></span>`).join(""); html+=`<div class="clash-bar ok"${open.length?' style="margin-top:8px"':''}><span class="clash-ico">✓</span><div class="clash-body"><b>${accepted.length} accepted overlap${accepted.length===1?"":"s"}</b><div class="clash-pills">${lines}</div></div></div>`; } banner.innerHTML=html; }
 function showLog(){ const p=document.getElementById("statusPanel"); p.classList.remove("hidden"); p.classList.remove("collapsed"); syncLogCollapseBtn(); }
 function toggleStatusLog(){ const p=document.getElementById("statusPanel"); p.classList.toggle("collapsed"); syncLogCollapseBtn(); }
 function clearStatusLog(){ const l=document.getElementById("logLines"); if(l) l.innerHTML=""; toast("Status log cleared"); }
 function syncLogCollapseBtn(){ const b=document.getElementById("logCollapseBtn"); if(!b) return; const collapsed=document.getElementById("statusPanel").classList.contains("collapsed"); b.title=collapsed?"Expand log":"Collapse log"; }
 function selectAllCols(v){groups.forEach((g,ci)=>tableSelected[ci]=v);renderTable();}
 async function addColumn(){const n=await promptDialog("WhatsApp group name (exact):","",{ok:"Add group"});if(!n||!n.trim())return;
-  groups.push({name:n.trim(),schedule:[],message:""});tableSelected[groups.length-1]=true;tableDirty=true;renderTable();}
-function removeColumn(ci){const g=groups.splice(ci,1)[0];const re=()=>{tableSelected={};colWidths={};tableDirty=true;renderTable();};re();
+  groups.push({name:n.trim(),schedule:[],message:""});tableSelected[groups.length-1]=true;tableDirty=true;markUnsaved();renderTable();}
+function removeColumn(ci){const g=groups.splice(ci,1)[0];const re=()=>{tableSelected={};colWidths={};tableDirty=true;markUnsaved();renderTable();};re();
   toast(`Removed "${g.name}" — save to keep the change`,"",{label:"Undo",fn:()=>{groups.splice(ci,0,g);re();}});}
 function startResize(e,ci){e.preventDefault();e.stopPropagation();const th=e.target.closest("th"),hd=e.target;hd.classList.add("drag");
   const sx=e.clientX,sw=th.offsetWidth;
@@ -2691,6 +2637,8 @@ async function copyText(t){try{await navigator.clipboard.writeText(t);toast("Cop
 <script src="{{ url_for('static', filename='js/features.js') }}?v=poc60"></script>
 <script src="{{ url_for('static', filename='js/workspace.js') }}?v=poc60"></script>
 <script src="{{ url_for('static', filename='js/visual_editor.js') }}?v=poc59"></script>
+<script src="{{ url_for('static', filename='js/dashboard.js') }}?v=poc61"></script>
+<script src="{{ url_for('static', filename='js/scheduler.js') }}?v=poc61"></script>
 <script>boot();</script>
 </body>
 </html>

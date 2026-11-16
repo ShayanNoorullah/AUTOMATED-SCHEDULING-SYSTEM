@@ -2,10 +2,26 @@
 
 Audit date: 2026-11-16. Scope: everything under `templates/user/` plus the CSS/JS it loads.
 
-**Status (2026-11-16):** Phase 1 is implemented, not yet deployed. Done: foundation items
-1, 2, 4, 5, 6 and the nav half of 11. Changed from the plan: item 3 uses view transitions
-with per-row names instead of a hand-written keyed reconciler. Still open from Phase 1:
-Profile and Notifications as in-app views (second half of item 11).
+**Status (2026-11-16):** Phases 1 and 2 are implemented, not yet deployed.
+
+- **Phase 1** — done: foundation items 1, 2, 4, 5, 6 and the nav half of 11. Changed from
+  the plan: item 3 uses view transitions with per-row names instead of a hand-written keyed
+  reconciler. Still open: Profile and Notifications as in-app views (second half of item 11).
+- **Phase 2** — done:
+  - Dashboard: instant repaint from cached history, Today timeline with Now / "in 42 min"
+    and a Notify shortcut, week-over-week trend, animated activity bars with counts, setup
+    checklist, failed-sends banner.
+  - Scheduler: today's row marked, unsaved-changes dot on Save plus a leave warning,
+    keyboard navigation (Enter, Ctrl+arrows, Ctrl+D copy down, Ctrl+Del clear, Ctrl+S save),
+    automatic end time from the group's usual class length, click a clash to jump to it.
+  - Group editor: copy first day to weekdays / every day, set length 1h / 1.5h / 2h,
+    automatic end time, token buttons and character count, WhatsApp group name picker,
+    discard-changes guard.
+  - Fix: saving the schedule no longer recreates every group, so photos, the WhatsApp-linked
+    flag and ids survive a save (`_sync_groups`, checked by `tests/test_group_sync.py`).
+- **Phase 2 — not done** (still listed in section 3): Groups multi-select bar, inline rename
+  and drag-reorder in the Groups list; Scheduler drag-a-slot, fill handle, toolbar overflow
+  menu, board day-lanes, notes slide-over; Dashboard click-a-bar-to-filter-history.
 
 ## 1. Where the portal stands
 

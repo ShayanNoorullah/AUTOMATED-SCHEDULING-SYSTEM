@@ -1677,3 +1677,53 @@ html[data-sched-view="board"] .sched-cols-only{display:none !important;}
   .lists-hero-icons{align-self:flex-start;}
   .lrow-send{opacity:1;}
 }
+
+/* ============ Phase 2: dashboard, scheduler, group editor ============ */
+/* Dashboard */
+.stat-trend{display:block;margin-top:6px;font-size:.72rem;font-weight:650;color:var(--text-soft);}
+.stat-trend.up{color:var(--success);} .stat-trend.down{color:var(--error);}
+.dash-alert{display:flex;align-items:center;gap:10px;margin-top:16px;padding:12px 16px;border-radius:var(--r-md);font-size:.9rem;
+  background:color-mix(in srgb,var(--error) 10%,var(--surface));border:1px solid color-mix(in srgb,var(--error) 30%,transparent);}
+.dash-setup{margin-top:16px;}
+.dash-setup-bar{height:4px;background:var(--surface-3);}
+.dash-setup-bar i{display:block;height:100%;background:var(--grad-accent);border-radius:0 4px 4px 0;transition:width .5s var(--ease);}
+.dash-setup-steps{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:10px;}
+.dash-step{display:flex;align-items:center;gap:10px;padding:12px 14px;border-radius:var(--r-sm);border:1px solid var(--border);background:var(--surface-2);
+  color:var(--text);font:inherit;font-size:.86rem;font-weight:650;text-align:left;cursor:pointer;transition:transform .18s var(--spring),border-color .18s;}
+.dash-step:not(.done):hover{transform:translateY(-2px);border-color:var(--accent);}
+.dash-step.done{cursor:default;color:var(--text-soft);text-decoration:line-through;}
+.dash-step-ico{flex:none;width:20px;height:20px;border-radius:50%;border:2px solid var(--border-strong);display:grid;place-items:center;font-size:.7rem;color:var(--on-accent);}
+.dash-step.done .dash-step-ico{background:var(--success);border-color:var(--success);}
+.tl-time{flex:none;width:64px;display:flex;flex-direction:column;font-size:.8rem;line-height:1.25;}
+.tl-time span{color:var(--text-soft);font-size:.72rem;}
+.tl-tag{display:inline-flex;align-items:center;gap:6px;margin-top:2px;font-size:.72rem;font-weight:650;color:var(--text-soft);}
+.tl-tag.live{color:var(--success);} .tl-tag.next{color:var(--accent);}
+.dash-today-row.tl-done{opacity:.55;}
+.dash-today-row.tl-upnext,.dash-today-row.tl-live{margin:0 -10px;padding-left:10px;padding-right:10px;border-radius:var(--r-sm);background:var(--accent-soft);border-bottom-color:transparent;}
+.dash-spark{height:112px;}
+.spark-n{font-size:.68rem;font-weight:700;color:var(--text-soft);min-height:1em;}
+.spark-bar{animation:barGrow .6s var(--ease) both;animation-delay:calc(var(--i,0)*45ms);transform-origin:bottom;}
+.spark-col:hover .spark-bar{filter:brightness(1.15);}
+@keyframes barGrow{from{transform:scaleY(0);}}
+
+/* Scheduler */
+.has-dot{position:relative;}
+.has-dot::after{content:"";position:absolute;top:-3px;right:-3px;width:9px;height:9px;border-radius:50%;background:var(--warn);border:2px solid var(--surface);animation:popIn .25s var(--spring);}
+.sched-keys{margin:8px 2px 0;font-size:.72rem;color:var(--text-soft);display:flex;flex-wrap:wrap;gap:4px 6px;align-items:center;}
+.sched-keys kbd{font:inherit;font-weight:700;padding:1px 6px;border-radius:5px;border:1px solid var(--border-strong);background:var(--surface);color:var(--text-muted);margin-left:8px;}
+.sched-keys kbd:first-child,.sched-keys kbd+kbd{margin-left:0;}
+@media(max-width:860px),(hover:none){ .sched-keys{display:none;} }
+table.sched tr.is-today td.day-col{color:var(--accent);box-shadow:inset 3px 0 0 var(--accent);}
+table.sched tr.is-today td.day-col::after{content:"today";display:block;font-size:.62rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;opacity:.8;}
+.sb-day.is-today .sb-day-name{color:var(--accent);font-weight:800;}
+.sched td.cell-clash,.sb-day.cell-clash{animation:clashPulse .9s ease 1;}
+.cell-flash{animation:clashPulse .5s ease 3 !important;}
+@keyframes clashPulse{50%{outline-offset:-5px;background:color-mix(in srgb,var(--warn) 34%,transparent);}}
+.clash-jump{cursor:pointer;}
+.clash-jump:hover{background:color-mix(in srgb,var(--warn) 32%,transparent);}
+
+/* Group editor tools */
+.gd-tools{display:flex;flex-wrap:wrap;align-items:center;gap:6px;padding:10px 14px;border-bottom:1px solid var(--border);font-size:.76rem;font-weight:650;color:var(--text-muted);}
+.gd-tools .chip-btn{padding:4px 10px;}
+.gd-tools-sep{margin-left:10px;}
+.gd-msg-tools{padding:8px 0 0;border-bottom:0;}

@@ -242,20 +242,44 @@ def replace_all_groups():
     groups = data.get("groups")
     if groups is None:
         return jsonify({"error": "groups list required"}), 400
-    Group.query.filter_by(user_id=uid).delete()
-    for i, g_item in enumerate(groups):
-        inv = ""
-        try:
-            inv = _parse_invite_link(g_item)
-        except ValueError:
-            inv = ""
-        db.session.add(Group(user_id=uid, name=g_item.get("name", ""),
-                             nickname=(g_item.get("nickname") or "").strip()[:120],
-                             schedule=g_item.get("schedule", []),
-                             message_enc=enc(g_item.get("message", "")), last_released=g_item.get("lastReleased", ""),
-                             invite_link=inv, position=i))
+    _sync_groups(uid, groups)
     db.session.commit()
     return jsonify({"ok": True})
+
+
+def _sync_groups(uid, items):
+    """Make the user's groups match ``items`` (order included), updating rows in place.
+
+    Rows are matched by id, then by name, so saving the schedule keeps each group's photo,
+    WhatsApp-linked flag and id. Rows missing from ``items`` are deleted.
+    """
+    existing = Group.query.filter_by(user_id=uid).all()
+    by_id = {r.id: r for r in existing}
+    by_name = {r.name: r for r in existing}
+    kept = set()
+    for i, item in enumerate(items):
+        try:
+            inv = _parse_invite_link(item)
+        except ValueError:
+            inv = ""
+        row = by_id.get(item.get("id")) or by_name.get(item.get("name", ""))
+        if row is None or row.id in kept:
+            row = Group(user_id=uid)
+            db.session.add(row)
+        else:
+            kept.add(row.id)
+        row.name = item.get("name", "")
+        row.nickname = (item.get("nickname") or "").strip()[:120]
+        row.schedule = item.get("schedule", [])
+        row.message_enc = enc(item.get("message", ""))
+        row.last_released = item.get("lastReleased", "")
+        row.invite_link = inv
+        if inv:
+            row.wa_linked = True
+        row.position = i
+    for r in existing:
+        if r.id not in kept:
+            db.session.delete(r)
 
 
 @bp.route("/api/groups/<int:idx>", methods=["DELETE"])
