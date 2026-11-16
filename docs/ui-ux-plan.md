@@ -2,9 +2,11 @@
 
 Audit date: 2026-11-16. Scope: everything under `templates/user/` plus the CSS/JS it loads.
 
-**Status (2026-11-16):** Phases 1–5 are deployed (commit `d070de4`). Phase 6 is
-implemented, not yet deployed. The assistant has never talked to a real model provider —
-see "Before first use" below.
+**Status (2026-11-17):** Phases 1–6 and the assistant's local fallback are deployed
+(commit `e2bbad9`). The assistant currently answers from the local model only
+(`qwen2.5:7b` in the `ollama` service), because no hosted provider key has been entered
+yet; once one is added it becomes primary and the local model is the fallback. The
+assistant has never talked to a real hosted provider — see "Before first use" below.
 
 - **Phase 6** — done:
   - One-off changes and holidays: a class cancelled, moved or added for one date, or a day
