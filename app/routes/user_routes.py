@@ -490,12 +490,23 @@ def _assistant_cfg():
     }
 
 
+def _assistant_local_cfg():
+    """Optional model on this server, used when the provider fails or is not set up."""
+    from app.services.users import get_system_setting
+    return {
+        "base_url": get_system_setting("assistant_local_url", "") or "",
+        "model": get_system_setting("assistant_local_model", "") or "",
+    }
+
+
 @bp.route("/api/assistant/config", methods=["GET"])
 @login_required
 def get_assistant_config():
-    cfg = _assistant_cfg()
+    cfg, local = _assistant_cfg(), _assistant_local_cfg()
     return jsonify({"baseUrl": cfg["base_url"], "model": cfg["model"], "hasKey": bool(cfg["api_key"]),
-                    "ready": all(cfg.values()), "canEdit": g.profile.is_admin()})
+                    "localUrl": local["base_url"], "localModel": local["model"],
+                    "providerReady": all(cfg.values()), "localReady": all(local.values()),
+                    "ready": all(cfg.values()) or all(local.values()), "canEdit": g.profile.is_admin()})
 
 
 @bp.route("/api/assistant/config", methods=["PUT"])
@@ -515,6 +526,14 @@ def put_assistant_config():
     key = str(data.get("apiKey") or "").strip()
     if key:
         set_system_setting("assistant_api_key", enc(key))
+    if "localUrl" in data:
+        # the local model sits on the server's private network, so plain http is expected here
+        url = str(data.get("localUrl") or "").strip()[:255]
+        if url and not url.startswith(("http://", "https://")):
+            return jsonify({"error": "The local model address must start with http:// or https://"}), 400
+        set_system_setting("assistant_local_url", url)
+    if "localModel" in data:
+        set_system_setting("assistant_local_model", str(data.get("localModel") or "").strip()[:120])
     return jsonify({"ok": True})
 
 
@@ -530,15 +549,15 @@ def assistant_ask():
         return jsonify({"error": "That image could not be used. Try a smaller JPG or PNG."}), 400
     if not text and not image:
         return jsonify({"error": "Type a request first"}), 400
-    cfg = _assistant_cfg()
-    if not all(cfg.values()):
+    cfg, local = _assistant_cfg(), _assistant_local_cfg()
+    if not (all(cfg.values()) or all(local.values())):
         return jsonify({"error": "The assistant is not set up yet. An admin can add a provider and key in Settings → Automation."}), 400
     uid = _effective_user_id()
     rows = Group.query.filter_by(user_id=uid).order_by(Group.position, Group.id).all()
     groups = [{"name": r.name, "nickname": r.nickname or "", "schedule": r.schedule or []} for r in rows]
     history = data.get("history") if isinstance(data.get("history"), list) else []
     try:
-        return jsonify(assistant.ask(groups, text, cfg, image=image, history=history))
+        return jsonify(assistant.ask_with_fallback(groups, text, cfg, local, image=image, history=history))
     except (RuntimeError, ValueError) as e:
         return jsonify({"error": str(e)}), 502
     except Exception:

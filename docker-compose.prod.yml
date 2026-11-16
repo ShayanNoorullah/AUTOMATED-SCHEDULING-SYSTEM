@@ -40,6 +40,27 @@ services:
     networks:
       - ssies
 
+  # Optional local model for the Scheduler Assistant's fallback. Used only when the hosted
+  # provider fails or is not set up. Reachable from the app container only (no published port).
+  # One-time setup after the first start:
+  #   docker compose -f docker-compose.prod.yml up -d ollama
+  #   docker compose -f docker-compose.prod.yml exec ollama ollama pull qwen2.5:7b
+  # then in the portal: Settings → Automation → Local fallback =
+  #   http://ollama:11434/v1   and   qwen2.5:7b
+  # Measured on this VM (2 ARM cores): ~2.5 min to load, then 20–50 s per answer, ~5 GB RAM.
+  ollama:
+    image: ollama/ollama:0.40.16
+    restart: unless-stopped
+    environment:
+      OLLAMA_KEEP_ALIVE: 24h          # stay loaded for the day once the fallback has been needed
+      OLLAMA_MAX_LOADED_MODELS: "1"
+      OLLAMA_NUM_PARALLEL: "1"
+    mem_limit: 7g                     # the model needs ~5 GB; this stops it starving the app and WAHA
+    volumes:
+      - ollama-models:/root/.ollama
+    networks:
+      - ssies
+
   # Slot 1 — keeps existing volume name so the current QR session is preserved
   waha:
     <<: *waha-common
@@ -92,6 +113,7 @@ volumes:
   waha-sessions-5:
   caddy_data:
   caddy_config:
+  ollama-models:
 
 networks:
   ssies:

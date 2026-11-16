@@ -82,6 +82,8 @@ async function asstSend() {
   inp.value = ""; asstClearImage();
   asstBusy = true;
   const bot = asstAdd("bot"); bot.innerHTML = '<i class="skel" style="width:140px"></i>';
+  // the provider answers in seconds; a longer wait means the local model has taken over
+  const slow = setTimeout(() => { bot.innerHTML = '<i class="skel" style="width:140px"></i><div class="asst-skipped">Still working — the local model is answering. That takes up to a minute, or a few minutes the first time while it loads.</div>'; }, 12000);
   try {
     const res = await fetch("/api/assistant", post({ message: text, image, history: asstTurns.slice(-6) }));
     const d = await res.json().catch(() => ({}));
@@ -91,6 +93,7 @@ async function asstSend() {
   } catch (e) {
     bot.classList.add("err"); bot.textContent = e.message || "The assistant could not answer.";
   } finally {
+    clearTimeout(slow);
     asstBusy = false;
     const log = document.getElementById("asstLog"); log.scrollTop = log.scrollHeight;
   }
@@ -108,6 +111,7 @@ function asstRenderReply(bot, d) {
       + (rows.length ? `<div class="asst-actions"><button class="btn btn-primary btn-sm" type="button" onclick="asstApply(${id})">Apply ${rows.length} change${rows.length === 1 ? "" : "s"}</button><button class="btn btn-soft btn-sm" type="button" onclick="asstDiscard(${id})">Discard</button></div>` : "");
     bot.appendChild(card);
   }
+  if (d.via === "local") { const v = document.createElement("div"); v.className = "asst-warn"; v.textContent = "Answered by the local model" + (d.why ? " because the provider was unavailable (" + d.why + ")" : "") + ". It is less accurate, so check the proposal carefully."; bot.appendChild(v); }
   if (d.skipped && d.skipped.length) { const s = document.createElement("div"); s.className = "asst-skipped"; s.textContent = "Left out: " + d.skipped.join(" "); bot.appendChild(s); }
   if (d.notice) {
     const n = document.createElement("div"); n.className = "asst-card";
@@ -185,11 +189,15 @@ async function loadAssistantConfig() {
     document.getElementById("asBase").value = d.baseUrl || "";
     document.getElementById("asModel").value = d.model || "";
     document.getElementById("asKey").placeholder = d.hasKey ? "•••••••• (saved — blank keeps it)" : "API key";
-    document.getElementById("asStatus").textContent = d.canEdit ? (d.ready ? "Ready" : "Not set up yet") : "Only admins can change these.";
+    document.getElementById("asLocalUrl").value = d.localUrl || "";
+    document.getElementById("asLocalModel").value = d.localModel || "";
+    const state = d.providerReady ? (d.localReady ? "Ready — provider, with local fallback" : "Ready") : d.localReady ? "Ready — local model only" : "Not set up yet";
+    document.getElementById("asStatus").textContent = d.canEdit ? state : "Only admins can change these.";
   } catch {}
 }
 async function saveAssistantConfig() {
-  const body = { baseUrl: document.getElementById("asBase").value.trim(), model: document.getElementById("asModel").value.trim() };
+  const body = { baseUrl: document.getElementById("asBase").value.trim(), model: document.getElementById("asModel").value.trim(),
+    localUrl: document.getElementById("asLocalUrl").value.trim(), localModel: document.getElementById("asLocalModel").value.trim() };
   const k = document.getElementById("asKey").value.trim(); if (k) body.apiKey = k;
   try {
     const res = await fetch("/api/assistant/config", put(body));
@@ -204,6 +212,6 @@ async function testAssistant() {
   try {
     const res = await fetch("/api/assistant", post({ message: "Say hello in five words. Make no changes." }));
     const d = await res.json().catch(() => ({})); if (!res.ok) throw new Error(d.error || "Test failed");
-    st.textContent = "Working ✓ — “" + (d.reply || "").slice(0, 80) + "”";
+    st.textContent = (d.via === "local" ? "Answered by the LOCAL model" + (d.why ? " (provider: " + d.why + ")" : "") : "Working ✓") + " — “" + (d.reply || "").slice(0, 80) + "”";
   } catch (e) { st.textContent = "Failed: " + (e.message || "no answer"); }
 }

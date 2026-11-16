@@ -23,7 +23,7 @@
 </script>
 <link rel="preconnect" href="https://api.fontshare.com">
 <link href="https://api.fontshare.com/v2/css?f[]=satoshi@400,500,700,900&display=swap" rel="stylesheet">
-<link href="{{ url_for('static', filename='css/app.css') }}?v=poc64" rel="stylesheet"/>
+<link href="{{ url_for('static', filename='css/app.css') }}?v=poc65" rel="stylesheet"/>
 <link href="{{ url_for('static', filename='css/compat.css') }}?v=poc54" rel="stylesheet"/>
 <link href="{{ url_for('static', filename='css/dashboard.css') }}?v=poc58" rel="stylesheet"/>
 <link href="{{ url_for('static', filename='css/components.css') }}?v=poc54" rel="stylesheet"/>
@@ -694,6 +694,13 @@ window.SSIES_USER = {{ {"email": email|default(username), "display_name": userna
                   <div class="srow srow-stack" style="gap:10px">
                     <div><div class="st">API key</div><div class="sd">Stored encrypted. Leave blank to keep the current key.</div></div>
                     <input class="field" id="asKey" type="password" placeholder="API key" autocomplete="off"/>
+                  </div>
+                  <div class="srow srow-stack" style="gap:10px">
+                    <div><div class="st">Local fallback <span class="flabel-soft">optional</span></div><div class="sd">A model running on this server, used only when the provider above fails, hits its free limit, or is not set up. It is slower and less accurate, cannot read photos, and nothing leaves the server. Leave both boxes empty to turn it off.</div></div>
+                    <div style="display:flex;gap:10px;flex-wrap:wrap">
+                      <input class="field" id="asLocalUrl" style="flex:2;min-width:220px" placeholder="http://ollama:11434/v1" autocomplete="off" aria-label="Local model address"/>
+                      <input class="field" id="asLocalModel" style="flex:1;min-width:160px" placeholder="model name" autocomplete="off" aria-label="Local model name"/>
+                    </div>
                   </div>
                   <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
                     <button class="btn btn-soft btn-sm" type="button" onclick="saveAssistantConfig()">Save</button>
@@ -2710,7 +2717,7 @@ async function copyText(t){try{await navigator.clipboard.writeText(t);toast("Cop
 <script src="{{ url_for('static', filename='js/dashboard.js') }}?v=poc64"></script>
 <script src="{{ url_for('static', filename='js/scheduler.js') }}?v=poc62"></script>
 <script src="{{ url_for('static', filename='js/palette.js') }}?v=poc62"></script>
-<script src="{{ url_for('static', filename='js/assistant.js') }}?v=poc64"></script>
+<script src="{{ url_for('static', filename='js/assistant.js') }}?v=poc65"></script>
 <script src="{{ url_for('static', filename='js/contacts.js') }}?v=poc63"></script>
 <script src="{{ url_for('static', filename='js/exceptions.js') }}?v=poc64"></script>
 <script>boot();</script>

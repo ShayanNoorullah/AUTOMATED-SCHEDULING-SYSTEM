@@ -76,13 +76,17 @@ def _resolver(groups):
         if g.get("nickname"):
             exact.setdefault(_key(g["nickname"]), g["name"])
 
+    def inside(a, b):
+        """a appears in b as whole words — "physics" is not inside "astrophysics club"."""
+        return re.search(r"(?<!\w)" + re.escape(a) + r"(?!\w)", b) is not None
+
     def resolve(name):
         k = _key(name)
         if not k:
             return None
         if k in exact:
             return exact[k]
-        near = {real for key, real in exact.items() if k in key or key in k}
+        near = {real for key, real in exact.items() if inside(k, key) or inside(key, k)}
         return near.pop() if len(near) == 1 else None
 
     return resolve
@@ -154,8 +158,12 @@ def validate(raw, groups):
             "time": norm_time(n.get("time")) or "",
             "note": str(n.get("note") or "").strip()[:300],
         }
+    reply = str(data.get("reply") or "").strip()[:1200]
+    if skipped and not changes and not notice:
+        # models tend to say "done" anyway; when nothing survived the checks, say so instead
+        reply = "Nothing was changed."
     return {
-        "reply": str(data.get("reply") or "").strip()[:1200],
+        "reply": reply,
         "changes": changes,
         "notice": notice,
         "skipped": skipped,
@@ -216,7 +224,37 @@ def call_llm(base_url, api_key, model, messages, timeout=45):
         raise RuntimeError("The assistant's provider sent an unexpected response.")
 
 
-def ask(groups, text, cfg, image=None, history=None):
+def ask(groups, text, cfg, image=None, history=None, timeout=45):
     """One assistant turn. cfg = {"base_url", "api_key", "model"}. Raises RuntimeError/ValueError with a user-facing message."""
-    raw = call_llm(cfg["base_url"], cfg["api_key"], cfg["model"], build_messages(groups, text, image, history))
+    raw = call_llm(cfg["base_url"], cfg["api_key"], cfg["model"], build_messages(groups, text, image, history), timeout=timeout)
     return validate(raw, groups)
+
+
+LOCAL_TIMEOUT = 300   # a model on the server's own CPU: slow to load, slow to answer
+
+
+def ask_with_fallback(groups, text, primary, local, image=None, history=None):
+    """Use the hosted provider; if it fails or is not set up, use the local model.
+
+    primary = {"base_url", "api_key", "model"}; local = {"base_url", "model"} (either may be
+    empty). Adds "via": "provider" | "local" to the answer, and "why" when the local model
+    stood in for a provider that failed.
+    """
+    why = ""
+    if all(primary.values()):
+        try:
+            return dict(ask(groups, text, primary, image, history), via="provider")
+        except (RuntimeError, ValueError) as e:
+            why = str(e)
+        except requests.RequestException:
+            why = "The assistant's provider could not be reached."
+    if not (local.get("base_url") and local.get("model")):
+        raise RuntimeError(why or "The assistant is not set up yet. An admin can add a provider and key in Settings → Automation.")
+    if image:
+        raise RuntimeError("Reading a photo needs the main provider, and it is unavailable right now. "
+                           + (why or "No provider is set up.") + " You can still type the request.")
+    try:
+        out = ask(groups, text, dict(local, api_key="local"), history=history, timeout=LOCAL_TIMEOUT)
+    except requests.RequestException:
+        raise RuntimeError((why + " " if why else "") + "The local model did not answer either.")
+    return dict(out, via="local", why=why)

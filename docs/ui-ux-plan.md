@@ -346,6 +346,23 @@ Things to know before relying on "free":
   this VM already uses in full, so there is no free headroom to add cores.
   To use one, the assistant needs three changes: accept an internal `http://` address,
   a longer provider timeout than 45 s, and no API key requirement.
+- **Local fallback, measured 2026-11-16** on the real 11-group timetable (Ollama 0.40.16,
+  CPU only). First round, three requests each:
+
+  | Model | Size | Load | Per answer | Correct |
+  |---|---|---|---|---|
+  | `llama3.2:3b` | 2.0 GB | 69 s | 5–25 s | 1 of 3 |
+  | `phi4-mini` | 2.5 GB | 104 s | 7–25 s | 0 of 3 |
+  | `gemma3:4b` | 3.4 GB | 65 s | 6–25 s | 0 of 3 |
+  | `qwen2.5:7b` | 4.7 GB | 145–182 s | 20–48 s | 3 of 3 |
+
+  `qwen2.5:7b` then scored 8 of 10 on a wider set (median 34 s). One miss was the app's own
+  name matching ("Physics" matched inside "Astrophysics Club"), now fixed, which makes it
+  9 of 10. The remaining miss: asked for two changes at once, it added the class on the new
+  day but did not remove it from the old one. The app stayed at ~22 ms response time
+  throughout. The fallback is implemented as provider first, local second
+  (`ask_with_fallback`); the `ollama` service in `docker-compose.prod.yml` is optional and
+  starts only when asked for.
 - Free tiers may use submitted data to improve their models. The context sent contains group
   names and class times; phone numbers should be left out.
 
