@@ -23,7 +23,7 @@
 </script>
 <link rel="preconnect" href="https://api.fontshare.com">
 <link href="https://api.fontshare.com/v2/css?f[]=satoshi@400,500,700,900&display=swap" rel="stylesheet">
-<link href="{{ url_for('static', filename='css/app.css') }}?v=poc61" rel="stylesheet"/>
+<link href="{{ url_for('static', filename='css/app.css') }}?v=poc62" rel="stylesheet"/>
 <link href="{{ url_for('static', filename='css/compat.css') }}?v=poc54" rel="stylesheet"/>
 <link href="{{ url_for('static', filename='css/dashboard.css') }}?v=poc58" rel="stylesheet"/>
 <link href="{{ url_for('static', filename='css/components.css') }}?v=poc54" rel="stylesheet"/>
@@ -59,6 +59,8 @@ window.SSIES_USER = {{ {"email": email|default(username), "display_name": userna
       <button class="menu-btn" onclick="toggleRail()" title="Menu" aria-label="Menu"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 12h16M4 18h16"/></svg></button>
       <div class="tt"><h2 id="pageTitle">Dashboard</h2><p id="pageDesc">Overview of your groups, sends, and session</p></div>
       <div class="topbar-actions">
+        <button class="icon-btn" type="button" onclick="openPalette()" title="Search and commands (Ctrl+K)" aria-label="Search and commands"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg></button>
+        <button class="icon-btn" type="button" onclick="openAssistant()" title="Assistant — change the schedule by chat, voice or photo" aria-label="Assistant"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3l1.8 4.7L18.5 9.5l-4.7 1.8L12 16l-1.8-4.7L5.5 9.5l4.7-1.8z"/><path d="M19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8z"/></svg></button>
         <button class="icon-btn" id="quickTheme" onclick="quickToggleTheme()" title="Toggle light / dark"></button>
       </div>
     </div>
@@ -211,6 +213,7 @@ window.SSIES_USER = {{ {"email": email|default(username), "display_name": userna
             <button class="btn btn-soft btn-sm" type="button" onclick="openVisualEditor()" title="Open the drag-and-drop timetable editor"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-2px;margin-right:4px"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18M8 4v16"/></svg>Visual Editor</button>
             <button class="btn btn-soft btn-sm" type="button" onclick="openBroadcast()" title="Send a quick cancel or reschedule notice to a group's WhatsApp chat"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-2px;margin-right:4px"><path d="M3 11l18-5v12L3 14v-3z"/><path d="M11.6 16.8a3 3 0 0 1-5.8-1.6"/></svg>Notify</button>
             <button class="btn btn-soft btn-sm" type="button" onclick="openSuperadminReport()" title="Preview and send the whole weekly schedule to configured recipients on WhatsApp">Send Preview</button>
+            <button class="btn btn-soft btn-sm" type="button" onclick="openVersions()" title="Earlier versions of the schedule — one is saved before every change">History</button>
             <button class="btn btn-soft btn-sm" type="button" id="schedSaveBtn" onclick="saveTable()" title="Save (Ctrl+S)">Save</button>
             <button class="btn btn-primary btn-sm" type="button" id="relTblBtn" onclick="releaseTable()">
               <span id="relTblTxt">Send selected</span><div class="spinner hidden" id="relTblSpin"></div>
@@ -672,6 +675,32 @@ window.SSIES_USER = {{ {"email": email|default(username), "display_name": userna
                 </div>
               </div>
               <div class="sec" style="margin-top:16px">
+                <div class="sec-h">Scheduler Assistant</div>
+                <div class="sec-b">
+                  <div class="srow srow-stack" style="gap:10px">
+                    <div><div class="st">Provider</div><div class="sd">Any OpenAI-compatible service works. Groq and Google Gemini both have a free tier — create an API key in their console. Group names and class times are sent to the provider; phone numbers and messages are not.</div></div>
+                    <div style="display:flex;gap:8px;flex-wrap:wrap">
+                      <button class="chip-btn" type="button" onclick="document.getElementById('asBase').value='https://api.groq.com/openai/v1'">Groq</button>
+                      <button class="chip-btn" type="button" onclick="document.getElementById('asBase').value='https://generativelanguage.googleapis.com/v1beta/openai'">Google Gemini</button>
+                    </div>
+                    <input class="field" id="asBase" placeholder="https://…/v1" autocomplete="off"/>
+                  </div>
+                  <div class="srow">
+                    <div><div class="st">Model</div><div class="sd">The model name exactly as the provider's console lists it. Reading a photo needs a model that accepts images.</div></div>
+                    <input class="field" id="asModel" style="max-width:300px" placeholder="model name" autocomplete="off"/>
+                  </div>
+                  <div class="srow srow-stack" style="gap:10px">
+                    <div><div class="st">API key</div><div class="sd">Stored encrypted. Leave blank to keep the current key.</div></div>
+                    <input class="field" id="asKey" type="password" placeholder="API key" autocomplete="off"/>
+                  </div>
+                  <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+                    <button class="btn btn-soft btn-sm" type="button" onclick="saveAssistantConfig()">Save</button>
+                    <button class="btn btn-primary btn-sm" type="button" onclick="testAssistant()">Save &amp; test</button>
+                    <span class="hint" id="asStatus" style="margin:0"></span>
+                  </div>
+                </div>
+              </div>
+              <div class="sec" style="margin-top:16px">
                 <div class="sec-h">Class reminders</div>
                 <div class="sec-b">
                   <div class="srow">
@@ -958,8 +987,19 @@ window.SSIES_USER = {{ {"email": email|default(username), "display_name": userna
   </div>
 </dialog>
 
+<!-- Schedule history (versions saved before every change) -->
+<dialog class="modal-scrim" id="versionsModal">
+  <div class="modal modal-lg">
+    <div class="modal-h"><span>Schedule history</span><button class="modal-x" type="button" onclick="closeModal('versionsModal')">✕</button></div>
+    <div class="modal-b">
+      <p class="hint" style="margin:0">A version is saved automatically before every change. Restoring one saves the current schedule first, so a restore can be reversed from this list.</p>
+      <div id="versionsList"></div>
+    </div>
+  </div>
+</dialog>
 
-<script src="{{ url_for('static', filename='js/chrome.js') }}?v=poc60"></script>
+
+<script src="{{ url_for('static', filename='js/chrome.js') }}?v=poc62"></script>
 <script src="{{ url_for('static', filename='js/theme.js') }}?v=poc54"></script>
 <script src="{{ url_for('static', filename='js/whatsapp.js') }}?v=poc60"></script>
 <script src="{{ url_for('static', filename='js/waha.js') }}?v=poc54"></script>
@@ -981,7 +1021,7 @@ if (_asUser) {
 const _netFetch = window.fetch.bind(window);
 let pendingDel = null;
 window.fetch = async (url, opts) => {
-  if (pendingDel && typeof url === "string" && /^\/api\/(groups|contacts|templates|lists|config|release|schedule|photos)(\/|\?|$)/.test(url)) await flushUndo();
+  if (pendingDel && typeof url === "string" && /^\/api\/(groups|contacts|templates|lists|config|release|schedule|photos|assistant)(\/|\?|$)/.test(url)) await flushUndo();
   return _netFetch(url, opts);
 };
 async function flushUndo(){
@@ -1095,7 +1135,7 @@ function _showView(v){
   if (v==="wa-direct") renderDirectPanel();
   if (v==="wa-auto") renderAutoSendPanel();
   if (v==="history") loadReleaseHistory();
-  if (v==="settings") { loadScheduledJob(); loadEmailReport(); loadPreviewReport(); loadReminders(); }
+  if (v==="settings") { loadScheduledJob(); loadEmailReport(); loadPreviewReport(); loadReminders(); loadAssistantConfig(); }
   if (window.innerWidth<=820) document.getElementById("shell").classList.remove("rail-open");
   if(typeof syncNavSched==="function") syncNavSched();
 }
@@ -2638,7 +2678,9 @@ async function copyText(t){try{await navigator.clipboard.writeText(t);toast("Cop
 <script src="{{ url_for('static', filename='js/workspace.js') }}?v=poc60"></script>
 <script src="{{ url_for('static', filename='js/visual_editor.js') }}?v=poc59"></script>
 <script src="{{ url_for('static', filename='js/dashboard.js') }}?v=poc61"></script>
-<script src="{{ url_for('static', filename='js/scheduler.js') }}?v=poc61"></script>
+<script src="{{ url_for('static', filename='js/scheduler.js') }}?v=poc62"></script>
+<script src="{{ url_for('static', filename='js/palette.js') }}?v=poc62"></script>
+<script src="{{ url_for('static', filename='js/assistant.js') }}?v=poc62"></script>
 <script>boot();</script>
 </body>
 </html>

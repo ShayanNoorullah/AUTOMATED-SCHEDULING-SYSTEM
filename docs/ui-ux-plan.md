@@ -2,7 +2,23 @@
 
 Audit date: 2026-11-16. Scope: everything under `templates/user/` plus the CSS/JS it loads.
 
-**Status (2026-11-16):** Phases 1 and 2 are implemented, not yet deployed.
+**Status (2026-11-16):** Phases 1–4 are implemented, not yet deployed. Phases 3–4 have
+never talked to a real model provider — see "Before first use" below.
+
+- **Phase 3** — done: command palette (Ctrl+K) over pages, groups, contacts, templates,
+  lists and actions; single-key shortcuts (`/`, `n`, `g` then a letter, `?`); schedule
+  versions (saved server-side before every change, newest 30 kept, History button in the
+  Scheduler with a before/after view and Restore).
+- **Phase 4** — done: Scheduler Assistant by text, voice (browser speech recognition) and
+  photo. `POST /api/assistant` returns validated proposals only; the browser shows a
+  before/after card with clash warnings; Apply uses the normal save, Undo restores the
+  version recorded just before it. One-off requests become a prefilled notice the user
+  reviews and sends. Settings → Automation holds provider address, model and key (admins
+  only, key stored encrypted). Rate limit: 12 per minute, 150 per day per address.
+- **Phase 4 — not done:** messaging the assistant from WhatsApp.
+- **Before first use:** an admin enters a provider address, model name and API key and
+  presses "Save & test". The request format is the OpenAI-compatible one, checked only
+  against a fake provider in `tests/test_assistant.py`.
 
 - **Phase 1** — done: foundation items 1, 2, 4, 5, 6 and the nav half of 11. Changed from
   the plan: item 3 uses view transitions with per-row names instead of a hand-written keyed

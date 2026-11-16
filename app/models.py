@@ -90,6 +90,17 @@ class Group(db.Model):
     position = db.Column(db.Integer, default=0)
 
 
+class ScheduleVersion(db.Model):
+    """A user's groups as they were just before a change (see _snapshot_groups)."""
+    __tablename__ = "schedule_versions"
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(GUID(), db.ForeignKey("profiles.id"), index=True, nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    reason = db.Column(db.String(80), default="")
+    data_enc = db.Column(db.Text, nullable=False)  # encrypted JSON list of group dicts
+
+
 class Template(db.Model):
     __tablename__ = "templates"
 

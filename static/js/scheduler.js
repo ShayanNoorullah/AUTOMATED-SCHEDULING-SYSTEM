@@ -34,7 +34,7 @@ function markUnsaved(v = true) {
 addEventListener("beforeunload", (e) => { if (schedUnsaved) e.preventDefault(); });
 addEventListener("keydown", (e) => {
   if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "s" &&
-      document.getElementById("view-table")?.classList.contains("active") && !document.querySelector("dialog[open]")) {
+      document.getElementById("view-table")?.classList.contains("active") && !document.querySelector("dialog:modal")) {
     e.preventDefault(); saveTable();
   }
 });
@@ -82,6 +82,52 @@ function focusClash(a, b, day) {
   if (!cells.length) return;
   cells[0].scrollIntoView({ block: "center", inline: "center", behavior: "smooth" });
   cells.forEach((c) => { c.classList.remove("cell-flash"); void c.offsetWidth; c.classList.add("cell-flash"); });
+}
+
+/* ── comparing two schedules (used by Schedule history and the assistant's proposals) ── */
+/* What changes going from `before` to `after`. Groups are matched by id, then by name. */
+function diffSchedules(before, after) {
+  const rows = [], used = new Set();
+  const slot = (g, day) => { const e = (g.schedule || []).find((x) => x.day === day && (x.from || "").trim()); return e ? e.from + (e.to ? "–" + e.to : "") : ""; };
+  after.forEach((b) => {
+    const a = before.find((x) => !used.has(x) && b.id != null && x.id === b.id) || before.find((x) => !used.has(x) && x.name === b.name);
+    if (!a) rows.push({ group: b.name, note: "new group" });
+    else { used.add(a); if (a.name !== b.name) rows.push({ group: b.name, note: `renamed from ${a.name}` }); }
+    DAYS.forEach((day) => { const x = a ? slot(a, day) : "", y = slot(b, day); if (x !== y) rows.push({ group: b.name, day, from: x, to: y }); });
+  });
+  before.forEach((a) => { if (!used.has(a)) rows.push({ group: a.name, note: "removed" }); });
+  return rows;
+}
+function diffHTML(rows) {
+  if (!rows.length) return '<p class="hint" style="margin:0">No differences.</p>';
+  const side = (tag, v) => `<${tag}${v ? "" : ' class="none"'}>${v ? esc(v) : "no class"}</${tag}>`;
+  return rows.map((r) => `<div class="diff-row"><b>${esc(r.group)}</b>${r.note
+    ? `<span class="diff-note">${esc(r.note)}</span>`
+    : `<span class="diff-day">${r.day.slice(0, 3)}</span>${side("del", r.from)}<span aria-hidden="true">→</span>${side("ins", r.to)}`}</div>`).join("");
+}
+
+/* ── schedule history: the server saves a version before every change ── */
+async function openVersions() {
+  openModal("versionsModal");
+  const box = document.getElementById("versionsList"); box.innerHTML = skel("rows", 4);
+  let list = [];
+  try { list = await (await fetch("/api/schedule/versions")).json(); } catch {}
+  if (!Array.isArray(list) || !list.length) { box.innerHTML = '<div class="empty"><p>No earlier versions yet. One is saved automatically before every change.</p></div>'; return; }
+  box.innerHTML = list.map((v) => {
+    const rows = diffSchedules(groups, v.groups);   // what restoring this version would change
+    const when = new Date(v.at).toLocaleString(undefined, { weekday: "short", day: "numeric", month: "short", hour: "numeric", minute: "2-digit" });
+    return `<details class="ver"><summary><span class="ver-when"><b>${esc(when)}</b><span>Before ${esc(v.reason || "a change")}</span></span>
+      <span class="chip">${rows.length ? `${rows.length} difference${rows.length === 1 ? "" : "s"}` : "same as now"}</span>
+      <button class="btn btn-soft btn-sm" type="button" ${rows.length ? "" : "disabled"} onclick="event.preventDefault();restoreVersion(${v.id})">Restore</button></summary>
+      <div class="ver-diff">${diffHTML(rows)}</div></details>`;
+  }).join("");
+}
+async function restoreVersion(id) {
+  const res = await fetch(`/api/schedule/versions/${id}/restore`, { method: "POST" });
+  const d = await res.json().catch(() => ({}));
+  if (!res.ok) { toast(d.error || "Restore failed", "err"); return false; }
+  closeModal("versionsModal"); await loadGroups(); toast("Schedule restored ✓", "ok");
+  return true;
 }
 
 /* ── group editor (detail view, edit mode) ── */

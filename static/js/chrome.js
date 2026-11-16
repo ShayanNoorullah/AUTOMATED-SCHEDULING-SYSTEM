@@ -62,8 +62,8 @@ function toast(msg, kind, action) {
     box.setAttribute("aria-live", "polite");
   }
   // A modal <dialog> makes everything outside it inert and paints above it, so the stack
-  // lives inside the topmost open dialog while one is up (moved back on close, below).
-  const host = [...document.querySelectorAll("dialog[open]")].pop() || document.body;
+  // lives inside the topmost open modal dialog while one is up (moved back on close, below).
+  const host = [...document.querySelectorAll("dialog:modal")].pop() || document.body;
   if (box.parentNode !== host) host.appendChild(box);
   const el = document.createElement("div");
   el.className = "toast-item" + (kind === "ok" ? " ok" : kind ? " err" : "");

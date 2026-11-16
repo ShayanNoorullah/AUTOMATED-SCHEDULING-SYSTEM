@@ -1,3 +1,4 @@
+import json
 import uuid
 
 from flask import Blueprint, g, jsonify, render_template, request, Response
@@ -6,7 +7,9 @@ import queue
 from app.auth.decorators import login_required, superadmin_required
 from app.config import Config, DAYS
 from app.crypto import enc, dec
-from app.models import Group, Template, Contact, ContactList, Profile, AuditLog, ReleaseLog, ScheduledJob, db
+from app.models import (
+    Group, Template, Contact, ContactList, Profile, AuditLog, ReleaseLog, ScheduledJob, ScheduleVersion, db,
+)
 from app.services.audit import audit
 from app.services.users import maintenance_mode
 from app.services.whatsapp import (
@@ -217,6 +220,7 @@ def update_group(idx):
     if idx >= len(rows):
         return jsonify({"error": "Not found"}), 404
     g_row = rows[idx]
+    _snapshot_groups(uid, f"editing {g_row.name}")
     g_row.name = data["name"]
     if "nickname" in data:
         g_row.nickname = (data.get("nickname") or "").strip()[:120]
@@ -242,6 +246,7 @@ def replace_all_groups():
     groups = data.get("groups")
     if groups is None:
         return jsonify({"error": "groups list required"}), 400
+    _snapshot_groups(uid, "a schedule save")
     _sync_groups(uid, groups)
     db.session.commit()
     return jsonify({"ok": True})
@@ -289,9 +294,131 @@ def delete_group(idx):
     rows = Group.query.filter_by(user_id=uid).order_by(Group.position, Group.id).all()
     if idx >= len(rows):
         return jsonify({"error": "Not found"}), 404
+    _snapshot_groups(uid, f"deleting {rows[idx].name}")
     db.session.delete(rows[idx])
     db.session.commit()
     return jsonify({"ok": True})
+
+
+VERSIONS_KEEP = 30
+
+
+def _snapshot_groups(uid, reason):
+    """Record the user's groups as they are now, before a change. Call before writing.
+
+    Identical consecutive snapshots are skipped and only the newest VERSIONS_KEEP are kept.
+    The caller commits.
+    """
+    rows = Group.query.filter_by(user_id=uid).order_by(Group.position, Group.id).all()
+    if not rows:
+        return
+    data = json.dumps([dict(group_dict(r), id=r.id) for r in rows], sort_keys=True)
+    newest = ScheduleVersion.query.filter_by(user_id=uid).order_by(ScheduleVersion.id.desc())
+    last = newest.first()
+    if last and dec(last.data_enc) == data:
+        return
+    db.session.add(ScheduleVersion(user_id=uid, reason=reason[:80], data_enc=enc(data)))
+    for old in newest.offset(VERSIONS_KEEP).all():
+        db.session.delete(old)
+
+
+def _restore_version(uid, version_id):
+    """Make the user's groups match a saved version. Returns False when it is not theirs."""
+    v = ScheduleVersion.query.filter_by(user_id=uid, id=version_id).first()
+    if not v:
+        return False
+    items = json.loads(dec(v.data_enc))
+    _snapshot_groups(uid, "restoring an earlier version")
+    _sync_groups(uid, items)
+    return True
+
+
+@bp.route("/api/schedule/versions", methods=["GET"])
+@login_required
+def list_schedule_versions():
+    uid = _effective_user_id()
+    rows = ScheduleVersion.query.filter_by(user_id=uid).order_by(ScheduleVersion.id.desc()).all()
+    return jsonify([{"id": v.id, "at": v.created_at.isoformat() + "Z", "reason": v.reason or "",
+                     "groups": json.loads(dec(v.data_enc))} for v in rows])
+
+
+@bp.route("/api/schedule/versions/<int:version_id>/restore", methods=["POST"])
+@login_required
+def restore_schedule_version(version_id):
+    if not _restore_version(_effective_user_id(), version_id):
+        return jsonify({"error": "Version not found"}), 404
+    db.session.commit()
+    audit("schedule_restore", actor_id=g.profile.id)
+    return jsonify({"ok": True})
+
+
+# ── Scheduler Assistant (proposals only — see app/services/assistant.py) ──
+ASSISTANT_IMAGE_MAX = 2_000_000  # characters of data URL (~1.5 MB image)
+
+
+def _assistant_cfg():
+    from app.services.users import get_system_setting
+    key = get_system_setting("assistant_api_key", "") or ""
+    return {
+        "base_url": get_system_setting("assistant_base_url", "") or "",
+        "model": get_system_setting("assistant_model", "") or "",
+        "api_key": dec(key) if key else "",
+    }
+
+
+@bp.route("/api/assistant/config", methods=["GET"])
+@login_required
+def get_assistant_config():
+    cfg = _assistant_cfg()
+    return jsonify({"baseUrl": cfg["base_url"], "model": cfg["model"], "hasKey": bool(cfg["api_key"]),
+                    "ready": all(cfg.values()), "canEdit": g.profile.is_admin()})
+
+
+@bp.route("/api/assistant/config", methods=["PUT"])
+@login_required
+def put_assistant_config():
+    from app.services.users import set_system_setting
+    if not g.profile.is_admin():
+        return jsonify({"error": "Only admins can change assistant settings"}), 403
+    data = request.json or {}
+    if "baseUrl" in data:
+        url = str(data.get("baseUrl") or "").strip()[:255]
+        if url and not url.startswith("https://"):
+            return jsonify({"error": "The provider address must start with https://"}), 400
+        set_system_setting("assistant_base_url", url)
+    if "model" in data:
+        set_system_setting("assistant_model", str(data.get("model") or "").strip()[:120])
+    key = str(data.get("apiKey") or "").strip()
+    if key:
+        set_system_setting("assistant_api_key", enc(key))
+    return jsonify({"ok": True})
+
+
+@bp.route("/api/assistant", methods=["POST"])
+@login_required
+def assistant_ask():
+    from app.services import assistant
+    data = request.json or {}
+    text = str(data.get("message") or "").strip()[:2000]
+    image = data.get("image") or None
+    if image and (not isinstance(image, str) or len(image) > ASSISTANT_IMAGE_MAX
+                  or not image.startswith(("data:image/jpeg;base64,", "data:image/png;base64,", "data:image/webp;base64,"))):
+        return jsonify({"error": "That image could not be used. Try a smaller JPG or PNG."}), 400
+    if not text and not image:
+        return jsonify({"error": "Type a request first"}), 400
+    cfg = _assistant_cfg()
+    if not all(cfg.values()):
+        return jsonify({"error": "The assistant is not set up yet. An admin can add a provider and key in Settings → Automation."}), 400
+    uid = _effective_user_id()
+    rows = Group.query.filter_by(user_id=uid).order_by(Group.position, Group.id).all()
+    groups = [{"name": r.name, "nickname": r.nickname or "", "schedule": r.schedule or []} for r in rows]
+    history = data.get("history") if isinstance(data.get("history"), list) else []
+    try:
+        return jsonify(assistant.ask(groups, text, cfg, image=image, history=history))
+    except (RuntimeError, ValueError) as e:
+        return jsonify({"error": str(e)}), 502
+    except Exception:
+        return jsonify({"error": "Could not reach the assistant's provider. Check the connection and try again."}), 502
 
 
 @bp.route("/api/templates", methods=["GET"])
@@ -896,6 +1023,7 @@ def import_config():
     uid = _effective_user_id()
     if "groups" not in data or not isinstance(data["groups"], list):
         return jsonify({"error": "Invalid config: 'groups' list required"}), 400
+    _snapshot_groups(uid, "restoring a backup file")
     Group.query.filter_by(user_id=uid).delete()
     Template.query.filter_by(user_id=uid).delete()
     Contact.query.filter_by(user_id=uid).delete()

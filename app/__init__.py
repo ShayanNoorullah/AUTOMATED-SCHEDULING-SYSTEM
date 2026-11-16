@@ -94,6 +94,8 @@ def create_app():
         csrf.exempt(bp)
 
     limiter.limit("10 per minute")(app.view_functions["auth.auth_session"])
+    # each assistant request is a call to a metered (free-tier) model provider
+    limiter.limit("12 per minute; 150 per day")(app.view_functions["user.assistant_ask"])
 
     if not Config.DATABASE_URL or Config.DATABASE_URL.startswith("sqlite"):
         print("WARNING: DATABASE_URL must point to Supabase PostgreSQL for production.")
