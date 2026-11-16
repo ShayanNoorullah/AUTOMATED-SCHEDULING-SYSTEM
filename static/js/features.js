@@ -113,7 +113,29 @@ async function doReleaseWithPreflight(targets, spin, btn, txt, label) {
 let historyMode = localStorage.getItem("history-mode") || "table";
 let historyFilter = "all";
 let historyPage = 1;
+let historyShown = [];   // rows matching the current filters (what Export writes)
 const HISTORY_PER_PAGE = 8;
+const dayKey = (d) => { d = new Date(d); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`; };
+function dayLabel(key) {
+  const today = dayKey(Date.now()), yest = dayKey(Date.now() - 864e5);
+  return key === today ? "Today" : key === yest ? "Yesterday" : new Date(key + "T00:00").toLocaleDateString(undefined, { weekday: "long", day: "numeric", month: "long" });
+}
+/* Open Send History filtered to one calendar day (used by the dashboard's activity bars). */
+function historyShowDay(key) {
+  document.getElementById("historyFrom").value = key; document.getElementById("historyTo").value = key;
+  historyFilter = "all"; historyPage = 1; navGo("history");
+}
+function historyClearDates() { document.getElementById("historyFrom").value = ""; document.getElementById("historyTo").value = ""; historyPage = 1; loadReleaseHistory(); }
+function exportHistoryCsv() {
+  if (!historyShown.length) { toast("Nothing to export", "err"); return; }
+  const cell = (v) => `"${String(v ?? "").replace(/"/g, '""')}"`;
+  const lines = [["When", "Target", "Type", "Status", "Detail"].join(",")].concat(historyShown.map((r) =>
+    [new Date(r.at || r.created_at).toLocaleString(), r.targetName || r.target_name, r.targetType || r.target_type, r.status === "success" ? "Delivered" : "Failed", r.detail || ""].map(cell).join(",")));
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob(["\ufeff" + lines.join("\r\n")], { type: "text/csv" }));
+  a.download = `send_history_${dayKey(Date.now())}.csv`; a.click(); URL.revokeObjectURL(a.href);
+  toast(`Exported ${historyShown.length} row${historyShown.length === 1 ? "" : "s"}`, "ok");
+}
 
 function setHistoryMode(m) {
   historyMode = m;
@@ -189,6 +211,11 @@ async function loadReleaseHistory() {
       });
     }
 
+    const from = document.getElementById("historyFrom")?.value, to = document.getElementById("historyTo")?.value;
+    if (from || to) items = items.filter((r) => { const k = dayKey(r.at || r.created_at); return (!from || k >= from) && (!to || k <= to); });
+    document.getElementById("historyDatesClear")?.classList.toggle("hidden", !(from || to));
+    historyShown = items;
+
     const pager = document.getElementById("historyPager");
     if (pager) pager.innerHTML = "";
 
@@ -227,8 +254,9 @@ async function loadReleaseHistory() {
         `<div class="tbl-wrap"><table class="data grid-table"><thead><tr><th>Status</th><th>Target</th><th>Type</th><th>When</th><th></th></tr></thead><tbody>` +
         page
           .map(
-            (r) =>
-              `<tr><td>${badge(r)}</td><td><b>${esc(nameOf(r))}</b></td><td>${typeChip(r)}</td><td><span class="hint" style="margin:0">${new Date(atOf(r)).toLocaleString()}</span></td><td style="text-align:right">${
+            (r, i) =>
+              (i === 0 || dayKey(atOf(r)) !== dayKey(atOf(page[i - 1])) ? `<tr class="hday"><td colspan="5">${dayLabel(dayKey(atOf(r)))}</td></tr>` : "") +
+              `<tr><td>${badge(r)}</td><td><b>${esc(nameOf(r))}</b>${r.status !== "success" && r.detail ? `<div class="hreason">${esc(r.detail)}</div>` : ""}</td><td>${typeChip(r)}</td><td><span class="hint" style="margin:0">${new Date(atOf(r)).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" })}</span></td><td style="text-align:right">${
                 r.status !== "success" ? `<button class="btn btn-soft btn-sm" onclick="retryRelease(${r.id})">Retry</button>` : ""
               }</td></tr>`
           )
@@ -261,19 +289,34 @@ async function retryRelease(id) {
   loadReleaseHistory();
 }
 
+/* The server stores the weekly slot in UTC. The form shows and takes the viewer's own
+   weekday and clock time; these two convert using the slot's next occurrence. */
+function utcSlotToLocal(dow, hour, minute) {
+  const d = new Date();
+  d.setUTCDate(d.getUTCDate() + ((dow - d.getUTCDay() + 7) % 7));
+  d.setUTCHours(hour, minute, 0, 0);
+  return { dow: d.getDay(), time: `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}` };
+}
+function localSlotToUtc(dow, time) {
+  const [h, m] = String(time || "09:00").split(":").map(Number);
+  const d = new Date();
+  d.setDate(d.getDate() + ((dow - d.getDay() + 7) % 7));
+  d.setHours(h || 0, m || 0, 0, 0);
+  return { dow: d.getUTCDay(), hour: d.getUTCHours(), minute: d.getUTCMinutes() };
+}
+
 async function loadScheduledJob() {
   try {
     const d = await (await fetch("/api/scheduled-job")).json();
     scheduledJobState = d;
+    const loc = utcSlotToLocal(d.dow ?? 0, d.hour ?? 9, d.minute ?? 0);
     const en = document.getElementById("schedEnabled");
     const dow = document.getElementById("schedDow");
-    const hour = document.getElementById("schedHour");
-    const min = document.getElementById("schedMinute");
+    const time = document.getElementById("schedTime");
     const last = document.getElementById("schedLastRun");
     if (en) en.checked = !!d.enabled;
-    if (dow) dow.value = String(d.dow ?? 0);
-    if (hour) hour.value = String(d.hour ?? 9);
-    if (min) min.value = String(d.minute ?? 0);
+    if (dow) dow.value = String(loc.dow);
+    if (time) time.value = loc.time;
     if (last) last.textContent = d.lastRunAt ? `Last run: ${new Date(d.lastRunAt).toLocaleString()}` : "Not run yet";
     updateSchedHint();
   } catch {
@@ -281,39 +324,29 @@ async function loadScheduledJob() {
   }
 }
 
-// Show the chosen UTC weekly slot translated to the viewer's local day/time.
 function updateSchedHint() {
   const el = document.getElementById("schedWhen");
   if (!el) return;
-  const toInt = (id, def) => { const v = parseInt(document.getElementById(id)?.value, 10); return isNaN(v) ? def : v; };
-  const dow = Math.min(6, Math.max(0, toInt("schedDow", 0)));
-  const hour = Math.min(23, Math.max(0, toInt("schedHour", 9)));
-  const min = Math.min(59, Math.max(0, toInt("schedMinute", 0)));
-  const now = new Date();
-  const next = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), hour, min, 0));
-  let add = (dow - next.getUTCDay() + 7) % 7;
-  if (add === 0 && next.getTime() <= now.getTime()) add = 7;
-  next.setUTCDate(next.getUTCDate() + add);
   const DOW = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
-  const utc = `${DOW[dow]} ${String(hour).padStart(2, "0")}:${String(min).padStart(2, "0")} UTC`;
-  const local = next.toLocaleString(undefined, { weekday: "long", hour: "numeric", minute: "2-digit" });
-  const tz = (Intl.DateTimeFormat().resolvedOptions().timeZone || "local").split("/").pop().replace(/_/g, " ");
-  el.innerHTML = `Fires <b>${local}</b> your time <span class="sw-utc">· ${utc} · ${tz}</span>`;
+  const dow = parseInt(document.getElementById("schedDow")?.value || "0", 10);
+  const time = document.getElementById("schedTime")?.value || "09:00";
+  const [h, m] = time.split(":").map(Number);
+  const shown = new Date(2000, 0, 1, h || 0, m || 0).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
+  const tz = (Intl.DateTimeFormat().resolvedOptions().timeZone || "local time").replace(/_/g, " ");
+  el.innerHTML = `Sends every <b>${DOW[dow]} at ${shown}</b> <span class="sw-utc">· ${tz}</span>`;
 }
 
 async function saveScheduledJob() {
   const payload = {
     enabled: document.getElementById("schedEnabled")?.checked || false,
-    dow: parseInt(document.getElementById("schedDow")?.value || "0", 10),
-    hour: parseInt(document.getElementById("schedHour")?.value || "9", 10),
-    minute: parseInt(document.getElementById("schedMinute")?.value || "0", 10),
+    ...localSlotToUtc(parseInt(document.getElementById("schedDow")?.value || "0", 10), document.getElementById("schedTime")?.value),
   };
   const d = await (await fetch("/api/scheduled-job", put(payload))).json();
   if (d.error) {
     toast(d.error, "err");
     return;
   }
-  toast("Scheduled send saved");
+  toast("Scheduled send saved", "ok");
   loadScheduledJob();
 }
 

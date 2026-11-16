@@ -498,6 +498,7 @@ async function syncList(id) {
 async function syncAllLists() {
   try {
     toast("Syncing lists from WhatsApp…");
+    const before = new Map((lists || []).map((l) => [l.id, new Set(l.members || [])]));
     const res = await fetch("/api/lists/sync-all", { method: "POST" });
     const d = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(d.error || "Sync failed");
@@ -509,7 +510,16 @@ async function syncAllLists() {
     const n = (lists || []).length;
     const labelN = (d.labelCount != null) ? d.labelCount : ((d.waLabels || []).length);
     const src = d.source === "whatsapp" ? "WhatsApp" : "saved contacts";
-    if (n) toast(`Synced ${n} list${n === 1 ? "" : "s"} from ${src} ✓`);
+    // what changed: new lists, and members added to / removed from lists that already existed
+    let added = 0, removed = 0, fresh = 0;
+    (lists || []).forEach((l) => {
+      const old = before.get(l.id), now = new Set(l.members || []);
+      if (!old) { fresh++; return; }
+      now.forEach((m) => { if (!old.has(m)) added++; });
+      old.forEach((m) => { if (!now.has(m)) removed++; });
+    });
+    const delta = [fresh && `${fresh} new list${fresh === 1 ? "" : "s"}`, added && `${added} member${added === 1 ? "" : "s"} added`, removed && `${removed} removed`].filter(Boolean).join(", ") || "no changes";
+    if (n) toast(`Synced ${n} list${n === 1 ? "" : "s"} from ${src} ✓ — ${delta}`, "ok");
     else if (d.source === "whatsapp" && !labelN) toast("WhatsApp is linked but returned no Business labels. Add labels in WhatsApp Business, then sync again.", "err");
     else toast(d.warning ? `No lists yet (${d.warning})` : "No lists yet — create one or sync after linking WhatsApp", "err");
   } catch (e) { toast(e.message || "Sync failed — link WhatsApp in Automated Send first", "err"); }

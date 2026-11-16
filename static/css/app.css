@@ -1792,3 +1792,45 @@ table.sched tr.is-today td.day-col::after{content:"today";display:block;font-siz
 .asst-form textarea:focus{border-color:var(--accent);}
 #asstMic.rec{color:var(--error);border-color:var(--error);animation:pulseDot 1.4s infinite;}
 @media(max-width:640px){ .asst{inset:0;width:100%;border-radius:0;border:0;} }
+
+
+/* ============ Phase 5: settings, history, automated send, contacts, templates ============ */
+/* Settings search: while searching, every tab is shown and filtered to matching rows */
+.settings-search{max-width:360px;margin-bottom:14px;}
+.settings-wrap.searching .settings-tabs{display:none;}
+.settings-wrap.searching .stab-panel{display:block;margin-bottom:16px;}
+.srow[hidden],.sec[hidden]{display:none !important;}
+
+/* Send History */
+.hdate{display:inline-flex;align-items:center;gap:6px;font-size:.76rem;font-weight:650;color:var(--text-muted);}
+.hdate .field{padding:6px 9px;font-size:.82rem;width:auto;}
+table.data tr.hday td{padding:14px 18px 6px;font-size:.72rem;font-weight:750;text-transform:uppercase;letter-spacing:.06em;color:var(--accent);background:none;border-bottom:0;cursor:default;}
+table.data tr.hday:hover td{background:none;}
+.hreason{margin-top:3px;font-size:.76rem;font-weight:500;color:var(--error);white-space:normal;}
+
+/* Automated Send */
+#waStepConnect.done{border-color:color-mix(in srgb,var(--success) 45%,transparent);}
+#waStepConnect.done h4::before{content:"✓";background:var(--success);}
+.wa-pick-bar{display:flex;align-items:center;gap:6px;margin-bottom:8px;}
+.wa-pick{border:1px solid var(--border);border-radius:var(--r-sm);margin-bottom:8px;background:var(--surface-2);}
+.wa-pick summary{display:flex;align-items:center;gap:11px;padding:10px 12px;cursor:pointer;list-style:none;}
+.wa-pick summary::-webkit-details-marker{display:none;}
+.wa-pick summary>span:nth-child(2){flex:1;min-width:0;display:flex;flex-direction:column;}
+.wa-pick .sub{font-size:.76rem;color:var(--text-muted);}
+.wa-pick-more{font-size:.72rem;font-weight:700;color:var(--accent);}
+.wa-pick[open] .wa-pick-more{opacity:.5;}
+.wa-pick.is-empty{opacity:.6;}
+.wa-pick.is-empty summary{cursor:default;}
+.wa-pick .msg-preview{margin:0 12px 12px;}
+
+/* Contacts */
+.phone-hint{display:flex;flex-wrap:wrap;align-items:center;gap:8px;}
+.phone-hint.ok{color:var(--success);}
+.phone-hint.warn{color:var(--warn);}
+
+/* Templates */
+.tpl-pin{margin-left:auto;background:none;border:0;font-size:1.05rem;line-height:1;color:var(--text-soft);cursor:pointer;padding:2px 4px;border-radius:var(--r-xs);transition:transform .18s var(--spring),color .18s;}
+.tpl-pin:hover{color:var(--warn);transform:scale(1.2);}
+.tpl.is-pinned .tpl-pin{color:var(--warn);}
+.tpl.is-pinned{border-color:color-mix(in srgb,var(--warn) 40%,var(--border));}
+.tpl-foot{gap:12px;}

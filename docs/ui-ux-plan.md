@@ -2,8 +2,29 @@
 
 Audit date: 2026-11-16. Scope: everything under `templates/user/` plus the CSS/JS it loads.
 
-**Status (2026-11-16):** Phases 1–4 are implemented, not yet deployed. Phases 3–4 have
+**Status (2026-11-16):** Phases 1–5 are implemented, not yet deployed. Phases 3–4 have
 never talked to a real model provider — see "Before first use" below.
+
+- **Phase 5** — done:
+  - Settings: weekly send is set as a local weekday and time (stored as UTC as before);
+    reminder timezone is a picker that marks this device's zone; a search box filters every
+    tab; restoring a backup first says what the file holds; the duplicate "Compact mode
+    (legacy)" row and the stale Selenium wording are gone.
+  - Send History: rows grouped by day, failure reason shown under failed sends, From/To
+    date filter, CSV export of the rows shown; dashboard activity bars open that day.
+  - Fix: history timestamps were sent without a UTC marker, so browsers displayed them
+    shifted by the viewer's UTC offset. The API now sends them with `Z`.
+  - Automated Send: the Connect step turns green and announces when WhatsApp links; the
+    target list has Select all / None, a count and a per-recipient message preview, and
+    recipients with nothing to send cannot be picked.
+  - Contacts: phone check with a one-click fix for local numbers; Import (paste or
+    .csv/.txt) with a preview that skips numbers already saved.
+  - Lists: a sync reports new lists and members added / removed.
+  - Templates: pin to the top (per browser); "Used by N groups".
+- **Phase 5 — not done:** Settings vertical tabs, live preview pane and theme reveal;
+  History chart and infinite scroll; QR countdown ring, pause/cancel during a send; contact
+  avatar crop and multi-select; drag between lists and emoji picker; template card hover
+  actions.
 
 - **Phase 3** — done: command palette (Ctrl+K) over pages, groups, contacts, templates,
   lists and actions; single-key shortcuts (`/`, `n`, `g` then a letter, `?`); schedule

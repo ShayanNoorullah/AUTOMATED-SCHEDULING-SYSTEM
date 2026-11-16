@@ -1,5 +1,6 @@
 /* WAHA session linking UI for Automated Send view */
 let waQrPoll = null;
+let waWasConnected = null;   // null until the first status check, so opening the page never announces "linked"
 
 async function readJson(res) {
   const data = await res.json().catch(() => ({}));
@@ -17,6 +18,9 @@ async function loadAutoSession() {
     const info = await readJson(await fetch("/api/whatsapp/session"));
     if (providerEl) providerEl.textContent = (info.provider || "selenium").toUpperCase();
     if (dot) dot.classList.toggle("on", !!info.connected);
+    document.getElementById("waStepConnect")?.classList.toggle("done", !!info.connected);
+    if (info.connected && waWasConnected === false) toast("WhatsApp linked ✓ — choose who to send to", "ok");
+    waWasConnected = !!info.connected;
     if (txt) {
       if (info.connected) {
         txt.textContent = `Connected (${info.provider})`;
@@ -138,25 +142,39 @@ function renderAutoSendPanel() {
   renderAutoTargetList();
 }
 
+function autoTargetMessage(type, name) {
+  if (type === "contact") return replaceTokens((contacts.find((x) => x.name === name) || {}).message || "");
+  const g = groups.find((x) => x.name === name);
+  return g ? replaceTokens(messageFor(g)) : "";
+}
+function autoPickAll(on) { document.querySelectorAll(".auto-pick:not(:disabled)").forEach((cb) => { cb.checked = on; }); autoPickCount(); }
+function autoPickCount() {
+  const n = document.querySelectorAll(".auto-pick:checked").length, el = document.getElementById("autoPickCount");
+  if (el) el.textContent = `${n} selected`;
+}
 function renderAutoTargetList() {
   const el = document.getElementById("autoTargetList");
   if (!el || typeof groups === "undefined") return;
   const items = [];
-  groups.forEach((g) => items.push({ type: "group", name: g.name, sub: `${g.schedule?.length || 0} days` }));
+  groups.forEach((g) => items.push({ type: "group", name: g.name, sub: `${g.schedule?.length || 0} day${g.schedule?.length === 1 ? "" : "s"}` }));
   contacts.forEach((c) => items.push({ type: "contact", name: c.name, sub: `+${c.phone || ""}` }));
   if (!items.length) {
     el.innerHTML = '<p class="hint">Add groups or contacts first.</p>';
     return;
   }
-  el.innerHTML = items
-    .map(
-      (it, i) => `<label class="wa-check-row">
-      <input type="checkbox" class="auto-pick" data-i="${i}" data-type="${it.type}" data-name="${escA(it.name)}" checked/>
-      <span><strong>${esc(it.name)}</strong><span class="sub">${esc(it.sub)} · ${it.type}</span></span>
-    </label>`
-    )
+  // every row shows exactly what will be sent; rows with nothing to send cannot be picked
+  el.innerHTML = `<div class="wa-pick-bar"><button class="btn btn-ghost btn-sm" type="button" onclick="autoPickAll(true)">Select all</button><button class="btn btn-ghost btn-sm" type="button" onclick="autoPickAll(false)">None</button><span class="hint" id="autoPickCount" style="margin:0 0 0 auto"></span></div>` + items
+    .map((it, i) => {
+      const msg = autoTargetMessage(it.type, it.name), empty = !msg.trim();
+      return `<details class="wa-pick${empty ? " is-empty" : ""}"><summary>
+      <input type="checkbox" class="auto-pick" data-i="${i}" data-type="${it.type}" data-name="${escA(it.name)}" ${empty ? "disabled" : "checked"} onclick="event.stopPropagation()" onchange="autoPickCount()" aria-label="Send to ${escA(it.name)}"/>
+      <span><strong>${esc(it.name)}</strong><span class="sub">${esc(it.sub)} · ${it.type}${empty ? " · no message to send" : ""}</span></span>
+      <span class="wa-pick-more">${empty ? "" : "Preview"}</span></summary>
+      ${empty ? "" : `<div class="msg-preview"><div class="preview-b">${typeof renderWhatsAppPreview === "function" ? renderWhatsAppPreview(msg) : esc(msg)}</div></div>`}</details>`;
+    })
     .join("");
   el._items = items;
+  autoPickCount();
 }
 
 async function runAutomatedFromPanel() {

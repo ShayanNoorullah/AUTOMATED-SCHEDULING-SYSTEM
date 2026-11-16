@@ -83,7 +83,7 @@ function paintDashboard() {
     : `<span class="stat-trend ${wk > prev ? "up" : "down"}">${wk > prev ? "▲" : "▼"} ${Math.abs(wk - prev)} vs last week</span>`;
   const failedWeek = hist.filter((h) => !ok(h) && daysAgo(h) < 7).length;
   const days7 = [];
-  for (let i = 6; i >= 0; i--) { const dd = new Date(now); dd.setDate(now.getDate() - i); const key = dd.toDateString(); days7.push({ label: dd.toLocaleDateString(undefined, { weekday: "short" }), cnt: hist.filter((h) => at(h).toDateString() === key).length }); }
+  for (let i = 6; i >= 0; i--) { const dd = new Date(now); dd.setDate(now.getDate() - i); const key = dd.toDateString(); days7.push({ key: dayKey(dd), label: dd.toLocaleDateString(undefined, { weekday: "short" }), cnt: hist.filter((h) => at(h).toDateString() === key).length }); }
   const maxCnt = Math.max(1, ...days7.map((x) => x.cnt));
   const todayCount = dashTodayItems(now).length;
   const DA = { sched: '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M3 15h18M9 3v18"/></svg>', auto: '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>', direct: '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><path d="M15 3h6v6"/><path d="M10 14 21 3"/></svg>', tpl: '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg>' };
@@ -118,7 +118,7 @@ function paintDashboard() {
     <div class="dash-grid dash-grid-2">
       <div class="sec"><div class="sec-h">Today · ${esc(todayName())}<span class="chip" style="margin-left:auto">${todayCount} scheduled</span></div><div class="sec-b" id="dashToday">${dashTodayHTML()}</div></div>
       <div class="sec"><div class="sec-h">Weekly activity</div><div class="sec-b">
-        <div class="dash-spark">${days7.map((x, i) => `<div class="spark-col" title="${x.cnt} send${x.cnt === 1 ? "" : "s"} on ${x.label}"><span class="spark-n">${x.cnt || ""}</span><div class="spark-bar" style="height:${Math.round((x.cnt / maxCnt) * 100)}%;--i:${i}"></div><span class="spark-lbl">${x.label[0]}</span></div>`).join("")}</div>
+        <div class="dash-spark">${days7.map((x, i) => `<div class="spark-col" role="button" tabindex="0" title="${x.cnt} send${x.cnt === 1 ? "" : "s"} on ${x.label} — open in Send History" onclick="historyShowDay('${x.key}')" onkeydown="if(event.key==='Enter')historyShowDay('${x.key}')"><span class="spark-n">${x.cnt || ""}</span><div class="spark-bar" style="height:${Math.round((x.cnt / maxCnt) * 100)}%;--i:${i}"></div><span class="spark-lbl">${x.label[0]}</span></div>`).join("")}</div>
         <div class="dash-mini-stats"><span><b>${hist.length}</b> total</span><span><b class="ok-text">${successCount}</b> delivered</span><span><b class="err-text">${failCount}</b> failed</span></div>
       </div></div>
     </div>

@@ -23,7 +23,7 @@
 </script>
 <link rel="preconnect" href="https://api.fontshare.com">
 <link href="https://api.fontshare.com/v2/css?f[]=satoshi@400,500,700,900&display=swap" rel="stylesheet">
-<link href="{{ url_for('static', filename='css/app.css') }}?v=poc62" rel="stylesheet"/>
+<link href="{{ url_for('static', filename='css/app.css') }}?v=poc63" rel="stylesheet"/>
 <link href="{{ url_for('static', filename='css/compat.css') }}?v=poc54" rel="stylesheet"/>
 <link href="{{ url_for('static', filename='css/dashboard.css') }}?v=poc58" rel="stylesheet"/>
 <link href="{{ url_for('static', filename='css/components.css') }}?v=poc54" rel="stylesheet"/>
@@ -288,6 +288,7 @@ window.SSIES_USER = {{ {"email": email|default(username), "display_name": userna
       <section class="view" id="view-contacts">
         <div class="toolbar list-toolbar">
           <button class="btn btn-primary btn-sm" type="button" onclick="newContactDetail()">+ New contact</button>
+          <button class="btn btn-soft btn-sm" type="button" onclick="openContactImport()" title="Paste or upload a list of names and numbers">Import</button>
           <div class="search-wrap" style="flex:1;max-width:320px">
             <svg class="search-ico" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
             <input class="field search" id="contactTableSearch" placeholder="Search contacts…" oninput="renderContactTable()"/>
@@ -397,7 +398,7 @@ window.SSIES_USER = {{ {"email": email|default(username), "display_name": userna
           </div>
         </div>
         <div class="wa-steps">
-          <div class="wa-step-card">
+          <div class="wa-step-card" id="waStepConnect">
             <h4>Connect session</h4>
             <p class="hint" style="margin-bottom:12px">Scan within ~20 seconds (QR refreshes automatically). If your phone says &quot;Couldn&apos;t link device&quot;, tap <strong>Reset &amp; new QR</strong>.</p>
             <div style="display:flex;gap:8px;flex-wrap:wrap">
@@ -429,6 +430,10 @@ window.SSIES_USER = {{ {"email": email|default(username), "display_name": userna
           </div>
           <div class="seg" id="historyFilterSeg"><button type="button" data-val="all" class="on" onclick="setHistoryFilter('all')">All</button><button type="button" data-val="success" onclick="setHistoryFilter('success')">Delivered</button><button type="button" data-val="failed" onclick="setHistoryFilter('failed')">Failed</button></div>
           <div class="seg" id="historyModeSeg" style="margin-left:auto"><button type="button" data-val="table" class="on" onclick="setHistoryMode('table')">Table</button><button type="button" data-val="board" onclick="setHistoryMode('board')">Board</button></div>
+          <label class="hdate"><span>From</span><input class="field" type="date" id="historyFrom" onchange="historyPage=1;loadReleaseHistory()"/></label>
+          <label class="hdate"><span>To</span><input class="field" type="date" id="historyTo" onchange="historyPage=1;loadReleaseHistory()"/></label>
+          <button class="btn btn-ghost btn-sm hidden" type="button" id="historyDatesClear" onclick="historyClearDates()">Clear dates</button>
+          <button class="btn btn-soft btn-sm" type="button" onclick="exportHistoryCsv()" title="Download the rows shown as a spreadsheet file">Export</button>
           <button class="btn btn-soft btn-sm" type="button" onclick="loadReleaseHistory()">Refresh</button>
         </div>
         <div id="historyWrap" data-skel="rows"></div>
@@ -439,6 +444,10 @@ window.SSIES_USER = {{ {"email": email|default(username), "display_name": userna
       <section class="view" id="view-settings">
         <div class="view-pad">
           <div class="settings-wrap">
+            <div class="search-wrap settings-search">
+              <svg class="search-ico" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+              <input class="field search" id="settingsSearch" placeholder="Search settings…" oninput="filterSettings(this.value)"/>
+            </div>
             <div class="settings-tabs">
               <button class="stab on" data-tab="appearance" onclick="showSettingsTab('appearance')">Appearance</button>
               <button class="stab" data-tab="layout" onclick="showSettingsTab('layout')">Layout</button>
@@ -558,10 +567,6 @@ window.SSIES_USER = {{ {"email": email|default(username), "display_name": userna
                       <button data-val="on" onclick="setPref('table-zebra','on')">On</button>
                     </div>
                   </div>
-                  <div class="srow">
-                    <div><div class="st">Compact mode (legacy)</div><div class="sd">Same as compact density — kept for compatibility.</div></div>
-                    <label class="toggle"><input type="checkbox" id="compactToggle" onchange="setCompact(this.checked)"/><span class="tk"></span></label>
-                  </div>
                 </div>
               </div>
             </div>
@@ -571,7 +576,7 @@ window.SSIES_USER = {{ {"email": email|default(username), "display_name": userna
                 <div class="sec-h">WhatsApp</div>
                 <div class="sec-b">
                   <div class="srow">
-                    <div><div class="st">Default send method</div><div class="sd">Direct opens wa.me / invite links; Automated uses Selenium.</div></div>
+                    <div><div class="st">Default send method</div><div class="sd">Direct opens WhatsApp for you to send by hand; Automated sends through your linked WhatsApp.</div></div>
                     <div class="seg" id="sendSeg">
                       <button data-val="ask" onclick="setPref('default-send-mode','ask')">Ask</button>
                       <button data-val="direct" onclick="setPref('default-send-mode','direct')">Direct</button>
@@ -620,12 +625,8 @@ window.SSIES_USER = {{ {"email": email|default(username), "display_name": userna
                           </select>
                         </label>
                         <label class="sched-field">
-                          <span class="sched-lbl">Hour (UTC)</span>
-                          <input class="field" id="schedHour" type="number" min="0" max="23" placeholder="9" oninput="updateSchedHint()"/>
-                        </label>
-                        <label class="sched-field">
-                          <span class="sched-lbl">Minute</span>
-                          <input class="field" id="schedMinute" type="number" min="0" max="59" placeholder="0" oninput="updateSchedHint()"/>
+                          <span class="sched-lbl">Time</span>
+                          <input class="field" id="schedTime" type="time" step="300" oninput="updateSchedHint()"/>
                         </label>
                       </div>
                       <p class="sched-when" id="schedWhen"></p>
@@ -712,8 +713,8 @@ window.SSIES_USER = {{ {"email": email|default(username), "display_name": userna
                     <input class="num" type="number" id="rmLead" min="0" max="1440" style="max-width:110px" onchange="saveReminders()"/>
                   </div>
                   <div class="srow">
-                    <div><div class="st">Your timezone (minutes ahead of UTC)</div><div class="sd">Class times are your local clock. Pakistan (PKT) is 300. Negative if behind UTC.</div></div>
-                    <input class="num" type="number" id="rmTz" min="-720" max="840" style="max-width:110px" onchange="saveReminders()"/>
+                    <div><div class="st">Your timezone</div><div class="sd">Class times are read in this timezone, so reminders go out at the right moment.</div></div>
+                    <select class="field" id="rmTz" style="max-width:240px" onchange="saveReminders()"></select>
                   </div>
                   <div class="srow srow-stack" style="gap:10px">
                     <div><div class="st">Reminder message</div><div class="sd">Use <code>{group}</code>, <code>{time}</code> and <code>{lead}</code> as placeholders.</div></div>
@@ -1002,7 +1003,7 @@ window.SSIES_USER = {{ {"email": email|default(username), "display_name": userna
 <script src="{{ url_for('static', filename='js/chrome.js') }}?v=poc62"></script>
 <script src="{{ url_for('static', filename='js/theme.js') }}?v=poc54"></script>
 <script src="{{ url_for('static', filename='js/whatsapp.js') }}?v=poc60"></script>
-<script src="{{ url_for('static', filename='js/waha.js') }}?v=poc54"></script>
+<script src="{{ url_for('static', filename='js/waha.js') }}?v=poc63"></script>
 <script>
 const DAYS = {{ days | tojson }};
 const _asUser = new URLSearchParams(location.search).get("asUser");
@@ -1813,7 +1814,7 @@ function cdToggleEdit(){
   renderContactDetail();
 }
 function cdRefreshAvatar(){ const el=document.getElementById("cdAvatar"); if(el){ el.className="editor-av"+(cdWorking.pic?" has-img":""); el.innerHTML=avatarInner(cdWorking.name,cdWorking.pic); } }
-function cdSetField(f,v){ cdWorking[f]=f==="phone"?String(v).replace(/\D/g,""):v; if(f==="name") cdRefreshAvatar(); cdPreview(); }
+function cdSetField(f,v){ cdWorking[f]=f==="phone"?String(v).replace(/\D/g,""):v; if(f==="name") cdRefreshAvatar(); if(f==="phone") cdPhoneHint(); cdPreview(); }
 function cdPickImage(input){
   const f=input.files[0]; input.value="";
   if(!f) return;
@@ -1871,13 +1872,14 @@ function renderContactDetail(){
     </div>
     <div class="detail-grid">
       <div class="sec"><div class="sec-h">Details</div><div class="sec-b">
-        ${cdEdit?`<div class="g-field"><div class="flabel">Phone <span class="flabel-soft">country code, digits only</span></div><input class="field" value="${escA(c.phone||"")}" oninput="cdSetField('phone',this.value)" placeholder="e.g. 923001234567"/><div class="hint">No "+", spaces or dashes.</div></div>`:`<div class="dash-status-row"><span>Phone</span><span style="margin-left:auto;font-weight:700">+${esc(c.phone||"—")}</span></div><div class="dash-status-row"><span>Status</span><span style="margin-left:auto">${c.waLinked?'<span class="status-on">On WhatsApp</span>':'<span class="status-off">Not verified</span>'}</span></div>`}
+        ${cdEdit?`<div class="g-field"><div class="flabel">Phone <span class="flabel-soft">country code, digits only</span></div><input class="field" id="cdPhone" inputmode="tel" value="${escA(c.phone||"")}" oninput="cdSetField('phone',this.value)" placeholder="e.g. 923001234567"/><div class="hint phone-hint" id="cdPhoneHint"></div></div>`:`<div class="dash-status-row"><span>Phone</span><span style="margin-left:auto;font-weight:700">+${esc(c.phone||"—")}</span></div><div class="dash-status-row"><span>Status</span><span style="margin-left:auto">${c.waLinked?'<span class="status-on">On WhatsApp</span>':'<span class="status-off">Not verified</span>'}</span></div>`}
       </div></div>
       <div class="sec"><div class="sec-h">Message</div><div class="sec-b">
         ${cdEdit?`<textarea class="field" style="min-height:150px;margin-bottom:10px" oninput="cdSetField('message',this.value)" placeholder="Type a message… *bold* {date} {weekday}">${esc(c.message||"")}</textarea>`:""}
         <div class="msg-preview" id="cdPreview"></div>
       </div></div>
     </div>`;
+  cdPhoneHint();
   cdPreview();
 }
 
@@ -2169,10 +2171,12 @@ function renderTemplates(){
   const q=(document.getElementById("tplSearch")?.value||"").toLowerCase().trim();
   const list=templates.map((t,i)=>({t,i})).filter(({t})=>!q||(t.name||"").toLowerCase().includes(q)||(t.content||"").toLowerCase().includes(q));
   if(!list.length){ g.innerHTML=`<div class="empty" style="grid-column:1/-1"><div class="empty-ico">🔍</div><p>No templates match your search.</p></div>`; return; }
-  g.innerHTML=list.map(({t,i})=>`<div class="tpl">
-    <h3>${esc(t.name)}${t.isDefault?'<span class="chip chip-default">Default</span>':""}</h3>
+  const pins=tplPins(); list.sort((a,b)=>pins.has(b.t.name)-pins.has(a.t.name));   // stable: pinned first, otherwise saved order
+  const usedBy=(t)=>{ const c=(t.content||"").trim(); return c?groups.filter((x)=>(x.message||"").trim()===c).length:0; };
+  g.innerHTML=list.map(({t,i})=>`<div class="tpl${pins.has(t.name)?" is-pinned":""}">
+    <h3>${esc(t.name)}${t.isDefault?'<span class="chip chip-default">Default</span>':""}<button class="tpl-pin" type="button" title="${pins.has(t.name)?"Unpin":"Pin to the top"}" aria-label="${pins.has(t.name)?"Unpin":"Pin to the top"}" onclick="toggleTplPin(${i})">${pins.has(t.name)?"★":"☆"}</button></h3>
     <div class="tpl-preview">${(typeof renderWhatsAppPreview==="function"?renderWhatsAppPreview(typeof replaceTokens==="function"?replaceTokens(t.content||""):t.content||""):esc(t.content))||"<i>Empty template</i>"}</div>
-    <div class="tpl-foot"><span class="tpl-count">${(t.content||"").length} chars</span></div>
+    <div class="tpl-foot"><span class="tpl-count">${(t.content||"").length} chars</span>${usedBy(t)?`<span class="tpl-count">Used by ${usedBy(t)} group${usedBy(t)===1?"":"s"}</span>`:""}</div>
     <div class="row">
       <button class="btn btn-soft btn-sm" onclick="editTemplate(${i})">Edit</button>
       <button class="btn btn-soft btn-sm" onclick="duplicateTemplate(${i})">Duplicate</button>
@@ -2180,6 +2184,9 @@ function renderTemplates(){
       <button class="btn btn-soft btn-sm" style="margin-left:auto;color:var(--error)" onclick="deleteTemplate(${i})">${t.isDefault?"Reset":"Delete"}</button>
     </div></div>`).join("");
 }
+/* Pinned templates sort first. Kept per browser, by template name. */
+function tplPins(){ try{ return new Set(JSON.parse(localStorage.getItem("tpl-pins")||"[]")); }catch(e){ return new Set(); } }
+function toggleTplPin(i){ const s=tplPins(), n=templates[i].name; s.has(n)?s.delete(n):s.add(n); localStorage.setItem("tpl-pins",JSON.stringify([...s])); vt(renderTemplates); }
 async function duplicateTemplate(i){
   const t=templates[i];
   let name=t.name+" (copy)", n=2;
@@ -2369,12 +2376,21 @@ async function changePassword(){
     if(ban&&p.pending){ ban.style.display=""; ban.textContent="⏳ A password reset request is pending approval"; }
   }catch(e){}
 }
+/* Search across every settings tab: while there is a query all tabs are shown, filtered to matching rows. */
+function filterSettings(q){
+  q=q.trim().toLowerCase(); const wrap=document.querySelector(".settings-wrap");
+  wrap.classList.toggle("searching",!!q);
+  wrap.querySelectorAll(".srow").forEach((r)=>{ r.hidden=!!q && !r.textContent.toLowerCase().includes(q); });
+  wrap.querySelectorAll(".sec").forEach((s)=>{ s.hidden=!!q && !s.querySelector(".srow:not([hidden])"); });
+}
 async function exportConfig(){const cfg=await (await fetch("/api/config")).json();
   const blob=new Blob([JSON.stringify(cfg,null,2)],{type:"application/json"});const a=document.createElement("a");
   a.href=URL.createObjectURL(blob);a.download=`schedule_backup_${new Date().toISOString().slice(0,10)}.json`;a.click();URL.revokeObjectURL(a.href);toast("Backup downloaded ✓");}
 async function importConfig(input){const f=input.files[0];input.value="";if(!f)return;
-  if(!(await confirmDialog("Restoring REPLACES your current groups, contacts, templates and settings. Your login is kept.",{ok:"Replace everything",danger:true})))return;
-  try{const cfg=JSON.parse(await f.text());const d=await (await fetch("/api/config",put(cfg))).json();
+  let cfg; try{ cfg=JSON.parse(await f.text()); if(!Array.isArray(cfg.groups)) throw 0; }catch(e){ toast("That file is not a schedule backup","err"); return; }
+  const n=(a)=>Array.isArray(a)?a.length:0, pl=(k,w)=>`${k} ${w}${k===1?"":"s"}`;
+  if(!(await confirmDialog(`This backup holds ${pl(n(cfg.groups),"group")}, ${pl(n(cfg.contacts),"contact")} and ${pl(n(cfg.templates),"template")}.\n\nRestoring REPLACES what you have now (${pl(groups.length,"group")}, ${pl(contacts.length,"contact")}, ${pl(templates.length,"template")}). Your login is kept, and the current schedule is saved to Schedule history first.`,{ok:"Replace everything",danger:true})))return;
+  try{const d=await (await fetch("/api/config",put(cfg))).json();
     if(d.error){toast(d.error,"err");return;}gSel=cSel=null;tableSelected={};colWidths={};
     await Promise.all([loadGroups(),loadTemplates(),loadContacts(),loadSettings()]);toast("Config restored ✓");}
   catch(e){toast("Invalid JSON file","err");}}
@@ -2518,9 +2534,18 @@ async function loadReminders(){
     const d=await (await fetch("/api/reminders/config")).json();
     const e=document.getElementById("rmEnabled"); if(e) e.checked=!!d.enabled;
     const l=document.getElementById("rmLead"); if(l) l.value=d.lead!=null?d.lead:60;
-    const tz=document.getElementById("rmTz"); if(tz) tz.value=d.tz!=null?d.tz:300;
+    fillTzSelect(document.getElementById("rmTz"), d.tz!=null?d.tz:-new Date().getTimezoneOffset());
     const t=document.getElementById("rmTemplate"); if(t) t.value=d.template||"";
   }catch(_){}
+}
+/* Timezone picker: value is minutes ahead of UTC, which is what the server stores. */
+function fillTzSelect(sel, value){
+  if(!sel) return;
+  const here=-new Date().getTimezoneOffset(), offs=new Set([345,525,765,+value,here]);
+  for(let m=-720;m<=840;m+=30) offs.add(m);
+  const label=(m)=>`UTC${m<0?"−":"+"}${Math.floor(Math.abs(m)/60)}:${String(Math.abs(m)%60).padStart(2,"0")}${m===here?" — this device":""}`;
+  sel.innerHTML=[...offs].sort((a,b)=>a-b).map((m)=>`<option value="${m}">${label(m)}</option>`).join("");
+  sel.value=String(+value);
 }
 async function saveReminders(){
   const body={ enabled:document.getElementById("rmEnabled").checked,
@@ -2673,14 +2698,15 @@ async function copyBox(id){try{await navigator.clipboard.writeText(document.getE
 async function copyText(t){try{await navigator.clipboard.writeText(t);toast("Copied ✓");}catch{toast("Copy failed","err");}}
 
 </script>
-<script src="{{ url_for('static', filename='js/lists.js') }}?v=poc60"></script>
-<script src="{{ url_for('static', filename='js/features.js') }}?v=poc60"></script>
+<script src="{{ url_for('static', filename='js/lists.js') }}?v=poc63"></script>
+<script src="{{ url_for('static', filename='js/features.js') }}?v=poc63"></script>
 <script src="{{ url_for('static', filename='js/workspace.js') }}?v=poc60"></script>
 <script src="{{ url_for('static', filename='js/visual_editor.js') }}?v=poc59"></script>
-<script src="{{ url_for('static', filename='js/dashboard.js') }}?v=poc61"></script>
+<script src="{{ url_for('static', filename='js/dashboard.js') }}?v=poc63"></script>
 <script src="{{ url_for('static', filename='js/scheduler.js') }}?v=poc62"></script>
 <script src="{{ url_for('static', filename='js/palette.js') }}?v=poc62"></script>
 <script src="{{ url_for('static', filename='js/assistant.js') }}?v=poc62"></script>
+<script src="{{ url_for('static', filename='js/contacts.js') }}?v=poc63"></script>
 <script>boot();</script>
 </body>
 </html>

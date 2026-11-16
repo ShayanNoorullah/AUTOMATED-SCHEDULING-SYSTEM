@@ -1241,7 +1241,7 @@ def release_history():
                 "targetType": r.target_type,
                 "status": r.status,
                 "detail": r.detail or "",
-                "at": r.created_at.isoformat() if r.created_at else "",
+                "at": (r.created_at.isoformat() + "Z") if r.created_at else "",  # stored as naive UTC
             }
             for r in rows
         ],
