@@ -336,8 +336,16 @@ Things to know before relying on "free":
 - Expected usage here is small (one school, a handful of edits a day), so even a low cap is
   workable. Store the key the same way the Resend key is stored, rate-limit the route with
   the already-installed `flask-limiter`, and show a clear "daily limit reached" message.
-- **Do not run a local model on the VM.** An Always-Free instance does not have the memory
-  to serve one alongside the app and WAHA without slowing everything down.
+- **A local model on the VM is possible but slow** (corrected 2026-11-16 — the earlier note
+  here said the VM lacked the memory, which was an assumption and wrong). Measured on the
+  server: `VM.Standard.A1.Flex`, 2 ARM cores (Neoverse-N1), 12 GB memory with about 9.6 GB
+  available, 22 GB disk free, no GPU. Memory and disk fit a small model (2–5 GB). The limit
+  is the 2 cores: expect tens of seconds per request (an estimate, not yet measured), with
+  the site and WAHA slowed while it answers. Reading photos locally is not realistic.
+  2026 reports say Oracle's Always Free ARM allowance is now 2 cores / 12 GB in total, which
+  this VM already uses in full, so there is no free headroom to add cores.
+  To use one, the assistant needs three changes: accept an internal `http://` address,
+  a longer provider timeout than 45 s, and no API key requirement.
 - Free tiers may use submitted data to improve their models. The context sent contains group
   names and class times; phone numbers should be left out.
 
