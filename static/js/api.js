@@ -1,17 +1,4 @@
-function toast(msg, isError) {
-  let el = document.getElementById("toast");
-  if (!el) {
-    el = document.createElement("div");
-    el.id = "toast";
-    el.className = "toast";
-    document.body.appendChild(el);
-  }
-  el.textContent = msg;
-  el.style.background = isError ? "#b91c1c" : "#0b1220";
-  el.classList.add("show");
-  setTimeout(() => el.classList.remove("show"), 3000);
-}
-
+/* toast() lives in chrome.js, which every page that loads this file also loads. */
 async function api(url, opts = {}) {
   const headers = { "Content-Type": "application/json", ...(opts.headers || {}) };
   const res = await fetch(url, { ...opts, headers, credentials: "same-origin" });

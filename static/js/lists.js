@@ -398,7 +398,7 @@ function newList() {
   lmLabelsSel = new Set();
   lmLabelPool = [...(waLabels || [])];
   lmRenderSwatches(); renderLmLabels(); lmPreview();
-  document.getElementById("listModal").classList.add("show");
+  openModal("listModal");
   setTimeout(() => document.getElementById("lmName").focus(), 60);
 }
 function editList(id) {
@@ -412,9 +412,9 @@ function editList(id) {
   lmLabelsSel = new Set(l.labels || []);
   lmLabelPool = [...new Set([...(waLabels || []), ...(l.labels || [])])];
   lmRenderSwatches(); renderLmLabels(); lmPreview();
-  document.getElementById("listModal").classList.add("show");
+  openModal("listModal");
 }
-function closeListModal() { document.getElementById("listModal").classList.remove("show"); }
+function closeListModal() { closeModal("listModal"); }
 function lmRenderSwatches() {
   const box = document.getElementById("lmSwatches"); if (!box) return;
   const cur = document.getElementById("lmColor").value;
@@ -475,16 +475,11 @@ async function saveList() {
 }
 async function deleteList(id) {
   const l = listById(id);
-  if (!confirm(`Delete the "${l ? l.name : "list"}" list? (Contacts are not deleted)`)) return;
-  try {
-    const res = await fetch(`/api/lists/${encodeURIComponent(id)}`, { method: "DELETE" });
-    const d = await res.json().catch(() => ({}));
-    if (!res.ok) throw new Error(d.error || "Delete failed");
-    if (listActive === id) listActive = null;
-    await loadLists();
-    renderLists();
-    toast("List deleted");
-  } catch (e) { toast(e.message || "Delete failed", "err"); }
+  if (!l) return;
+  if (listActive === id) listActive = null;
+  // Contacts are not deleted with the list. undoableDelete lives in the dashboard's inline script.
+  await undoableDelete(lists, lists.indexOf(l), `/api/lists/${encodeURIComponent(id)}`, `Deleted the "${l.name}" list`,
+    renderLists, async () => { await loadLists(); renderLists(); });
 }
 async function syncList(id) {
   try {
@@ -526,10 +521,10 @@ function openListMembers(id) {
   const l = listById(id);
   document.getElementById("lmemTitle").textContent = `Manage · ${l ? l.name : "list"}`;
   document.getElementById("lmemSearch").value = "";
-  document.getElementById("listMembersModal").classList.add("show");
+  openModal("listMembersModal");
   renderListMembers();
 }
-function closeListMembers() { document.getElementById("listMembersModal").classList.remove("show"); lmemListId = null; }
+function closeListMembers() { closeModal("listMembersModal"); lmemListId = null; }
 function renderListMembers() {
   const box = document.getElementById("lmemList");
   if (!box || !lmemListId) return;
@@ -656,7 +651,7 @@ function openListEntity(listId, type, key, gname) {
     document.getElementById("leOpenGroup").style.display = "";
     document.getElementById("leOpenContact").style.display = "none";
   }
-  modal.classList.add("show");
+  openModal("listEntityModal");
   leRenderPreview();
 }
 function leRenderPreview() {
@@ -690,7 +685,7 @@ function listEntityOpenContact() {
     showView("contacts");
   }
 }
-function closeListEntity() { const m = document.getElementById("listEntityModal"); if (m) m.classList.remove("show"); leCtx = null; }
+function closeListEntity() { closeModal("listEntityModal"); leCtx = null; }
 function listEntitySend() {
   if (!leCtx) return;
   const list = listById(leCtx.listId); if (!list) return;

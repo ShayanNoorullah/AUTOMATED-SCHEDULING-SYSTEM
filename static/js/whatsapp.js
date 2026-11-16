@@ -181,9 +181,7 @@ async function releaseWithMode(targets, spin, btn, txt, label, type) {
   const mode = type || getDefaultSendMode();
   let use = mode;
   if (mode === "ask") {
-    use = confirm(
-      `Send to ${targets.length} recipient(s)?\n\nOK = Automated Send\nCancel = Open in WhatsApp (direct)`
-    )
+    use = (await confirmDialog(`Send to ${targets.length} recipient(s)?`, { ok: "Automated Send", cancel: "Open in WhatsApp" }))
       ? "automated"
       : "direct";
   }

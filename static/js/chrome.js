@@ -50,17 +50,115 @@ function relTime(iso) {
   if (s < 86400) return `${Math.floor(s / 3600)}h ago`;
   return `${Math.floor(s / 86400)}d ago`;
 }
-function toast(msg, isError) {
-  const el = document.getElementById("toast");
-  if (!el) {
-    console.log(msg);
-    return;
+/* Toasts stack. kind: falsy = neutral, "ok" = success, anything else truthy = error.
+   action {label, fn} adds a button (Undo). Returns a function that dismisses the toast. */
+function toast(msg, kind, action) {
+  let box = document.getElementById("toasts");
+  if (!box) {
+    box = document.createElement("div");
+    box.id = "toasts";
+    box.className = "toasts";
+    box.setAttribute("role", "status");
+    box.setAttribute("aria-live", "polite");
   }
-  el.textContent = msg;
-  el.style.background = isError ? "#b91c1c" : "#0b1220";
-  el.classList.add("show");
-  clearTimeout(toast._t);
-  toast._t = setTimeout(() => el.classList.remove("show"), 2800);
+  // A modal <dialog> makes everything outside it inert and paints above it, so the stack
+  // lives inside the topmost open dialog while one is up (moved back on close, below).
+  const host = [...document.querySelectorAll("dialog[open]")].pop() || document.body;
+  if (box.parentNode !== host) host.appendChild(box);
+  const el = document.createElement("div");
+  el.className = "toast-item" + (kind === "ok" ? " ok" : kind ? " err" : "");
+  const txt = document.createElement("span");
+  txt.textContent = msg;
+  el.appendChild(txt);
+  const dismiss = () => {
+    el.classList.add("out");
+    setTimeout(() => el.remove(), 220);
+  };
+  if (action) {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.textContent = action.label;
+    b.onclick = () => { dismiss(); action.fn(); };
+    el.appendChild(b);
+  }
+  box.appendChild(el);
+  setTimeout(dismiss, action ? UNDO_MS : 2800);
+  return dismiss;
+}
+const UNDO_MS = 6000;
+/* Close a <dialog>, first moving the toast stack out of it so live toasts stay visible. */
+function closeDialog(d) {
+  const box = document.getElementById("toasts");
+  if (box && d.contains(box)) document.body.appendChild(box);
+  if (d.open) d.close();
+}
+
+/* Styled replacements for confirm() / prompt() / alert() on a native <dialog>
+   (focus trap, Esc and backdrop come with the element). All return a Promise.
+   Resolved from the buttons and Esc directly: the dialog's own close event waits for a
+   painted frame, which a covered window never produces. */
+function askDialog({ text, input, ok = "OK", cancel = "Cancel", danger = false }) {
+  return new Promise((resolve) => {
+    const d = document.createElement("dialog");
+    d.className = "ask-dlg";
+    const hasInput = input != null;
+    d.innerHTML = `<form><p></p>${hasInput ? '<input class="field" autofocus/>' : ""}
+      <div class="ask-actions">${cancel ? `<button type="button" class="btn btn-soft"${danger ? " autofocus" : ""}>${esc(cancel)}</button>` : ""}
+      <button class="btn ${danger ? "btn-danger" : "btn-primary"}"${hasInput || danger ? "" : " autofocus"}>${esc(ok)}</button></div></form>`;
+    d.querySelector("p").textContent = text;
+    const inp = d.querySelector("input");
+    if (inp) inp.value = input;
+    const finish = (yes) => {
+      closeDialog(d);
+      d.remove();
+      resolve(hasInput ? (yes ? inp.value : null) : yes);
+    };
+    d.querySelector("form").onsubmit = (e) => { e.preventDefault(); finish(true); };
+    const cancelBtn = d.querySelector("button[type=button]");
+    if (cancelBtn) cancelBtn.onclick = () => finish(false);
+    d.addEventListener("cancel", (e) => { e.preventDefault(); finish(false); });
+    document.body.appendChild(d);
+    d.showModal();
+    if (inp) inp.select();
+  });
+}
+function confirmDialog(text, opts) { return askDialog({ text, ...opts }); }
+function promptDialog(text, value = "", opts) { return askDialog({ text, input: value, ...opts }); }
+function alertDialog(text, opts) { return askDialog({ text, cancel: "", ...opts }); }
+
+/* Modals are <dialog class="modal-scrim">. Esc runs the modal's own close button so any
+   cleanup in its close function still happens. */
+function openModal(id) { const d = document.getElementById(id); if (d && !d.open) d.showModal(); }
+function closeModal(id) { const d = document.getElementById(id); if (d) closeDialog(d); }
+document.addEventListener("cancel", (e) => {
+  const x = e.target.querySelector && e.target.querySelector(".modal-x");
+  if (x) { e.preventDefault(); x.click(); }
+}, true);
+
+/* Run a DOM update inside a View Transition when the browser supports it and animations
+   are on; otherwise just run it. kind picks the CSS animation: "page" | "in" | "out" | "". */
+function vt(fn, kind = "") {
+  if (!document.startViewTransition || document.body.classList.contains("no-anim") ||
+      matchMedia("(prefers-reduced-motion: reduce)").matches) { fn(); return; }
+  document.documentElement.dataset.vt = kind;
+  let ran = false;
+  const once = () => { if (!ran) { ran = true; fn(); } };
+  const t = document.startViewTransition(once);
+  // ready rejects when a newer transition cuts this one short; the DOM update still ran.
+  t.ready.catch(() => {});
+  // The browser only runs the update once it can paint a frame. A window that is covered or
+  // throttled never paints, so after a short wait apply the update without the animation.
+  setTimeout(() => { if (!ran) { once(); t.skipTransition(); } }, 400);
+}
+
+/* Loading placeholders. kind: "rows" | "cards" | "stats" | "dash". */
+function skel(kind = "rows", n = 5) {
+  const rep = (s, k) => Array.from({ length: k }, () => s).join("");
+  const row = '<div class="skel-row"><i class="skel skel-av"></i><i class="skel" style="width:32%"></i><i class="skel" style="width:20%"></i><i class="skel" style="width:14%;margin-left:auto"></i></div>';
+  if (kind === "cards") return rep('<i class="skel skel-card"></i>', n);
+  if (kind === "stats") return rep('<i class="skel skel-stat"></i>', n);
+  if (kind === "dash") return `<i class="skel skel-hero"></i><div class="cards" style="margin-top:18px">${skel("stats", 5)}</div><div class="skel-list" style="margin-top:18px">${rep(row, 4)}</div>`;
+  return `<div class="skel-list">${rep(row, n)}</div>`;
 }
 function logout() {
   location.href = "/logout";

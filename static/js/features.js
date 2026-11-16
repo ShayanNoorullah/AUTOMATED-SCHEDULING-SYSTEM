@@ -84,15 +84,15 @@ async function runPreflight(targets) {
   return (await fetch("/api/release/preflight", post({ targets }))).json();
 }
 
-function showPreflightModal(result, onProceed) {
+async function showPreflightModal(result, onProceed) {
   const lines = (result.checks || [])
     .map((c) => `${c.ok ? "✓" : "✗"} ${c.label}${c.hint ? ` — ${c.hint}` : ""}`)
     .join("\n");
   if (!result.ready) {
-    alert(`Cannot send yet:\n\n${lines}`);
+    alertDialog(`Cannot send yet:\n\n${lines}`);
     return;
   }
-  if (confirm(`Pre-flight checks passed:\n\n${lines}\n\nProceed with automated send?`)) {
+  if (await confirmDialog(`Pre-flight checks passed:\n\n${lines}`, { ok: "Send now" })) {
     onProceed();
   }
 }
@@ -142,7 +142,8 @@ async function loadReleaseHistory() {
   document.querySelectorAll("#historyModeSeg button").forEach((b) => b.classList.toggle("on", b.dataset.val === historyMode));
   document.querySelectorAll("#historyFilterSeg button").forEach((b) => b.classList.toggle("on", b.dataset.val === historyFilter));
 
-  if (wrap) wrap.innerHTML = "<p class='hint'>Loading…</p>";
+  // Skeleton only on first load; later refreshes (search, paging) keep the old rows until new ones arrive.
+  if (wrap && !wrap.querySelector(".tbl-wrap,.card-grid")) wrap.innerHTML = skel("rows");
   if (legacy) legacy.innerHTML = "<p class='hint'>Loading…</p>";
 
   try {
@@ -248,7 +249,7 @@ async function loadReleaseHistory() {
 }
 
 async function retryRelease(id) {
-  if (!confirm("Retry this failed send?")) return;
+  if (!(await confirmDialog("Retry this failed send?", { ok: "Retry" }))) return;
   const d = await (await fetch("/api/release/retry", post({ id }))).json();
   if (d.error) {
     toast(d.error, "err");

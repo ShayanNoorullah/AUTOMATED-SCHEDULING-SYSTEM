@@ -23,7 +23,7 @@
 </script>
 <link rel="preconnect" href="https://api.fontshare.com">
 <link href="https://api.fontshare.com/v2/css?f[]=satoshi@400,500,700,900&display=swap" rel="stylesheet">
-<link href="{{ url_for('static', filename='css/app.css') }}?v=poc54" rel="stylesheet"/>
+<link href="{{ url_for('static', filename='css/app.css') }}?v=poc60" rel="stylesheet"/>
 <link href="{{ url_for('static', filename='css/compat.css') }}?v=poc54" rel="stylesheet"/>
 <link href="{{ url_for('static', filename='css/dashboard.css') }}?v=poc58" rel="stylesheet"/>
 <link href="{{ url_for('static', filename='css/components.css') }}?v=poc54" rel="stylesheet"/>
@@ -44,54 +44,8 @@ window.SSIES_USER = {{ {"email": email|default(username), "display_name": userna
       <div class="bt"><h1>Schedule Sender</h1><p>SSIES Automation</p></div>
     </div>
     <nav class="rail-nav nav">
-      <button class="nav-item active" data-view="dashboard" onclick="navGo('dashboard')" title="Dashboard"><span class="ico"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg></span><span class="lbl">Dashboard</span></button>
-      <button class="nav-item" data-view="workspace" onclick="navGo('workspace')" title="Workspace"><span class="ico"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="8" height="8" rx="1.5"/><rect x="13" y="3" width="8" height="5" rx="1.5"/><rect x="13" y="10" width="8" height="11" rx="1.5"/><rect x="3" y="13" width="8" height="8" rx="1.5"/></svg></span><span class="lbl">Workspace</span></button>
-      <div class="nav-group open" id="navSchedGroup">
-        <button class="nav-item nav-group-btn" onclick="toggleNavGroup(this)" title="Scheduler">
-          <span class="ico"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg></span>
-          <span class="lbl">Scheduler</span>
-          <svg class="caret" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M6 9l6 6 6-6"/></svg>
-        </button>
-        <div class="nav-submenu">
-          <button class="nav-item nav-sub" data-view="groups" onclick="navGo('groups')"><span class="ico"><svg viewBox="0 0 24 24"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1"/></svg></span><span class="lbl">Groups</span></button>
-          <button class="nav-item nav-sub" data-view="contacts" onclick="navGo('contacts')"><span class="ico"><svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></span><span class="lbl">Contacts</span></button>
-          <button class="nav-item nav-sub" data-view="table" data-sched="table" onclick="navSched('table')"><span class="ico"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M3 15h18M9 3v18"/></svg></span><span class="lbl">Table view</span></button>
-          <button class="nav-item nav-sub" data-view="table" data-sched="board" onclick="navSched('board')"><span class="ico"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="18" rx="1.5"/><rect x="14" y="3" width="7" height="18" rx="1.5"/></svg></span><span class="lbl">Board view</span></button>
-          <button class="nav-item nav-sub" data-view="lists" onclick="navGo('lists')"><span class="ico"><svg viewBox="0 0 24 24"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg></span><span class="lbl">Lists</span></button>
-        </div>
-      </div>
-      <div class="nav-group" id="navMsgGroup">
-        <button class="nav-item nav-group-btn" onclick="toggleNavGroup(this)" title="Messaging">
-          <span class="ico"><svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></span>
-          <span class="lbl">Messaging</span>
-          <svg class="caret" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M6 9l6 6 6-6"/></svg>
-        </button>
-        <div class="nav-submenu">
-          <button class="nav-item nav-sub" data-view="wa-direct" onclick="navGo('wa-direct')"><span class="ico"><svg viewBox="0 0 24 24"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><path d="M15 3h6v6"/><path d="M10 14 21 3"/></svg></span><span class="lbl">Open in WhatsApp</span></button>
-          <button class="nav-item nav-sub" data-view="wa-auto" onclick="navGo('wa-auto')"><span class="ico"><svg viewBox="0 0 24 24"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg></span><span class="lbl">Automated Send</span></button>
-          <button class="nav-item nav-sub" data-view="templates" onclick="navGo('templates')"><span class="ico"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M16 13H8M16 17H8M10 9H8"/></svg></span><span class="lbl">Templates</span></button>
-          <button class="nav-item nav-sub" data-view="history" onclick="navGo('history')"><span class="ico"><svg viewBox="0 0 24 24"><path d="M3 3v5h5"/><path d="M3.05 13A9 9 0 1 0 6 5.3L3 8"/><path d="M12 7v5l3 3"/></svg></span><span class="lbl">Send History</span></button>
-        </div>
-      </div>
-      <div class="nav-group" id="navAccountGroup">
-        <button class="nav-item nav-group-btn" onclick="toggleNavGroup(this)" title="Account">
-          <span class="ico"><svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></span>
-          <span class="lbl">Account</span>
-          <svg class="caret" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M6 9l6 6 6-6"/></svg>
-        </button>
-        <div class="nav-submenu">
-          <button class="nav-item nav-sub" data-view="settings" onclick="navGo('settings')"><span class="ico"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg></span><span class="lbl">Settings</span></button>
-          <a class="nav-item nav-sub" href="/profile"><span class="ico"><svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></span><span class="lbl">Profile</span></a>
-        </div>
-      </div>
-      <div class="nav-group nav-more hidden" id="navMoreGroup">
-        <button class="nav-item nav-group-btn" onclick="toggleNavGroup(this)" title="More">
-          <span class="ico"><svg viewBox="0 0 24 24"><circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/></svg></span>
-          <span class="lbl">More</span>
-          <svg class="caret" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M6 9l6 6 6-6"/></svg>
-        </button>
-        <div class="nav-submenu" id="navMoreMenu"></div>
-      </div>
+      {% set active_view = "dashboard" %}
+      {% include "user/_rail_nav.html" %}
     </nav>
     <div class="rail-foot foot">
       <div class="rail-user user"><div class="av dot" id="userDot">{{ username[0]|upper }}</div><div style="min-width:0"><div class="nm uname">{{ username }}</div><div class="rl">{{ role }}</div></div></div>
@@ -111,7 +65,7 @@ window.SSIES_USER = {{ {"email": email|default(username), "display_name": userna
 
     <div class="content">
       <!-- ════ DASHBOARD ════ -->
-      <section class="view active" id="view-dashboard"><div id="dashHome"></div></section>
+      <section class="view active" id="view-dashboard"><div id="dashHome" data-skel="dash"></div></section>
 
       <!-- ════ WORKSPACE ════ -->
       <section class="view" id="view-workspace">
@@ -148,7 +102,7 @@ window.SSIES_USER = {{ {"email": email|default(username), "display_name": userna
           </div>
           <div class="seg" id="groupsModeSeg"><button type="button" data-val="table" class="on" onclick="setGroupsMode('table')">Table</button><button type="button" data-val="cards" onclick="setGroupsMode('cards')">Cards</button></div>
         </div>
-        <div id="groupTableWrap"></div>
+        <div id="groupTableWrap" data-skel="rows"></div>
         <div id="groupCardsWrap" class="card-grid" style="display:none"></div>
         <div class="split groups-split" id="groupsCards" style="display:none">
           <div class="list-panel">
@@ -308,7 +262,7 @@ window.SSIES_USER = {{ {"email": email|default(username), "display_name": userna
             <button type="button" data-val="table" onclick="setListMode('table')">Table</button>
           </div>
         </div>
-        <div id="listsWrap"></div>
+        <div id="listsWrap" data-skel="rows"></div>
       </section>
 
       <!-- ════ TEMPLATES ════ -->
@@ -320,7 +274,7 @@ window.SSIES_USER = {{ {"email": email|default(username), "display_name": userna
             <input class="field search" id="tplSearch" placeholder="Search templates…" oninput="renderTemplates()"/>
           </div>
         </div>
-        <div class="grid" id="tplGrid"></div>
+        <div class="grid" id="tplGrid" data-skel="cards"></div>
       </section>
 
       <!-- ════ CONTACT DETAIL ════ -->
@@ -336,7 +290,7 @@ window.SSIES_USER = {{ {"email": email|default(username), "display_name": userna
           </div>
           <div class="seg" id="contactsModeSeg"><button type="button" data-val="table" class="on" onclick="setContactsMode('table')">Table</button><button type="button" data-val="cards" onclick="setContactsMode('cards')">Cards</button></div>
         </div>
-        <div id="contactTableWrap"></div>
+        <div id="contactTableWrap" data-skel="rows"></div>
         <div id="contactCardsWrap" class="card-grid" style="display:none"></div>
         <div class="split" id="contactsCards" style="display:none">
           <div class="list-panel">
@@ -413,12 +367,12 @@ window.SSIES_USER = {{ {"email": email|default(username), "display_name": userna
           <div class="wa-card">
             <h3>Groups</h3>
             <p>Add invite links in the group editor for one-click open.</p>
-            <div class="wa-list" id="waDirectGroupList"><p class="hint">Loading…</p></div>
+            <div class="wa-list" id="waDirectGroupList" data-skel="rows"></div>
           </div>
           <div class="wa-card">
             <h3>Contacts</h3>
             <p>Opens wa.me with pre-filled message text.</p>
-            <div class="wa-list" id="waDirectContactList"><p class="hint">Loading…</p></div>
+            <div class="wa-list" id="waDirectContactList" data-skel="rows"></div>
           </div>
         </div>
       </section>
@@ -450,7 +404,7 @@ window.SSIES_USER = {{ {"email": email|default(username), "display_name": userna
             </div>
             <div class="wa-qr-wrap hidden" id="waQrWrap"><img id="waQrImg" alt="WhatsApp QR code"/></div>
           </div>
-          <div class="wa-step-card"><h4>Select targets</h4><div id="autoTargetList"><p class="hint">Loading…</p></div></div>
+          <div class="wa-step-card"><h4>Select targets</h4><div id="autoTargetList" data-skel="rows"></div></div>
           <div class="wa-step-card">
             <h4>Send</h4>
             <p class="hint" style="margin-bottom:12px">Requires a connected session. Progress appears in the status log.</p>
@@ -473,7 +427,7 @@ window.SSIES_USER = {{ {"email": email|default(username), "display_name": userna
           <div class="seg" id="historyModeSeg" style="margin-left:auto"><button type="button" data-val="table" class="on" onclick="setHistoryMode('table')">Table</button><button type="button" data-val="board" onclick="setHistoryMode('board')">Board</button></div>
           <button class="btn btn-soft btn-sm" type="button" onclick="loadReleaseHistory()">Refresh</button>
         </div>
-        <div id="historyWrap"></div>
+        <div id="historyWrap" data-skel="rows"></div>
         <div class="pager" id="historyPager"></div>
       </section>
 
@@ -763,14 +717,14 @@ window.SSIES_USER = {{ {"email": email|default(username), "display_name": userna
                   <div class="srow srow-stack" style="gap:12px">
                     <div><div class="st">Sign in with a passkey</div><div class="sd">Register this device (Windows Hello, Touch ID, security key, etc.) so you can sign in without a password from the login page.</div></div>
                     <button class="btn btn-primary" type="button" id="registerPasskeyBtn" style="align-self:flex-start" onclick="registerPasskey()">Add passkey</button>
-                    <div id="passkeyList" class="hint">Loading…</div>
+                    <div id="passkeyList" class="hint" data-skel="rows"></div>
                   </div>
                 </div>
               </div>
               <div class="sec" style="margin-top:16px">
                 <div class="sec-h">Activity log <button class="btn btn-soft btn-sm" style="margin-left:auto" onclick="loadAudit()">Refresh</button></div>
                 <div class="sec-b">
-                  <div id="auditList" class="hint">Loading…</div>
+                  <div id="auditList" class="hint" data-skel="rows"></div>
                   <div class="pager" id="auditPager"></div>
                 </div>
               </div>
@@ -821,7 +775,7 @@ window.SSIES_USER = {{ {"email": email|default(username), "display_name": userna
 </div>
 
 <!-- Template editor modal -->
-<div class="modal-scrim" id="tplModal">
+<dialog class="modal-scrim" id="tplModal">
   <div class="modal modal-lg">
     <div class="modal-h"><span id="tplModalTitle">New Template</span><button class="modal-x" onclick="closeTpl()">✕</button></div>
     <div class="modal-b">
@@ -862,10 +816,10 @@ window.SSIES_USER = {{ {"email": email|default(username), "display_name": userna
     </div>
     <div class="modal-f"><button class="btn btn-soft" onclick="closeTpl()">Cancel</button><button class="btn btn-primary" onclick="saveTpl()">Save Template</button></div>
   </div>
-</div>
+</dialog>
 
 <!-- Automated Send status form -->
-<div class="modal-scrim" id="sendStatusModal">
+<dialog class="modal-scrim" id="sendStatusModal">
   <div class="modal modal-lg send-status">
     <div class="modal-h"><span>Automated Send</span><button class="modal-x" onclick="closeSendStatus()">✕</button></div>
     <div class="modal-b">
@@ -880,12 +834,12 @@ window.SSIES_USER = {{ {"email": email|default(username), "display_name": userna
     </div>
     <div class="modal-f" id="ssFooter"></div>
   </div>
-</div>
+</dialog>
 
 <datalist id="timeOptions"></datalist>
 
 <!-- Column name / nickname editor -->
-<div class="modal-scrim" id="colMetaModal">
+<dialog class="modal-scrim" id="colMetaModal">
   <div class="modal">
     <div class="modal-h"><span>Group name &amp; nickname</span><button class="modal-x" type="button" onclick="closeColMeta()">✕</button></div>
     <div class="modal-b">
@@ -894,10 +848,10 @@ window.SSIES_USER = {{ {"email": email|default(username), "display_name": userna
     </div>
     <div class="modal-f"><button class="btn btn-soft" type="button" onclick="closeColMeta()">Cancel</button><button class="btn btn-primary" type="button" onclick="saveColMeta()">Save</button></div>
   </div>
-</div>
+</dialog>
 
 <!-- Cancel / reschedule broadcast -->
-<div class="modal-scrim" id="broadcastModal">
+<dialog class="modal-scrim" id="broadcastModal">
   <div class="modal">
     <div class="modal-h"><span>Notify a group</span><button class="modal-x" type="button" onclick="closeBroadcast()">✕</button></div>
     <div class="modal-b">
@@ -914,10 +868,10 @@ window.SSIES_USER = {{ {"email": email|default(username), "display_name": userna
     </div>
     <div class="modal-f"><span class="hint" id="bcStatus" style="margin-right:auto"></span><button class="btn btn-soft" type="button" onclick="closeBroadcast()">Cancel</button><button class="btn btn-primary" type="button" id="bcSendBtn" onclick="sendBroadcast()">Send to group</button></div>
   </div>
-</div>
+</dialog>
 
 <!-- List create / edit -->
-<div class="modal-scrim" id="listModal">
+<dialog class="modal-scrim" id="listModal">
   <div class="modal modal-lg lm-modal">
     <div class="modal-h"><span id="listModalTitle">New list</span><button class="modal-x" type="button" onclick="closeListModal()">✕</button></div>
     <div class="modal-b">
@@ -940,10 +894,10 @@ window.SSIES_USER = {{ {"email": email|default(username), "display_name": userna
     </div>
     <div class="modal-f"><button class="btn btn-soft" type="button" onclick="closeListModal()">Cancel</button><button class="btn btn-primary" type="button" id="lmSaveBtn" onclick="saveList()">Create list</button></div>
   </div>
-</div>
+</dialog>
 
 <!-- Manage list members -->
-<div class="modal-scrim" id="listMembersModal">
+<dialog class="modal-scrim" id="listMembersModal">
   <div class="modal modal-lg">
     <div class="modal-h"><span id="lmemTitle">Manage contacts</span><button class="modal-x" type="button" onclick="closeListMembers()">✕</button></div>
     <div class="modal-b">
@@ -958,10 +912,10 @@ window.SSIES_USER = {{ {"email": email|default(username), "display_name": userna
     </div>
     <div class="modal-f"><button class="btn btn-soft" type="button" onclick="closeListMembers()">Done</button></div>
   </div>
-</div>
+</dialog>
 
 <!-- List entity (contact/group) detail + quick send -->
-<div class="modal-scrim" id="listEntityModal">
+<dialog class="modal-scrim" id="listEntityModal">
   <div class="modal">
     <div class="modal-h"><span id="leTitle">Details</span><button class="modal-x" type="button" onclick="closeListEntity()">✕</button></div>
     <div class="modal-b" id="leBody"></div>
@@ -972,10 +926,10 @@ window.SSIES_USER = {{ {"email": email|default(username), "display_name": userna
       <button class="btn btn-primary" type="button" onclick="listEntitySend()">Send message</button>
     </div>
   </div>
-</div>
+</dialog>
 
 <!-- Send weekly schedule to superadmin/configured recipients on WhatsApp -->
-<div class="modal-scrim" id="superadminModal">
+<dialog class="modal-scrim" id="superadminModal">
   <div class="modal modal-lg">
     <div class="modal-h"><span>Send Preview</span><button class="modal-x" type="button" onclick="closeSuperadminReport()">✕</button></div>
     <div class="modal-b">
@@ -1000,13 +954,12 @@ window.SSIES_USER = {{ {"email": email|default(username), "display_name": userna
     </div>
     <div class="modal-f"><button class="btn btn-soft" type="button" onclick="closeSuperadminReport()">Cancel</button><button class="btn btn-primary" type="button" onclick="sendSuperadminReport()">Send on WhatsApp</button></div>
   </div>
-</div>
+</dialog>
 
-<div class="toast" id="toast" role="status" aria-live="polite" aria-atomic="true"></div>
 
-<script src="{{ url_for('static', filename='js/chrome.js') }}?v=poc54"></script>
+<script src="{{ url_for('static', filename='js/chrome.js') }}?v=poc60"></script>
 <script src="{{ url_for('static', filename='js/theme.js') }}?v=poc54"></script>
-<script src="{{ url_for('static', filename='js/whatsapp.js') }}?v=poc54"></script>
+<script src="{{ url_for('static', filename='js/whatsapp.js') }}?v=poc60"></script>
 <script src="{{ url_for('static', filename='js/waha.js') }}?v=poc54"></script>
 <script>
 const DAYS = {{ days | tojson }};
@@ -1020,6 +973,33 @@ if (_asUser) {
     return _fetch(url, opts);
   };
 }
+/* Undoable deletes. The row leaves the UI at once; the server DELETE is sent when the Undo
+   toast expires. Rows are addressed by position, so a pending delete has to reach the server
+   before anything else reads or writes that data — the fetch wrapper flushes it first. */
+const _netFetch = window.fetch.bind(window);
+let pendingDel = null;
+window.fetch = async (url, opts) => {
+  if (pendingDel && typeof url === "string" && /^\/api\/(groups|contacts|templates|lists|config|release|schedule|photos)(\/|\?|$)/.test(url)) await flushUndo();
+  return _netFetch(url, opts);
+};
+async function flushUndo(){
+  const p=pendingDel; if(!p) return;
+  pendingDel=null; clearTimeout(p.timer); p.dismiss();
+  try{ const r=await _netFetch(p.url,{method:"DELETE"}); if(!r.ok) throw 0; }
+  catch{ toast("Delete failed","err"); p.reload(); }
+}
+async function undoableDelete(arr,i,url,label,render,reload){
+  await flushUndo();
+  const item=arr.splice(i,1)[0]; vt(render);
+  const dismiss=toast(label,"",{label:"Undo",fn:()=>{ if(!pendingDel) return; clearTimeout(pendingDel.timer); pendingDel=null; arr.splice(i,0,item); vt(render); }});
+  pendingDel={url,dismiss,reload,timer:setTimeout(flushUndo,UNDO_MS)};
+}
+addEventListener("pagehide",()=>{ if(pendingDel) _netFetch(pendingDel.url,{method:"DELETE",keepalive:true}); });
+/* view-transition-name for a saved row (stable DB id), so rows and avatars animate between states */
+function vtn(prefix,e){ return e&&e.id!=null ? `view-transition-name:${prefix}${e.id}` : ""; }
+document.querySelectorAll("[data-skel]").forEach((e)=>{ e.innerHTML=skel(e.dataset.skel); });
+
+let booted = false;
 let groups = [], templates = [], contacts = [], settings = {headless:false,delaySeconds:5};
 let gSel = null, gMsgEdited = false;
 let cSel = null;
@@ -1150,6 +1130,11 @@ async function renderUserDashboard(){
 }
 
 function showView(v){
+  const from=(document.querySelector(".view.active")?.id||"").slice(5);
+  if(!booted || from===v){ _showView(v); return; }
+  vt(()=>_showView(v), v.endsWith("-detail")?"in":from.endsWith("-detail")?"out":"page");
+}
+function _showView(v){
   document.querySelectorAll(".view").forEach(s=>s.classList.toggle("active", s.id===`view-${v}`));
   const navKey = v==="group-detail" ? "groups" : v==="contact-detail" ? "contacts" : v;
   document.querySelectorAll(".nav-item[data-view]").forEach(b=>b.classList.toggle("active", b.dataset.view===navKey));
@@ -1352,7 +1337,7 @@ async function registerPasskey() {
   }
 }
 async function removePasskey(id) {
-  if (!confirm("Remove this passkey? You will not be able to use it to sign in.")) return;
+  if (!(await confirmDialog("Remove this passkey? You will not be able to use it to sign in.", { ok: "Remove", danger: true }))) return;
   try {
     const res = await fetch(`/api/passkeys/${id}`, { method: "DELETE" });
     const d = await res.json().catch(() => ({}));
@@ -1409,6 +1394,7 @@ async function boot(){
   const landingRaw = (viewParam && VIEW_META[viewParam]) ? viewParam : (localStorage.getItem("default-page") || "dashboard");
   const landing = landingRaw === "whatsapp" ? "wa-direct" : landingRaw;
   if (VIEW_META[landing]) showView(landing);
+  booted = true;
   if (getStatusLogPref() === "always") showLog();
 }
 const TABLE_NOTES_KEY="schedule-table-notes";
@@ -1459,7 +1445,7 @@ function notesInsertTimestamp(){
   ta.value=ta.value.slice(0,s)+txt+ta.value.slice(s); ta.selectionStart=ta.selectionEnd=s+txt.length; notesAfterEdit();
 }
 async function notesCopy(){ const ta=document.getElementById("tableNotes"); if(!ta||!ta.value.trim()){ toast("Nothing to copy","err"); return; } try{ await navigator.clipboard.writeText(ta.value); toast("Notes copied ✓"); }catch{ toast("Copy failed","err"); } }
-function notesClear(){ const ta=document.getElementById("tableNotes"); if(!ta||!ta.value)return; if(!confirm("Clear all notes for this schedule?"))return; ta.value=""; notesAfterEdit(); toast("Notes cleared"); }
+function notesClear(){ const ta=document.getElementById("tableNotes"); if(!ta||!ta.value)return; const old=ta.value; ta.value=""; notesAfterEdit(); toast("Notes cleared","",{label:"Undo",fn:()=>{ ta.value=old; notesAfterEdit(); }}); }
 function notesUpdateHint(){
   const hint=document.getElementById("notesHeadHint"); if(!hint) return;
   const collapsed=document.getElementById("notesBody")?.classList.contains("collapsed");
@@ -1477,13 +1463,18 @@ function toggleNotes(){
 }
 async function loadGroups(){ groups=await (await fetch("/api/groups")).json();
   groups.forEach(g=>{ if(g.message===undefined)g.message=""; normalize(g); if(!g.pic && (g.photoUrl||g.photo_url)) g.pic=g.photoUrl||g.photo_url; });
+  groupsChanged();
+}
+function groupsChanged(){
   tableDirty=true; invalidateWaCache(); renderGroupList(); if(typeof renderGroupTable==="function") renderGroupTable(); refreshPickers();
   if(document.getElementById("view-table")?.classList.contains("active")){ renderTable(); tableDirty=false; }
 }
-async function loadTemplates(){ templates=await (await fetch("/api/templates")).json(); renderTemplates(); refreshPickers(); }
+function templatesChanged(){ renderTemplates(); refreshPickers(); }
+function contactsChanged(){ invalidateWaCache(); renderContactList(); if(typeof renderContactTable==="function") renderContactTable(); }
+async function loadTemplates(){ templates=await (await fetch("/api/templates")).json(); templatesChanged(); }
 async function loadContacts(){ contacts=await (await fetch("/api/contacts")).json();
   contacts.forEach(c=>{ if(!c.pic && (c.photoUrl||c.photo_url)) c.pic=c.photoUrl||c.photo_url; });
-  invalidateWaCache(); renderContactList(); if(typeof renderContactTable==="function") renderContactTable(); }
+  contactsChanged(); }
 async function loadSettings(){ settings=await (await fetch("/api/settings")).json();
   syncSettingsUI();
   if(settings.maintenanceMode){
@@ -1573,9 +1564,10 @@ async function saveGroup(){const b=gBuild();if(!b)return false;
 async function duplicateGroup(i){const g=groups[i];let name=g.name+" (copy)",n=2;while(groups.some(x=>x.name===name))name=`${g.name} (copy ${n++})`;
   const d=await (await fetch("/api/groups",post({name,schedule:g.schedule,message:g.message,inviteLink:g.inviteLink||""}))).json();
   if(d.error){toast(d.error,"err");return;} await loadGroups(); toast(`Duplicated as "${name}"`);}
-async function deleteGroup(i){if(!confirm(`Delete "${groups[i].name}"?`))return;await fetch(`/api/groups/${i}`,{method:"DELETE"});
+async function deleteGroup(i){
   if(gSel===i){gSel=null;document.getElementById("gEmpty")?.classList.remove("hidden");document.getElementById("gBody")?.classList.add("hidden");document.getElementById("gActions")?.classList.add("hidden");}
-  else if(gSel>i)gSel--; await loadGroups(); toast("Group deleted");}
+  else if(gSel>i)gSel--;
+  await undoableDelete(groups,i,`/api/groups/${i}`,`Deleted "${groups[i].name}"`,groupsChanged,loadGroups);}
 async function releaseCurrentGroup(){if(!(await saveGroup()))return;const g=groups[gSel];
   releaseWithMode([{name:g.name,message:replaceTokens(messageFor(g))}],"relAllSpin","relAllBtn","relAllTxt","Send all","automated");}
 function releaseOneGroup(i){const g=groups[i];releaseWithMode([{name:g.name,message:replaceTokens(messageFor(g))}],"relAllSpin","relAllBtn","relAllTxt","Send all","automated");}
@@ -1620,8 +1612,8 @@ function renderGroupCards(){
     const active=(g.schedule||[]).filter((e)=>(e.from||"").trim()).length;
     const chips=(g.schedule||[]).filter((e)=>(e.from||"").trim()).map((e)=>`<span class="ec-chip">${esc(e.day.slice(0,3))}</span>`).join("")||'<span class="ec-none">No schedule</span>';
     const pic=entityPic(g);
-    return `<article class="ecard" onclick="openGroupDetail(${i})" tabindex="0" onkeydown="if(event.key==='Enter')openGroupDetail(${i})">
-      <div class="ecard-top"><div class="av small${pic?" has-img":""}">${avatarInner(g.name,pic)}${g.waLinked?'<span class="wa-badge"></span>':""}</div>
+    return `<article class="ecard" style="${vtn("rg",g)}" onclick="openGroupDetail(${i})" tabindex="0" onkeydown="if(event.key==='Enter')openGroupDetail(${i})">
+      <div class="ecard-top"><div class="av small${pic?" has-img":""}" style="${vtn("ag",g)}">${avatarInner(g.name,pic)}${g.waLinked?'<span class="wa-badge"></span>':""}</div>
         <div class="ecard-id"><b>${esc(g.name)}</b><span>${active?`${active} day${active===1?"":"s"}`:"No schedule"}</span></div>
         <span class="ecard-go">›</span></div>
       <div class="ecard-days">${chips}</div>
@@ -1641,7 +1633,7 @@ function renderGroupTable(){
     rows.map(({g,i})=>{
       const days=(g.schedule||[]).filter((e)=>(e.from||"").trim()).map((e)=>e.day.slice(0,3)).join(" · ")||"—";
       const pic=entityPic(g);
-      return `<tr onclick="openGroupDetail(${i})"><td><div class="grid-name"><div class="av small${pic?" has-img":""}">${avatarInner(g.name,pic)}${g.waLinked?'<span class="wa-badge"></span>':""}</div><b>${esc(g.name)}</b></div></td><td>${(g.schedule||[]).length?`${g.schedule.length} day${g.schedule.length===1?"":"s"} · <span class="hint" style="margin:0">${esc(days)}</span>`:'<span class="hint" style="margin:0">No schedule</span>'}</td><td>${g.waLinked?'<span class="status-on">On WhatsApp</span>':'<span class="status-off">Not linked</span>'}</td><td>${g.lastReleased?relTime(g.lastReleased):"—"}</td><td class="grid-go">›</td></tr>`;
+      return `<tr style="${vtn("rg",g)}" onclick="openGroupDetail(${i})"><td><div class="grid-name"><div class="av small${pic?" has-img":""}" style="${vtn("ag",g)}">${avatarInner(g.name,pic)}${g.waLinked?'<span class="wa-badge"></span>':""}</div><b>${esc(g.name)}</b></div></td><td>${(g.schedule||[]).length?`${g.schedule.length} day${g.schedule.length===1?"":"s"} · <span class="hint" style="margin:0">${esc(days)}</span>`:'<span class="hint" style="margin:0">No schedule</span>'}</td><td>${g.waLinked?'<span class="status-on">On WhatsApp</span>':'<span class="status-off">Not linked</span>'}</td><td>${g.lastReleased?relTime(g.lastReleased):"—"}</td><td class="grid-go">›</td></tr>`;
     }).join("")+`</tbody></table></div>`;
 }
 function openGroupDetail(i){
@@ -1702,9 +1694,9 @@ async function gdSave(){
 }
 async function gdDelete(){
   if(gdIdx==null){ backToGroups(); return; }
-  if(!confirm(`Delete "${groups[gdIdx].name}"?`)) return;
-  await fetch(`/api/groups/${gdIdx}`,{method:"DELETE"});
-  gdIdx=null; await loadGroups(); backToGroups(); toast("Group deleted");
+  const i=gdIdx; gdIdx=null;
+  await undoableDelete(groups,i,`/api/groups/${i}`,`Deleted "${groups[i].name}"`,groupsChanged,loadGroups);
+  backToGroups();
 }
 function gdReleaseCurrent(){
   if(gdIdx==null) return;
@@ -1732,7 +1724,7 @@ function renderGroupDetail(){
       ${gdEdit?`<button class="btn btn-soft btn-sm" onclick="gdToggleEdit()">Cancel</button><button class="btn btn-primary btn-sm" onclick="gdSave()">Save changes</button>`:`<button class="btn btn-primary btn-sm" onclick="gdToggleEdit()">✎ Edit details</button><button class="btn btn-soft btn-sm" onclick="gdReleaseCurrent()">Send</button><button class="icon-btn" title="Delete" onclick="gdDelete()">${TRASH_ICO}</button>`}
     </div>
     <div class="detail-hero">
-      <div class="detail-av-wrap"><div class="editor-av${pic?" has-img":""}" id="gdAvatar">${avatarInner(g.name,pic)}</div>${gdEdit?`<button class="editor-av-edit" type="button" onclick="document.getElementById('gdImg').click()" title="Change photo"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg></button><input id="gdImg" type="file" accept="image/*" hidden onchange="gdPickImage(this)"/>`:""}</div>
+      <div class="detail-av-wrap"><div class="editor-av${pic?" has-img":""}" id="gdAvatar" style="${vtn("ag",g)}">${avatarInner(g.name,pic)}</div>${gdEdit?`<button class="editor-av-edit" type="button" onclick="document.getElementById('gdImg').click()" title="Change photo"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg></button><input id="gdImg" type="file" accept="image/*" hidden onchange="gdPickImage(this)"/>`:""}</div>
       <div class="detail-hero-body">
         ${gdEdit?`<input class="field detail-name-input" value="${escA(g.name)}" oninput="gdSetField('name',this.value)" placeholder="WhatsApp group name"/><input class="field detail-nick-input" value="${escA(g.nickname||"")}" oninput="gdSetField('nickname',this.value)" placeholder="Short nickname for tables (optional)"/>`:`<h2>${esc(g.name||"Untitled group")}</h2>`}
         <div class="detail-badges"><span class="chip">${(g.schedule||[]).length} day${(g.schedule||[]).length===1?"":"s"}</span>${g.waLinked?'<span class="chip chip-default">On WhatsApp</span>':""}${g.lastReleased?`<span class="chip">Sent ${relTime(g.lastReleased)}</span>`:""}</div>
@@ -1795,8 +1787,8 @@ function renderContactCards(){
   wrap.innerHTML=rows.map(({c,i})=>{
     const prev=esc((c.message||"").slice(0,70))+((c.message||"").length>70?"…":"");
     const pic=entityPic(c);
-    return `<article class="ecard" onclick="openContactDetail(${i})" tabindex="0" onkeydown="if(event.key==='Enter')openContactDetail(${i})">
-      <div class="ecard-top"><div class="av small${pic?" has-img":""}">${avatarInner(c.name,pic)}${c.waLinked?'<span class="wa-badge"></span>':""}</div>
+    return `<article class="ecard" style="${vtn("rc",c)}" onclick="openContactDetail(${i})" tabindex="0" onkeydown="if(event.key==='Enter')openContactDetail(${i})">
+      <div class="ecard-top"><div class="av small${pic?" has-img":""}" style="${vtn("ac",c)}">${avatarInner(c.name,pic)}${c.waLinked?'<span class="wa-badge"></span>':""}</div>
         <div class="ecard-id"><b>${esc(c.name)}</b><span>+${esc(c.phone||"—")}</span></div>
         <span class="ecard-go">›</span></div>
       <div class="ecard-msg">${prev||'<span class="ec-none">No message</span>'}</div>
@@ -1816,7 +1808,7 @@ function renderContactTable(){
     rows.map(({c,i})=>{
       const prev=esc((c.message||"").slice(0,40))+((c.message||"").length>40?"…":"");
       const pic=entityPic(c);
-      return `<tr onclick="openContactDetail(${i})"><td><div class="grid-name"><div class="av small${pic?" has-img":""}">${avatarInner(c.name,pic)}${c.waLinked?'<span class="wa-badge"></span>':""}</div><b>${esc(c.name)}</b></div></td><td>+${esc(c.phone)}</td><td><span class="hint" style="margin:0">${prev||"—"}</span></td><td>${c.lastReleased?relTime(c.lastReleased):"—"}</td><td class="grid-go">›</td></tr>`;
+      return `<tr style="${vtn("rc",c)}" onclick="openContactDetail(${i})"><td><div class="grid-name"><div class="av small${pic?" has-img":""}" style="${vtn("ac",c)}">${avatarInner(c.name,pic)}${c.waLinked?'<span class="wa-badge"></span>':""}</div><b>${esc(c.name)}</b></div></td><td>+${esc(c.phone)}</td><td><span class="hint" style="margin:0">${prev||"—"}</span></td><td>${c.lastReleased?relTime(c.lastReleased):"—"}</td><td class="grid-go">›</td></tr>`;
     }).join("")+`</tbody></table></div>`;
 }
 function openContactDetail(i){
@@ -1863,9 +1855,9 @@ async function cdSave(){
 }
 async function cdDelete(){
   if(cdIdx==null){ backToContacts(); return; }
-  if(!confirm(`Delete "${contacts[cdIdx].name}"?`)) return;
-  await fetch(`/api/contacts/${cdIdx}`,{method:"DELETE"});
-  cdIdx=null; await loadContacts(); backToContacts(); toast("Contact deleted");
+  const i=cdIdx; cdIdx=null;
+  await undoableDelete(contacts,i,`/api/contacts/${i}`,`Deleted "${contacts[i].name}"`,contactsChanged,loadContacts);
+  backToContacts();
 }
 function cdReleaseCurrent(){
   if(cdIdx==null) return;
@@ -1887,7 +1879,7 @@ function renderContactDetail(){
       ${cdEdit?`<button class="btn btn-soft btn-sm" onclick="cdToggleEdit()">Cancel</button><button class="btn btn-primary btn-sm" onclick="cdSave()">Save changes</button>`:`<button class="btn btn-primary btn-sm" onclick="cdToggleEdit()">✎ Edit details</button><button class="btn btn-soft btn-sm" onclick="cdReleaseCurrent()">Send</button><button class="icon-btn" title="Delete" onclick="cdDelete()">${TRASH_ICO}</button>`}
     </div>
     <div class="detail-hero">
-      <div class="detail-av-wrap"><div class="editor-av${pic?" has-img":""}" id="cdAvatar">${avatarInner(c.name,pic)}</div>${cdEdit?`<button class="editor-av-edit" type="button" onclick="document.getElementById('cdImg').click()" title="Change photo"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg></button><input id="cdImg" type="file" accept="image/*" hidden onchange="cdPickImage(this)"/>`:""}</div>
+      <div class="detail-av-wrap"><div class="editor-av${pic?" has-img":""}" id="cdAvatar" style="${vtn("ac",c)}">${avatarInner(c.name,pic)}</div>${cdEdit?`<button class="editor-av-edit" type="button" onclick="document.getElementById('cdImg').click()" title="Change photo"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg></button><input id="cdImg" type="file" accept="image/*" hidden onchange="cdPickImage(this)"/>`:""}</div>
       <div class="detail-hero-body">
         ${cdEdit?`<input class="field detail-name-input" value="${escA(c.name)}" oninput="cdSetField('name',this.value)" placeholder="Contact name"/>`:`<h2>${esc(c.name||"Untitled contact")}</h2>`}
         <div class="detail-badges"><span class="chip">+${esc(c.phone||"—")}</span>${c.waLinked?'<span class="chip chip-default">On WhatsApp</span>':""}${c.lastReleased?`<span class="chip">Sent ${relTime(c.lastReleased)}</span>`:""}</div>
@@ -2105,8 +2097,8 @@ function applyColWidthsFromState(){
     else colWidths[ci]=Math.max(168, Math.min(340, tw+CHROME));
   });
 }
-function editColMeta(ci){ cmIdx=ci; const g=groups[ci]; document.getElementById("cmName").value=g.name||""; document.getElementById("cmNick").value=g.nickname||""; document.getElementById("colMetaModal").classList.add("show"); setTimeout(()=>document.getElementById("cmName").focus(),30); }
-function closeColMeta(){ document.getElementById("colMetaModal").classList.remove("show"); }
+function editColMeta(ci){ cmIdx=ci; const g=groups[ci]; document.getElementById("cmName").value=g.name||""; document.getElementById("cmNick").value=g.nickname||""; openModal("colMetaModal"); setTimeout(()=>document.getElementById("cmName").focus(),30); }
+function closeColMeta(){ closeModal("colMetaModal"); }
 async function saveColMeta(){ if(cmIdx==null) return; const name=document.getElementById("cmName").value.trim(); if(!name){ toast("Group name is required","err"); return; } groups[cmIdx].name=name; groups[cmIdx].nickname=document.getElementById("cmNick").value.trim(); tableDirty=true; closeColMeta(); applyColWidthsFromState(); if(await saveTable()) toast("Group updated ✓"); else renderTable(); }
 // Cancel / reschedule broadcast — one-off WhatsApp notice to a group's chat (leaves the stored timetable alone).
 function bcDefaultMsg(){
@@ -2129,9 +2121,9 @@ function openBroadcast(){
   document.querySelector('input[name=bcKind][value=cancel]').checked=true;
   document.getElementById("bcTime").value=""; document.getElementById("bcNote").value=""; document.getElementById("bcStatus").textContent="";
   bcSync();
-  document.getElementById("broadcastModal").classList.add("show");
+  openModal("broadcastModal");
 }
-function closeBroadcast(){ document.getElementById("broadcastModal").classList.remove("show"); }
+function closeBroadcast(){ closeModal("broadcastModal"); }
 async function sendBroadcast(){
   const name=document.getElementById("bcGroup").value;
   const msg=document.getElementById("bcMsg").value.trim();
@@ -2161,9 +2153,10 @@ function toggleStatusLog(){ const p=document.getElementById("statusPanel"); p.cl
 function clearStatusLog(){ const l=document.getElementById("logLines"); if(l) l.innerHTML=""; toast("Status log cleared"); }
 function syncLogCollapseBtn(){ const b=document.getElementById("logCollapseBtn"); if(!b) return; const collapsed=document.getElementById("statusPanel").classList.contains("collapsed"); b.title=collapsed?"Expand log":"Collapse log"; }
 function selectAllCols(v){groups.forEach((g,ci)=>tableSelected[ci]=v);renderTable();}
-function addColumn(){const n=prompt("WhatsApp group name (exact):");if(!n||!n.trim())return;
+async function addColumn(){const n=await promptDialog("WhatsApp group name (exact):","",{ok:"Add group"});if(!n||!n.trim())return;
   groups.push({name:n.trim(),schedule:[],message:""});tableSelected[groups.length-1]=true;tableDirty=true;renderTable();}
-function removeColumn(ci){if(!confirm(`Remove "${groups[ci].name}"? (Save to persist)`))return;groups.splice(ci,1);tableSelected={};colWidths={};tableDirty=true;renderTable();}
+function removeColumn(ci){const g=groups.splice(ci,1)[0];const re=()=>{tableSelected={};colWidths={};tableDirty=true;renderTable();};re();
+  toast(`Removed "${g.name}" — save to keep the change`,"",{label:"Undo",fn:()=>{groups.splice(ci,0,g);re();}});}
 function startResize(e,ci){e.preventDefault();e.stopPropagation();const th=e.target.closest("th"),hd=e.target;hd.classList.add("drag");
   const sx=e.clientX,sw=th.offsetWidth;
   function mv(ev){const wv=Math.max(120,sw+ev.clientX-sx);colWidths[ci]=wv;th.style.width=wv+"px";}
@@ -2215,11 +2208,11 @@ function openTpl(title,name,content){
   document.getElementById("tplModalTitle").textContent=title;
   document.getElementById("tplName").value=name||"";
   document.getElementById("tplContent").value=content||"";
-  document.getElementById("tplModal").classList.add("show");
+  openModal("tplModal");
   tplPreview();
   document.getElementById("tplName").focus();
 }
-function closeTpl(){ document.getElementById("tplModal").classList.remove("show"); }
+function closeTpl(){ closeModal("tplModal"); }
 function tplInsert(txt){
   const ta=document.getElementById("tplContent");const s=ta.selectionStart,e=ta.selectionEnd;
   ta.value=ta.value.slice(0,s)+txt+ta.value.slice(e); ta.focus(); ta.selectionStart=ta.selectionEnd=s+txt.length; tplPreview();
@@ -2267,9 +2260,9 @@ async function saveTpl(){
   closeTpl(); await loadTemplates(); toast("Template saved ✓");
 }
 async function deleteTemplate(i){const t=templates[i];
-  if(t.isDefault){if(!confirm('Reset default template to original content?'))return;}
-  else if(!confirm(`Delete template "${t.name}"?`))return;
-  await fetch(`/api/templates/${i}`,{method:"DELETE"});loadTemplates();toast(t.isDefault?"Default reset":"Template deleted");}
+  if(!t.isDefault){ await undoableDelete(templates,i,`/api/templates/${i}`,`Deleted template "${t.name}"`,templatesChanged,loadTemplates); return; }
+  if(!(await confirmDialog("Reset the default template to its original content?",{ok:"Reset",danger:true}))) return;
+  await fetch(`/api/templates/${i}`,{method:"DELETE"});loadTemplates();toast("Default reset");}
 
 /* ════ CONTACTS ════ */
 let cPic = "";
@@ -2342,9 +2335,10 @@ async function saveContact(){const b=cBuild();if(!b)return false;
   renderContactList(); if(typeof renderContactTable==="function")renderContactTable();
   renderEditorAvatar("cAvatar", contacts[cSel]?.name||b.name, entityPic(contacts[cSel])||cPic);
   toast("Contact saved ✓"); return true;}
-async function deleteContact(i){if(!confirm(`Delete "${contacts[i].name}"?`))return;await fetch(`/api/contacts/${i}`,{method:"DELETE"});
+async function deleteContact(i){
   if(cSel===i){cSel=null;cPic="";cPendingFile=null;document.getElementById("cEmpty")?.classList.remove("hidden");document.getElementById("cBody")?.classList.add("hidden");document.getElementById("cActions")?.classList.add("hidden");}
-  else if(cSel>i)cSel--;await loadContacts();toast("Contact deleted");}
+  else if(cSel>i)cSel--;
+  await undoableDelete(contacts,i,`/api/contacts/${i}`,`Deleted "${contacts[i].name}"`,contactsChanged,loadContacts);}
 function contactTarget(c){return{name:c.name,phone:c.phone,message:replaceTokens(c.message||"")};}
 async function releaseCurrentContact(){if(!(await saveContact()))return;const c=contacts[cSel];
   const t=contactTarget(c); if(!t.message.trim()){toast("Message is empty","err");return;}
@@ -2393,7 +2387,7 @@ async function exportConfig(){const cfg=await (await fetch("/api/config")).json(
   const blob=new Blob([JSON.stringify(cfg,null,2)],{type:"application/json"});const a=document.createElement("a");
   a.href=URL.createObjectURL(blob);a.download=`schedule_backup_${new Date().toISOString().slice(0,10)}.json`;a.click();URL.revokeObjectURL(a.href);toast("Backup downloaded ✓");}
 async function importConfig(input){const f=input.files[0];input.value="";if(!f)return;
-  if(!confirm("Restoring REPLACES current groups, contacts, templates and settings (login kept). Continue?"))return;
+  if(!(await confirmDialog("Restoring REPLACES your current groups, contacts, templates and settings. Your login is kept.",{ok:"Replace everything",danger:true})))return;
   try{const cfg=JSON.parse(await f.text());const d=await (await fetch("/api/config",put(cfg))).json();
     if(d.error){toast(d.error,"err");return;}gSel=cSel=null;tableSelected={};colWidths={};
     await Promise.all([loadGroups(),loadTemplates(),loadContacts(),loadSettings()]);toast("Config restored ✓");}
@@ -2408,11 +2402,11 @@ async function doRelease(targets,spin,btn,txt,label){
   try{ ssPf=await runPreflight(targets); }catch{ toast("Pre-flight check failed","err"); return; }
   ssPhase="ready";
   renderSendStatus();
-  document.getElementById("sendStatusModal")?.classList.add("show");
+  openModal("sendStatusModal");
 }
 function closeSendStatus(){
   if(ssPhase==="running"){ toast("Send in progress…","err"); return; }
-  document.getElementById("sendStatusModal")?.classList.remove("show");
+  closeModal("sendStatusModal");
 }
 function ssStatusIcon(st){ return st==="success"?"✓":st==="failed"?"✕":st==="sending"?'<span class="ss-spin"></span>':"•"; }
 function ssStatusLabel(st){ return st==="success"?"Delivered":st==="failed"?"Failed":st==="sending"?"Sending…":"Queued"; }
@@ -2657,9 +2651,9 @@ async function openSuperadminReport(){
   document.getElementById("saAddRow").style.display=saCanEdit?"flex":"none";
   renderSaRecipients();
   saSetFmt(saFmt);
-  document.getElementById("superadminModal").classList.add("show");
+  openModal("superadminModal");
 }
-function closeSuperadminReport(){ document.getElementById("superadminModal").classList.remove("show"); }
+function closeSuperadminReport(){ closeModal("superadminModal"); }
 function renderSaRecipients(){
   const box=document.getElementById("saRecipients");
   if(!saRecips.length){ box.innerHTML=`<p class="hint" style="margin:0">No recipients yet.${saCanEdit?" Add one below.":" Ask an admin to add superadmin contacts."}</p>`; return; }
@@ -2691,12 +2685,11 @@ function sendSuperadminReport(){
 }
 async function copyBox(id){try{await navigator.clipboard.writeText(document.getElementById(id).value);toast("Copied ✓");}catch{toast("Copy failed","err");}}
 async function copyText(t){try{await navigator.clipboard.writeText(t);toast("Copied ✓");}catch{toast("Copy failed","err");}}
-let tt;function toast(m,type="ok"){const e=document.getElementById("toast");e.textContent=m;e.className=`toast ${type} show`;clearTimeout(tt);tt=setTimeout(()=>e.classList.remove("show"),3000);}
 
 </script>
-<script src="{{ url_for('static', filename='js/lists.js') }}?v=poc54"></script>
-<script src="{{ url_for('static', filename='js/features.js') }}?v=poc54"></script>
-<script src="{{ url_for('static', filename='js/workspace.js') }}?v=poc54"></script>
+<script src="{{ url_for('static', filename='js/lists.js') }}?v=poc60"></script>
+<script src="{{ url_for('static', filename='js/features.js') }}?v=poc60"></script>
+<script src="{{ url_for('static', filename='js/workspace.js') }}?v=poc60"></script>
 <script src="{{ url_for('static', filename='js/visual_editor.js') }}?v=poc59"></script>
 <script>boot();</script>
 </body>

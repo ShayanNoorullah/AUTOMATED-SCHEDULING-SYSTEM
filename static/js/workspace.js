@@ -107,8 +107,8 @@ function wsSave() {
   const o = wsLayouts(); o[wsState.name] = wsState.widgets.map(w => w.type); wsSaveLayouts(o); wsPersistCurrent();
   toast(`Saved "${wsState.name}" ✓`);
 }
-function wsSaveAs() {
-  const name = (prompt("Save workspace as:", wsState.name === "Untitled" ? "" : wsState.name) || "").trim();
+async function wsSaveAs() {
+  const name = ((await promptDialog("Save workspace as:", wsState.name === "Untitled" ? "" : wsState.name, { ok: "Save" })) || "").trim();
   if (!name) return;
   wsState.name = name; const o = wsLayouts(); o[name] = wsState.widgets.map(w => w.type); wsSaveLayouts(o);
   wsPersistCurrent(); document.getElementById("wsName").textContent = name; toast(`Saved "${name}" ✓`);

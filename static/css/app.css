@@ -288,6 +288,63 @@ table.data a:hover{text-decoration:underline;}
 .toast.err{background:var(--error);color:#fff;border-color:transparent;}
 .toast.ok{background:linear-gradient(120deg,var(--success),color-mix(in srgb,var(--success) 70%,#000));color:#fff;border-color:transparent;}
 
+/* Toast stack (chrome.js toast()) */
+.toasts{position:fixed;right:16px;bottom:20px;z-index:2000;display:flex;flex-direction:column;gap:8px;align-items:flex-end;pointer-events:none;max-width:min(380px,calc(100vw - 32px));}
+.toast-item{pointer-events:auto;display:flex;align-items:center;gap:14px;background:var(--surface);color:var(--text);
+  padding:12px 16px;border-radius:var(--r-md);border:1px solid var(--border);border-left:3px solid var(--accent);
+  font-size:.9rem;font-weight:600;box-shadow:var(--shadow-lg);animation:toastIn .32s var(--spring);transition:opacity .2s,transform .2s;}
+.toast-item.ok{border-left-color:var(--success);}
+.toast-item.err{border-left-color:var(--error);}
+.toast-item.out{opacity:0;transform:translateY(8px) scale(.97);}
+.toast-item button{background:none;border:0;padding:4px 6px;margin:-4px -6px -4px 0;font:inherit;font-weight:750;color:var(--accent);cursor:pointer;border-radius:var(--r-xs);}
+.toast-item button:hover{background:var(--surface-2);}
+@keyframes toastIn{from{opacity:0;transform:translateY(16px) scale(.96);}}
+@media(max-width:860px){ .toasts{left:12px;right:12px;max-width:none;align-items:stretch;} body:has(.tabbar) .toasts{bottom:84px;} }
+/* hosted inside an open dialog: sit at the top so the dialog's own buttons stay clear */
+dialog .toasts{top:16px;bottom:auto !important;}
+
+/* Ask dialog (chrome.js confirmDialog / promptDialog / alertDialog) */
+.ask-dlg{border:1px solid var(--border);border-radius:var(--r-lg);background:var(--surface);color:var(--text);
+  padding:22px 24px;margin:auto;width:min(420px,calc(100vw - 32px));box-shadow:var(--shadow-lg);}
+.ask-dlg[open]{animation:modalIn .25s var(--spring);}
+.ask-dlg::backdrop{background:color-mix(in srgb,#050914 55%,transparent);backdrop-filter:blur(4px);}
+.ask-dlg p{white-space:pre-line;line-height:1.5;margin-bottom:18px;font-weight:600;}
+.ask-dlg .field{width:100%;margin-bottom:18px;}
+.ask-actions{display:flex;justify-content:flex-end;gap:10px;}
+@media(max-width:640px){
+  .ask-dlg{margin:auto 0 0;width:100%;max-width:none;border-radius:var(--r-xl) var(--r-xl) 0 0;}
+  .ask-dlg[open]{animation-name:sheetIn;}
+  .ask-actions .btn{flex:1;}
+}
+@keyframes sheetIn{from{transform:translateY(100%);}}
+
+/* Skeleton placeholders (chrome.js skel()) */
+.skel{display:block;border-radius:var(--r-sm);min-height:14px;
+  background:linear-gradient(90deg,var(--surface-2) 25%,var(--surface-3) 37%,var(--surface-2) 63%);background-size:200% 100%;animation:shimmer 1.4s linear infinite;}
+.skel-list{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);padding:6px 18px;}
+.skel-row{display:flex;align-items:center;gap:14px;padding:14px 0;border-bottom:1px solid var(--border);}
+.skel-row:last-child{border-bottom:0;}
+.skel-av{width:36px;height:36px;border-radius:50%;flex:none;}
+.skel-card{height:150px;border-radius:var(--r-lg);}
+.skel-stat{height:92px;border-radius:var(--r-lg);}
+.skel-hero{height:110px;border-radius:var(--r-xl);}
+
+/* View transitions (chrome.js vt()). The shell is named so it holds still while the page
+   area animates; html[data-vt] is set by vt() and picks the motion. */
+.rail{view-transition-name:rail;}
+.topbar{view-transition-name:topbar;}
+.tabbar{view-transition-name:tabbar;}
+html[data-vt] .view.active{animation:none;}
+::view-transition-group(*){animation-duration:.3s;animation-timing-function:var(--ease);}
+::view-transition-old(root),::view-transition-new(root){animation-duration:.2s;}
+html:is([data-vt="page"],[data-vt="in"],[data-vt="out"])::view-transition-old(root){animation:vtOut .16s var(--ease) both;}
+html:is([data-vt="page"],[data-vt="in"],[data-vt="out"])::view-transition-new(root){animation:vtIn .3s var(--ease) both;}
+html[data-vt="page"]{--vt-out:0 -6px;--vt-in:0 12px;}
+html[data-vt="in"]{--vt-out:-28px 0;--vt-in:28px 0;}
+html[data-vt="out"]{--vt-out:28px 0;--vt-in:-28px 0;}
+@keyframes vtOut{to{opacity:0;translate:var(--vt-out);}}
+@keyframes vtIn{from{opacity:0;translate:var(--vt-in);}}
+
 /* ============ Floating portal switcher (collapsible, vertically adjustable) ============ */
 .portal-switcher{
   position:fixed;right:20px;bottom:20px;z-index:60;display:flex;align-items:center;gap:3px;padding:5px;
@@ -352,6 +409,14 @@ table.data a:hover{text-decoration:underline;}
 .modal-scrim{position:fixed;inset:0;background:color-mix(in srgb,#050914 55%,transparent);
   backdrop-filter:blur(6px);display:none;align-items:center;justify-content:center;padding:18px;z-index:1500;animation:fadeUp .2s ease;}
 .modal-scrim.show{display:flex;}
+/* <dialog> modals: the dialog itself is the full-screen scrim (openModal/closeModal in chrome.js) */
+dialog.modal-scrim{border:0;margin:0;width:100vw;height:100dvh;max-width:none;max-height:none;color:var(--text);overflow:hidden;}
+dialog.modal-scrim[open]{display:flex;}
+dialog.modal-scrim::backdrop{background:transparent;}
+@media(max-width:640px){
+  dialog.modal-scrim{align-items:flex-end;padding:0;}
+  dialog.modal-scrim .modal{max-width:none;max-height:92dvh;border-radius:var(--r-xl) var(--r-xl) 0 0;animation:sheetIn .3s var(--ease);}
+}
 .modal{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-xl);
   width:100%;max-width:540px;max-height:90vh;overflow:auto;box-shadow:var(--shadow-lg);
   animation:modalIn .3s var(--spring);}
