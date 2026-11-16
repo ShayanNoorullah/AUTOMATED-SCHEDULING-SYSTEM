@@ -1,0 +1,14 @@
+{
+  "name": "SSIES Schedule Sender",
+  "short_name": "Schedule",
+  "description": "Weekly class schedules and WhatsApp sends",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#03070a",
+  "theme_color": "#0d9488",
+  "icons": [
+    { "src": "/static/img/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/static/img/icon-512.png", "sizes": "512x512", "type": "image/png" }
+  ]
+}

@@ -9,7 +9,7 @@ from datetime import datetime, timedelta
 from apscheduler.schedulers.background import BackgroundScheduler
 
 from app.config import DAYS
-from app.models import Group, Profile, ScheduledJob, db
+from app.models import Group, Profile, ReminderLog, ScheduledJob, ScheduleException, db
 from app.services.users import maintenance_mode
 from app.services.whatsapp import format_message, run_release
 from app.crypto import dec
@@ -100,11 +100,22 @@ def tick(app):
 # ── Class reminders ──────────────────────────────────────────────────────────
 # Fire a WhatsApp reminder to a group a set time before each class in its
 # schedule. Class times are the user's local wall-clock; the server runs UTC,
-# so a timezone offset (default +300 min = PKT) converts them. Dedup is in
-# memory (resets on restart) — keyed per occurrence so each fires once a day.
+# so a timezone offset (default +300 min = PKT) converts them. Each occurrence
+# is recorded in reminder_log before sending, so it fires once even if the app
+# restarts; a reminder missed by up to REMINDER_GRACE_MIN (a restart or a slow
+# tick) is still sent.
 _DEFAULT_REMINDER = "⏰ Reminder: *{group}* class starts at {time} (in {lead} min)."
-_reminded: set[str] = set()
-_reminded_day = ""
+REMINDER_GRACE_MIN = 5
+_pruned_day = ""
+
+
+def claim_reminder(key):
+    """Record a reminder as sent. False when it was already recorded."""
+    if db.session.get(ReminderLog, key):
+        return False
+    db.session.add(ReminderLog(key=key))
+    db.session.commit()
+    return True
 
 
 def _parse_time_min(s):
@@ -164,26 +175,29 @@ def reminder_tick(app):
         today = DAYS[local.weekday()]              # DAYS[0] == Monday, weekday() Mon==0
         now_min = local.hour * 60 + local.minute
         stamp = local.date().isoformat()
-        global _reminded_day
-        if _reminded_day != stamp:          # new local day → forget yesterday's sends
-            _reminded.clear(); _reminded_day = stamp
+        global _pruned_day
+        if _pruned_day != stamp:            # once a day: forget reminders older than two days
+            _pruned_day = stamp
+            ReminderLog.query.filter(ReminderLog.created_at < now - timedelta(days=2)).delete()
+            db.session.commit()
+        from app.services.schedule_extras import effective_slot
         for prof in Profile.query.filter_by(is_active=True).all():
             if getattr(prof, "waha_slot", None) is None:
                 continue                            # only users with WhatsApp linked
+            changes = [{"group_id": x.group_id, "kind": x.kind, "from_time": x.from_time, "to_time": x.to_time}
+                       for x in ScheduleException.query.filter_by(user_id=prof.id, date=stamp).all()]
             for g in Group.query.filter_by(user_id=prof.id).all():
-                e = next((x for x in (g.schedule or []) if x.get("day") == today and (x.get("from") or "").strip()), None)
+                e = effective_slot(g.schedule, today, g.id, changes)   # None: no class today (or cancelled / holiday)
                 if not e:
                     continue
                 start = _parse_time_min(e["from"])
                 if start is None:
                     continue
-                remind_at = start - cfg["lead"]
-                if remind_at < 0 or remind_at != now_min:
+                late = now_min - (start - cfg["lead"])
+                if start - cfg["lead"] < 0 or not 0 <= late <= REMINDER_GRACE_MIN:
                     continue
-                key = f"{prof.id}|{g.id}|{stamp}|{e['from']}"
-                if key in _reminded:
+                if not claim_reminder(f"{prof.id}|{g.id}|{stamp}|{e['from']}"):
                     continue
-                _reminded.add(key)
                 msg = build_reminder(cfg["template"], g.name, e["from"], cfg["lead"])
                 ok, err = send_group_reminder(prof.id, g.name, msg)
                 log.info("Reminder %s for %s/%s: %s", "sent" if ok else "failed", prof.id, g.name, err or "")

@@ -111,7 +111,7 @@ function asstRenderReply(bot, d) {
   if (d.skipped && d.skipped.length) { const s = document.createElement("div"); s.className = "asst-skipped"; s.textContent = "Left out: " + d.skipped.join(" "); bot.appendChild(s); }
   if (d.notice) {
     const n = document.createElement("div"); n.className = "asst-card";
-    n.innerHTML = `<div class="diff-row"><b>${esc(d.notice.group)}</b><span class="diff-note">one-off ${d.notice.kind === "reschedule" ? "reschedule" : "cancellation"} notice — the weekly timetable stays as it is</span></div><div class="asst-actions"><button class="btn btn-primary btn-sm" type="button" onclick="asstOpenNotice(${id})">Review notice</button></div>`;
+    n.innerHTML = `<div class="diff-row"><b>${esc(d.notice.group)}</b><span class="diff-note">one-off ${d.notice.kind === "reschedule" ? "reschedule" : "cancellation"} notice — the weekly timetable stays as it is</span></div><div class="asst-actions"><button class="btn btn-primary btn-sm" type="button" onclick="asstOpenNotice(${id})">Review notice</button><button class="btn btn-soft btn-sm" type="button" title="Save it as a one-off change so today's reminder follows it" onclick="asstRecordNotice(${id},this)">Record for today</button></div>`;
     bot.appendChild(n);
   }
 }
@@ -135,6 +135,16 @@ function asstOpenNotice(id) {
   document.getElementById("bcTime").value = n.time || "";
   document.getElementById("bcNote").value = n.note || "";
   bcSync();
+}
+
+/* Save the notice as a one-off change dated today (exceptions.js), so reminders and the dashboard follow it. */
+async function asstRecordNotice(id, btn) {
+  const n = asstProposals[id].notice, g = groups.find((x) => x.name === n.group);
+  if (!g || g.id == null) { toast("Save the schedule first", "err"); return; }
+  if (n.kind === "reschedule" && !n.time) { toast("No new time was given, so there is nothing to record", "err"); return; }
+  const res = await fetch("/api/schedule/exceptions", post({ groupId: g.id, date: dayKey(Date.now()), kind: n.kind === "reschedule" ? "move" : "cancel", from: n.time, note: n.note }));
+  if (!res.ok) { toast((await res.json().catch(() => ({}))).error || "Could not record it", "err"); return; }
+  btn.disabled = true; btn.textContent = "Recorded ✓"; loadExceptions();
 }
 
 /* ── voice (browser speech recognition: free, no server involved) ── */

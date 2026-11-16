@@ -2,8 +2,27 @@
 
 Audit date: 2026-11-16. Scope: everything under `templates/user/` plus the CSS/JS it loads.
 
-**Status (2026-11-16):** Phases 1–5 are implemented, not yet deployed. Phases 3–4 have
-never talked to a real model provider — see "Before first use" below.
+**Status (2026-11-16):** Phases 1–5 are deployed (commit `d070de4`). Phase 6 is
+implemented, not yet deployed. The assistant has never talked to a real model provider —
+see "Before first use" below.
+
+- **Phase 6** — done:
+  - One-off changes and holidays: a class cancelled, moved or added for one date, or a day
+    off for every group. The weekly timetable is not edited. Class reminders, the
+    dashboard's Today list and the calendar link follow them. Added from the Scheduler
+    ("One-off changes" bar) or from an assistant notice ("Record for today").
+  - Calendar link: a private address (Settings → Data, or per group) that Google, Apple
+    and Outlook Calendar can subscribe to. No stored token: it is derived from the app's
+    secret key, so it cannot be revoked for one user alone.
+  - Installable app: web manifest, icons and a service worker that caches static files
+    only (pages and data always come from the network).
+  - Reminders: each one is recorded in the database before it is sent, so a restart never
+    repeats it, and one missed by up to 5 minutes is still sent.
+- **Phase 6 — not done:** tracking who acknowledged a message; weekly schedule messages
+  do not mention one-off changes or holidays.
+- **Deploy note for Phase 6:** two tables are created on startup (`schedule_exceptions`,
+  `reminder_log`). Deploy when no class reminder went out in the previous 5 minutes: the
+  new log starts empty, so such a reminder would be sent once more.
 
 - **Phase 5** — done:
   - Settings: weekly send is set as a local weekday and time (stored as UTC as before);

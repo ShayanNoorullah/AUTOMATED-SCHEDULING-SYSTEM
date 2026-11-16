@@ -101,6 +101,32 @@ class ScheduleVersion(db.Model):
     data_enc = db.Column(db.Text, nullable=False)  # encrypted JSON list of group dicts
 
 
+class ScheduleException(db.Model):
+    """A one-off change for one calendar date; the weekly timetable is not edited.
+
+    group_id None means every group (a holiday / day off).
+    """
+    __tablename__ = "schedule_exceptions"
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(GUID(), db.ForeignKey("profiles.id"), index=True, nullable=False)
+    group_id = db.Column(db.Integer)                      # no FK: a deleted group just orphans the row
+    date = db.Column(db.String(10), index=True, nullable=False)   # YYYY-MM-DD, the user's local date
+    kind = db.Column(db.String(10), nullable=False)       # cancel | move | extra
+    from_time = db.Column(db.String(20), default="")
+    to_time = db.Column(db.String(20), default="")
+    note = db.Column(db.String(200), default="")
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+
+class ReminderLog(db.Model):
+    """One row per class reminder already sent, so a restart never sends it twice."""
+    __tablename__ = "reminder_log"
+
+    key = db.Column(db.String(160), primary_key=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+
+
 class Template(db.Model):
     __tablename__ = "templates"
 

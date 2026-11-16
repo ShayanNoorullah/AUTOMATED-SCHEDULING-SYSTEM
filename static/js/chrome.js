@@ -243,3 +243,8 @@ async function rejectReq(id) {
 
 window.approveReq = approveReq;
 window.rejectReq = rejectReq;
+
+/* Installable app: /sw.js caches static files only (see static/sw.js). */
+if ("serviceWorker" in navigator && location.protocol === "https:") {
+  addEventListener("load", () => { navigator.serviceWorker.register("/sw.js").catch(() => {}); });
+}

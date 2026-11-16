@@ -1834,3 +1834,15 @@ table.data tr.hday:hover td{background:none;}
 .tpl.is-pinned .tpl-pin{color:var(--warn);}
 .tpl.is-pinned{border-color:color-mix(in srgb,var(--warn) 40%,var(--border));}
 .tpl-foot{gap:12px;}
+
+
+/* ============ Phase 6: one-off changes ============ */
+.exc-bar{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-bottom:10px;padding:10px 14px;border-radius:var(--r-md);background:var(--surface);border:1px solid var(--border);font-size:.84rem;}
+.exc-chip{display:inline-flex;align-items:center;gap:6px;padding:4px 6px 4px 11px;border-radius:var(--r-full);font-size:.76rem;font-weight:650;background:color-mix(in srgb,var(--info) 16%,transparent);animation:popIn .25s var(--spring);}
+.exc-chip.holiday{background:color-mix(in srgb,var(--warn) 22%,transparent);}
+.exc-chip button{border:0;background:none;color:inherit;cursor:pointer;font-size:.7rem;width:20px;height:20px;border-radius:50%;opacity:.7;}
+.exc-chip button:hover{opacity:1;background:color-mix(in srgb,currentColor 14%,transparent);}
+.tl-tag.off{color:var(--error);}
+.tl-tag.changed{color:var(--info);margin-left:8px;}
+.dash-today-row.tl-off{opacity:.6;}
+.dash-today-row.tl-off .tl-time b{text-decoration:line-through;}

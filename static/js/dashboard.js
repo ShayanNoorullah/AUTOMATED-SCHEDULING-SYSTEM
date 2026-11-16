@@ -20,9 +20,11 @@ async function renderUserDashboard() {
 function dashTodayItems(now) {
   const day = todayName(), nowMin = now.getHours() * 60 + now.getMinutes();
   return (groups || []).map((g, i) => {
-    const e = (g.schedule || []).find((x) => x.day === day && (x.from || "").trim()); if (!e) return null;
+    // slotOn (exceptions.js) applies one-off changes: cancelled, moved, extra class, day off
+    const e = typeof slotOn === "function" ? slotOn(g, dayKey(now)) : (g.schedule || []).find((x) => x.day === day && (x.from || "").trim());
+    if (!e) return null;
     const a = parseTimeMin(e.from); let b = parseTimeMin(e.to); if (a != null && (b == null || b <= a)) b = a + 60;
-    const state = a == null ? "" : nowMin >= b ? "done" : nowMin >= a ? "live" : "next";
+    const state = e.off ? "off" : a == null ? "" : nowMin >= b ? "done" : nowMin >= a ? "live" : "next";
     return { g, i, e, a, state, inMin: a == null ? null : a - nowMin };
   }).filter(Boolean).sort((x, y) => (x.a == null ? 1e9 : x.a) - (y.a == null ? 1e9 : y.a));
 }
@@ -34,11 +36,13 @@ function dashTodayHTML() {
   return items.map((x) => {
     const tag = x.state === "live" ? '<span class="tl-tag live"><span class="dot-live on"></span>Now</span>'
       : x.state === "done" ? '<span class="tl-tag">Done</span>'
+      : x.state === "off" ? `<span class="tl-tag off">${esc(x.e.off)} today</span>`
       : x.state === "next" ? `<span class="tl-tag${x === upNext ? " next" : ""}">${dashIn(x.inMin)}</span>` : "";
+    const changed = x.e.tag ? `<span class="tl-tag changed">${esc(x.e.tag)} today</span>` : "";
     return `<div class="dash-today-row tl-${x.state}${x === upNext ? " tl-upnext" : ""}">
       <div class="tl-time"><b>${esc(x.e.from || "")}</b>${x.e.to ? `<span>${esc(x.e.to)}</span>` : ""}</div>
       <div class="av small">${avatarInner(x.g.name, entityPic(x.g))}</div>
-      <div style="min-width:0;flex:1"><b>${esc(x.g.name)}</b>${tag}</div>
+      <div style="min-width:0;flex:1"><b>${esc(x.g.name)}</b>${tag}${changed}</div>
       <button class="btn btn-ghost btn-sm" title="Send a cancel or reschedule notice" onclick="openBroadcast(groups[${x.i}].name)">Notify</button>
       <button class="btn btn-soft btn-sm" onclick="openGroupDetail(${x.i})">Open</button></div>`;
   }).join("");

@@ -23,7 +23,7 @@
 </script>
 <link rel="preconnect" href="https://api.fontshare.com">
 <link href="https://api.fontshare.com/v2/css?f[]=satoshi@400,500,700,900&display=swap" rel="stylesheet">
-<link href="{{ url_for('static', filename='css/app.css') }}?v=poc63" rel="stylesheet"/>
+<link href="{{ url_for('static', filename='css/app.css') }}?v=poc64" rel="stylesheet"/>
 <link href="{{ url_for('static', filename='css/compat.css') }}?v=poc54" rel="stylesheet"/>
 <link href="{{ url_for('static', filename='css/dashboard.css') }}?v=poc58" rel="stylesheet"/>
 <link href="{{ url_for('static', filename='css/components.css') }}?v=poc54" rel="stylesheet"/>
@@ -220,6 +220,7 @@ window.SSIES_USER = {{ {"email": email|default(username), "display_name": userna
             </button>
           </div>
         </div>
+        <div id="schedExceptions"></div>
         <div id="clashBanner"></div>
         <p class="sched-keys"><kbd>Enter</kbd> next day <kbd>Ctrl</kbd>+<kbd>D</kbd> copy to next day <kbd>Ctrl</kbd>+<kbd>←</kbd><kbd>→</kbd> switch group <kbd>Ctrl</kbd>+<kbd>Del</kbd> clear <kbd>Ctrl</kbd>+<kbd>S</kbd> save</p>
         <div class="view-pad table-view-pad">
@@ -766,6 +767,10 @@ window.SSIES_USER = {{ {"email": email|default(username), "display_name": userna
                 <div class="sec-h">Data</div>
                 <div class="sec-b">
                   <div class="srow">
+                    <div><div class="st">Calendar link</div><div class="sd">A private address that shows your timetable in Google, Apple or Outlook Calendar and keeps itself up to date. Anyone with the link can see class names and times, so share it only with people who should.</div></div>
+                    <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn btn-soft" type="button" onclick="copyCalendarLink()">Copy link</button><button class="btn btn-ghost" type="button" onclick="downloadCalendar()">Download file</button></div>
+                  </div>
+                  <div class="srow">
                     <div><div class="st">Backup configuration</div><div class="sd">Download all groups, contacts, templates and settings as JSON.</div></div>
                     <button class="btn btn-soft" onclick="exportConfig()">Download backup</button>
                   </div>
@@ -1000,7 +1005,7 @@ window.SSIES_USER = {{ {"email": email|default(username), "display_name": userna
 </dialog>
 
 
-<script src="{{ url_for('static', filename='js/chrome.js') }}?v=poc62"></script>
+<script src="{{ url_for('static', filename='js/chrome.js') }}?v=poc64"></script>
 <script src="{{ url_for('static', filename='js/theme.js') }}?v=poc54"></script>
 <script src="{{ url_for('static', filename='js/whatsapp.js') }}?v=poc60"></script>
 <script src="{{ url_for('static', filename='js/waha.js') }}?v=poc63"></script>
@@ -1706,7 +1711,7 @@ function renderGroupDetail(){
   const pic=entityPic(g);
   el.innerHTML=`
     <div class="detail-top"><button class="btn btn-soft btn-sm" onclick="gdBack()">← Back to groups</button><div style="flex:1"></div>
-      ${gdEdit?`<button class="btn btn-soft btn-sm" onclick="gdCancel()">Cancel</button><button class="btn btn-primary btn-sm" onclick="gdSave()">Save changes</button>`:`<button class="btn btn-primary btn-sm" onclick="gdToggleEdit()">✎ Edit details</button><button class="btn btn-soft btn-sm" onclick="gdReleaseCurrent()">Send</button><button class="icon-btn" title="Delete" onclick="gdDelete()">${TRASH_ICO}</button>`}
+      ${gdEdit?`<button class="btn btn-soft btn-sm" onclick="gdCancel()">Cancel</button><button class="btn btn-primary btn-sm" onclick="gdSave()">Save changes</button>`:`<button class="btn btn-primary btn-sm" onclick="gdToggleEdit()">✎ Edit details</button><button class="btn btn-soft btn-sm" onclick="gdReleaseCurrent()">Send</button>${g.id!=null?`<button class="btn btn-ghost btn-sm" title="Copy a calendar link for this group only" onclick="copyCalendarLink(${g.id})">Calendar link</button>`:""}<button class="icon-btn" title="Delete" onclick="gdDelete()">${TRASH_ICO}</button>`}
     </div>
     <div class="detail-hero">
       <div class="detail-av-wrap"><div class="editor-av${pic?" has-img":""}" id="gdAvatar" style="${vtn("ag",g)}">${avatarInner(g.name,pic)}</div>${gdEdit?`<button class="editor-av-edit" type="button" onclick="document.getElementById('gdImg').click()" title="Change photo"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg></button><input id="gdImg" type="file" accept="image/*" hidden onchange="gdPickImage(this)"/>`:""}</div>
@@ -2702,11 +2707,12 @@ async function copyText(t){try{await navigator.clipboard.writeText(t);toast("Cop
 <script src="{{ url_for('static', filename='js/features.js') }}?v=poc63"></script>
 <script src="{{ url_for('static', filename='js/workspace.js') }}?v=poc60"></script>
 <script src="{{ url_for('static', filename='js/visual_editor.js') }}?v=poc59"></script>
-<script src="{{ url_for('static', filename='js/dashboard.js') }}?v=poc63"></script>
+<script src="{{ url_for('static', filename='js/dashboard.js') }}?v=poc64"></script>
 <script src="{{ url_for('static', filename='js/scheduler.js') }}?v=poc62"></script>
 <script src="{{ url_for('static', filename='js/palette.js') }}?v=poc62"></script>
-<script src="{{ url_for('static', filename='js/assistant.js') }}?v=poc62"></script>
+<script src="{{ url_for('static', filename='js/assistant.js') }}?v=poc64"></script>
 <script src="{{ url_for('static', filename='js/contacts.js') }}?v=poc63"></script>
+<script src="{{ url_for('static', filename='js/exceptions.js') }}?v=poc64"></script>
 <script>boot();</script>
 </body>
 </html>

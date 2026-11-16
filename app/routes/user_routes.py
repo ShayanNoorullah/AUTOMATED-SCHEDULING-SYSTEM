@@ -8,7 +8,8 @@ from app.auth.decorators import login_required, superadmin_required
 from app.config import Config, DAYS
 from app.crypto import enc, dec
 from app.models import (
-    Group, Template, Contact, ContactList, Profile, AuditLog, ReleaseLog, ScheduledJob, ScheduleVersion, db,
+    Group, Template, Contact, ContactList, Profile, AuditLog, ReleaseLog, ScheduledJob, ScheduleException,
+    ScheduleVersion, db,
 )
 from app.services.audit import audit
 from app.services.users import maintenance_mode
@@ -350,6 +351,129 @@ def restore_schedule_version(version_id):
     db.session.commit()
     audit("schedule_restore", actor_id=g.profile.id)
     return jsonify({"ok": True})
+
+
+# ── One-off changes and holidays (see app/services/schedule_extras.py) ──
+def _exception_dict(x, names):
+    return {"id": x.id, "groupId": x.group_id, "groupName": names.get(x.group_id, "") if x.group_id is not None else "",
+            "date": x.date, "kind": x.kind, "from": x.from_time or "", "to": x.to_time or "", "note": x.note or ""}
+
+
+@bp.route("/api/schedule/exceptions", methods=["GET"])
+@login_required
+def list_schedule_exceptions():
+    from datetime import datetime, timedelta
+    uid = _effective_user_id()
+    # dates are the user's local dates; two days of slack covers every timezone
+    cutoff = (datetime.utcnow() - timedelta(days=2)).date().isoformat()
+    ScheduleException.query.filter(ScheduleException.user_id == uid, ScheduleException.date < cutoff).delete()
+    db.session.commit()
+    names = {g.id: g.name for g in Group.query.filter_by(user_id=uid).all()}
+    rows = ScheduleException.query.filter_by(user_id=uid).order_by(ScheduleException.date, ScheduleException.id).all()
+    # a change whose group has since been deleted is dropped from the list
+    return jsonify([_exception_dict(x, names) for x in rows if x.group_id is None or x.group_id in names])
+
+
+@bp.route("/api/schedule/exceptions", methods=["POST"])
+@login_required
+def add_schedule_exception():
+    import re
+    from datetime import datetime, timedelta
+    from app.services.assistant import norm_time
+    from app.services.schedule_extras import KINDS
+    data = request.json or {}
+    uid = _effective_user_id()
+    date = str(data.get("date") or "")
+    try:
+        if not re.match(r"^\d{4}-\d{2}-\d{2}$", date):
+            raise ValueError
+        when = datetime.strptime(date, "%Y-%m-%d").date()
+    except ValueError:
+        return jsonify({"error": "Pick a date"}), 400
+    if when < (datetime.utcnow() - timedelta(days=1)).date():
+        return jsonify({"error": "That date has already passed"}), 400
+    group_id = data.get("groupId")
+    if group_id is None:
+        kind, start, end = "cancel", "", ""            # every group: a day off
+    else:
+        if not Group.query.filter_by(user_id=uid, id=group_id).first():
+            return jsonify({"error": "Group not found"}), 404
+        kind = str(data.get("kind") or "")
+        if kind not in KINDS:
+            return jsonify({"error": "Choose cancelled, moved or extra class"}), 400
+        start, end = "", ""
+        if kind != "cancel":
+            start = norm_time(data.get("from"))
+            end = norm_time(data.get("to")) if str(data.get("to") or "").strip() else ""
+            if not start or end is None:
+                return jsonify({"error": "Enter the time like 3:00pm"}), 400
+    row = ScheduleException(user_id=uid, group_id=group_id, date=date, kind=kind, from_time=start, to_time=end,
+                            note=str(data.get("note") or "").strip()[:200])
+    db.session.add(row)
+    db.session.commit()
+    return jsonify({"ok": True, "id": row.id})
+
+
+@bp.route("/api/schedule/exceptions/<int:exc_id>", methods=["DELETE"])
+@login_required
+def delete_schedule_exception(exc_id):
+    row = ScheduleException.query.filter_by(user_id=_effective_user_id(), id=exc_id).first()
+    if not row:
+        return jsonify({"error": "Not found"}), 404
+    db.session.delete(row)
+    db.session.commit()
+    return jsonify({"ok": True})
+
+
+# ── Calendar feed: a private link other calendar apps can subscribe to ──
+@bp.route("/api/calendar-link", methods=["GET"])
+@login_required
+def calendar_link():
+    from app.services.schedule_extras import feed_token
+    uid = _effective_user_id()
+    return jsonify({"url": f"{request.url_root.rstrip('/')}/cal/{uid}/{feed_token(Config.SECRET_KEY, uid)}.ics"})
+
+
+@bp.route("/cal/<user_id>/<token>.ics")
+def calendar_feed(user_id, token):
+    """Public, but only with the token from /api/calendar-link (see PUBLIC_ENDPOINTS)."""
+    import hmac
+    from datetime import datetime, timedelta
+    from app.services.schedule_extras import build_ics, feed_token
+    from app.services.users import get_system_setting
+    uid = _parse_uid(user_id)
+    if not uid or not hmac.compare_digest(token, feed_token(Config.SECRET_KEY, uid)):
+        return Response("Not found", status=404, mimetype="text/plain")
+    q = Group.query.filter_by(user_id=uid).order_by(Group.position, Group.id)
+    only = request.args.get("group", type=int)
+    if only is not None:
+        q = q.filter_by(id=only)
+    groups = [{"id": g.id, "name": g.name, "schedule": g.schedule or []} for g in q.all()]
+    changes = [{"group_id": x.group_id, "date": x.date, "kind": x.kind, "from_time": x.from_time, "to_time": x.to_time}
+               for x in ScheduleException.query.filter_by(user_id=uid).all()]
+    try:
+        offset = int(get_system_setting("reminder_tz_offset_min", 300) or 300)
+    except (TypeError, ValueError):
+        offset = 300
+    today = (datetime.utcnow() + timedelta(minutes=offset)).date()
+    name = groups[0]["name"] if only is not None and groups else "Class schedule"
+    return Response(build_ics(groups, changes, today, name=name), mimetype="text/calendar",
+                    headers={"Cache-Control": "private, max-age=900"})
+
+
+# ── Installable app: both must be served from the site root ──
+@bp.route("/sw.js")
+def service_worker():
+    from flask import current_app, send_from_directory
+    resp = send_from_directory(current_app.static_folder, "sw.js", mimetype="application/javascript")
+    resp.headers["Cache-Control"] = "no-cache"          # a new worker must be picked up on the next visit
+    return resp
+
+
+@bp.route("/manifest.webmanifest")
+def web_manifest():
+    from flask import current_app, send_from_directory
+    return send_from_directory(current_app.static_folder, "manifest.webmanifest", mimetype="application/manifest+json")
 
 
 # ── Scheduler Assistant (proposals only — see app/services/assistant.py) ──

@@ -56,6 +56,7 @@ def create_app():
         "auth.login_page", "auth.forgot_password_page", "auth.auth_session",
         "auth.auth_refresh", "static", "user.health", "user.mobile_config",
         "user.mobile_download_page", "user.mobile_download_apk",
+        "user.calendar_feed", "user.service_worker", "user.web_manifest",
         "poc.create_password_request",
         "poc.passkey_login_options", "poc.passkey_login_verify",
     }
