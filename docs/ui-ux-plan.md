@@ -2,13 +2,39 @@
 
 Audit date: 2026-11-16. Scope: everything under `templates/user/` plus the CSS/JS it loads.
 
-**Status (2026-11-17):** Phases 1–10 and the assistant's local fallback are deployed
-(Phase 10 is commit `838c1f5`); Phase 11 below is built but not yet deployed. The assistant currently answers from the local model only
+**Status (2026-11-18):** Phases 1–11 and the assistant's local fallback are deployed
+(Phase 11 is commit `6aba167`); Phase 12 below is built but not yet deployed. With it,
+every item in this plan is built. The assistant currently answers from the local model only
 (`qwen2.5:7b` in the `ollama` service), because no hosted provider key has been entered
 yet; once one is added it becomes primary and the local model is the fallback. The
 assistant has never talked to a real hosted provider — see "Before first use" below.
 
-- **Phase 11** (2026-11-17, not yet deployed) — done:
+- **Phase 12** (2026-11-18, not yet deployed) — done:
+  - Who has seen a send: in Send History, every message delivered to a group has a
+    "Seen by…" button. It lists the group's members as replied or reacted / read /
+    received / not received yet, with a ring showing how many have seen it, and can copy
+    the names of those who have not read it. Worked out live from what WhatsApp (WAHA,
+    NOWEB with its store on) already keeps — the per-member read receipts on our message
+    and any message posted after it — so nothing new is stored and older sends work too,
+    as long as the message is still in WhatsApp's recent history for that group. Checked
+    against real sends before release (counts only). `app/services/acks.py`.
+  - The assistant from WhatsApp (off by default; Settings → Automation → "Use it from
+    WhatsApp"). In "Message yourself", a message starting with "ssies" goes to the
+    assistant; within a minute it replies in the same chat with the proposed change, and
+    nothing is saved until "ssies yes" (a proposal expires after 30 minutes; "ssies no"
+    drops it). Saving takes a schedule snapshot first, so it can be undone in the app.
+    Only the account's own messages in its own chat are read, and only those that start
+    with "ssies"; switching it on ignores everything already in that chat. Runs as its own
+    once-a-minute job so a slow answer never holds up sends or reminders. No database
+    change: the per-user switch, last-read time and pending proposal live in
+    system_settings ("wa_assistant:<user id>"). `app/services/wa_assistant.py`.
+  - Checks: `python tests/test_acks_wa_assistant.py`; route checks added to
+    `tests/test_routes_extras.py`.
+- **Left out on purpose:** rooms in the WhatsApp schedule message, so the messages people
+  already receive do not change. Cancel / reschedule notices still have to be sent from
+  the app, not from the WhatsApp assistant.
+
+- **Phase 11** (2026-11-17, deployed as `6aba167`) — done:
   - Profile and Notifications open inside the portal (no page reload) from the side menu,
     the avatar menu, the bell's "View all" and the command palette. Notifications are
     grouped Today / Yesterday / Earlier this week / Older, can be searched or narrowed to
@@ -26,11 +52,6 @@ assistant has never talked to a real hosted provider — see "Before first use" 
     time, and edges stick to a neighbouring class's edge within 10 minutes. Touch: bigger
     always-visible resize handles, and a tap (not a scroll) on empty space adds a class.
   - Fix: on a phone the Visual Editor's "Save & apply" button ran off the screen.
-- **Still not done after Phase 11** — needs live WhatsApp data to build and test:
-  messaging the assistant from WhatsApp; tracking who acknowledged a message. Rooms are
-  still left out of the WhatsApp schedule message on purpose, so existing messages do not
-  change.
-
 - **Phase 10** (2026-11-17, deployed as `838c1f5`) — done:
   - Scheduler: drag a class by its grip to another day or group (table and board). Dropping
     on a filled cell swaps the two; holding Ctrl, Alt or ⌘ copies instead. Undo in the toast.

@@ -1,7 +1,7 @@
 import json
 import uuid
 
-from flask import Blueprint, g, jsonify, render_template, request, Response
+from flask import Blueprint, current_app, g, jsonify, render_template, request, Response
 import queue
 
 from app.auth.decorators import login_required, superadmin_required
@@ -536,6 +536,29 @@ def put_assistant_config():
     if "localModel" in data:
         set_system_setting("assistant_local_model", str(data.get("localModel") or "").strip()[:120])
     return jsonify({"ok": True})
+
+
+@bp.route("/api/assistant/whatsapp", methods=["GET", "PUT"])
+@login_required
+def assistant_whatsapp():
+    """Turn "talk to the assistant from WhatsApp" on or off for this user."""
+    from app.services import wa_assistant
+    import time as _time
+    uid = _effective_user_id()
+    s = wa_assistant.get_state(uid)
+    if request.method == "PUT":
+        on = bool((request.json or {}).get("enabled"))
+        # start from now, so older notes in "Message yourself" are never treated as requests
+        s = {"enabled": on, "last_ts": int(_time.time()) if on else 0, "pending": None}
+        wa_assistant.set_state(uid, s)
+    cfg, local = _assistant_cfg(), _assistant_local_cfg()
+    u = db.session.get(Profile, uid)
+    return jsonify({
+        "enabled": bool(s.get("enabled")),
+        "ready": bool(all(cfg.values()) or all(local.values())),
+        "linked": getattr(u, "waha_slot", None) is not None,
+        "pending": bool(s.get("pending")),
+    })
 
 
 @bp.route("/api/assistant", methods=["POST"])
@@ -1390,6 +1413,27 @@ def release_history():
             for r in rows
         ],
     })
+
+
+@bp.route("/api/release-history/<int:log_id>/acks", methods=["GET"])
+@login_required
+def release_acks(log_id):
+    """Who in the group has read or answered this send (worked out live from WhatsApp)."""
+    from app.services.acks import acks_for_send
+    uid = _effective_user_id()
+    row = ReleaseLog.query.filter_by(id=log_id, user_id=uid).first()
+    if not row:
+        return jsonify({"error": "Not found"}), 404
+    if row.target_type != "group" or row.status != "success":
+        return jsonify({"error": "Only messages delivered to a group can be checked"}), 400
+    names = {dec(c.phone_enc): c.name for c in Contact.query.filter_by(user_id=uid).all()}
+    try:
+        return jsonify(acks_for_send(uid, row.target_name, row.created_at, names))
+    except RuntimeError as e:
+        return jsonify({"error": str(e)}), 409
+    except Exception:
+        current_app.logger.exception("acks for release %s", log_id)
+        return jsonify({"error": "Could not read the group from WhatsApp. Try again in a minute."}), 502
 
 
 @bp.route("/api/release/retry", methods=["POST"])

@@ -239,5 +239,9 @@ def start_scheduler(app):
         return
     scheduler.add_job(tick, "interval", minutes=1, args=[app], id="ssies_scheduled_send", replace_existing=True)
     scheduler.add_job(reminder_tick, "interval", minutes=1, args=[app], id="ssies_class_reminders", replace_existing=True)
+    # its own job: an assistant answer can take minutes and must not hold up sends or reminders
+    from app.services.wa_assistant import tick as wa_assistant_tick
+    scheduler.add_job(wa_assistant_tick, "interval", minutes=1, args=[app], id="ssies_wa_assistant",
+                      replace_existing=True, max_instances=1, coalesce=True)
     scheduler.start()
     log.info("Scheduled send + reminder checkers started (every 1 min)")

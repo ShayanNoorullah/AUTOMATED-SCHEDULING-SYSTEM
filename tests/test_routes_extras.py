@@ -91,6 +91,29 @@ def main():
     assert c.delete(f"/api/schedule/exceptions/{rows[0]['id']}").status_code == 200
     assert c.delete(f"/api/schedule/exceptions/{rows[0]['id']}").status_code == 404
     assert len(c.get("/api/schedule/exceptions").get_json()) == 1
+
+    # acknowledgements: only your own successful group sends can be checked
+    from app.models import ReleaseLog
+    with app.app_context():
+        rows_ = [ReleaseLog(user_id=me.id, target_name="CS Batch", target_type="contact", status="success"),
+                 ReleaseLog(user_id=me.id, target_name="CS Batch", target_type="group", status="failed"),
+                 ReleaseLog(user_id=uuid.uuid4(), target_name="X", target_type="group", status="success")]
+        db.session.add_all(rows_); db.session.commit()
+        ids = [r.id for r in rows_]
+    assert c.get(f"/api/release-history/{ids[0]}/acks").status_code == 400
+    assert c.get(f"/api/release-history/{ids[1]}/acks").status_code == 400
+    assert c.get(f"/api/release-history/{ids[2]}/acks").status_code == 404
+
+    # WhatsApp assistant switch: off by default; turning it on starts from "now"
+    import time as _t
+    assert c.get("/api/assistant/whatsapp").get_json()["enabled"] is False
+    on = c.put("/api/assistant/whatsapp", json={"enabled": True}).get_json()
+    assert on["enabled"] is True and on["ready"] is False and on["linked"] is False
+    from app.services import wa_assistant
+    with app.app_context():
+        st = wa_assistant.get_state(me.id)
+    assert st["enabled"] and abs(st["last_ts"] - _t.time()) < 5 and st["pending"] is None
+    assert c.put("/api/assistant/whatsapp", json={"enabled": False}).get_json()["enabled"] is False
     print("ok")
 
 

@@ -268,6 +268,8 @@ async function loadReleaseHistory(opts = {}) {
       return `<span class="htype">${t === "contact" ? "👤" : "👥"} ${esc(t)}</span>`;
     };
     const nameOf = (r) => r.targetName || r.target_name || "";
+    const seenBtn = (r) => (r.status === "success" && (r.targetType || r.target_type) === "group")
+      ? `<button class="btn btn-ghost btn-sm" type="button" onclick="openAcks(${r.id})" title="Who in the group has read or answered this">Seen by…</button>` : "";
     const atOf = (r) => r.at || r.created_at || "";
 
     if (historyMode === "board") {
@@ -277,7 +279,7 @@ async function loadReleaseHistory(opts = {}) {
           .map(
             (r) =>
               `<article class="hcard"><div class="hcard-top">${badge(r)}${typeChip(r)}</div><b class="hcard-name">${esc(nameOf(r))}</b><div class="hcard-time">${new Date(atOf(r)).toLocaleString()}</div>${
-                r.status !== "success" ? `<button class="btn btn-soft btn-sm" onclick="retryRelease(${r.id})">Retry</button>` : '<span class="hcard-check">✓ Sent</span>'
+                r.status !== "success" ? `<button class="btn btn-soft btn-sm" onclick="retryRelease(${r.id})">Retry</button>` : '<span class="hcard-check">✓ Sent</span>' + seenBtn(r)
               }</article>`
           )
           .join("") +
@@ -290,7 +292,7 @@ async function loadReleaseHistory(opts = {}) {
             (r, i) =>
               (i === 0 || dayKey(atOf(r)) !== dayKey(atOf(page[i - 1])) ? `<tr class="hday"><td colspan="5">${dayLabel(dayKey(atOf(r)))}</td></tr>` : "") +
               `<tr><td>${badge(r)}</td><td><b>${esc(nameOf(r))}</b>${r.status !== "success" && r.detail ? `<div class="hreason">${esc(r.detail)}</div>` : ""}</td><td>${typeChip(r)}</td><td><span class="hint" style="margin:0">${new Date(atOf(r)).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" })}</span></td><td style="text-align:right">${
-                r.status !== "success" ? `<button class="btn btn-soft btn-sm" onclick="retryRelease(${r.id})">Retry</button>` : ""
+                r.status !== "success" ? `<button class="btn btn-soft btn-sm" onclick="retryRelease(${r.id})">Retry</button>` : seenBtn(r)
               }</td></tr>`
           )
           .join("") +
@@ -308,6 +310,41 @@ async function loadReleaseHistory(opts = {}) {
   }
 }
 
+/* Who has seen a group send: read receipts and replies, read live from WhatsApp. */
+const ACK_LABEL = { replied: "Replied or reacted", read: "Read", delivered: "Received, not read yet", waiting: "Not received yet" };
+async function openAcks(id) {
+  let d = document.getElementById("acksModal");
+  if (!d) {
+    d = document.createElement("dialog"); d.id = "acksModal"; d.className = "modal-scrim";
+    d.innerHTML = `<div class="modal acks-modal"><div class="modal-h"><span id="acksTitle">Seen by</span><button class="modal-x" type="button" aria-label="Close" onclick="closeModal('acksModal')">✕</button></div><div class="modal-b" id="acksBody" style="gap:0"></div></div>`;
+    document.body.appendChild(d);
+  }
+  const row = (historyShown || []).find((r) => r.id === id) || {};
+  document.getElementById("acksTitle").textContent = `Seen by · ${row.targetName || "group"}`;
+  const body = document.getElementById("acksBody");
+  body.innerHTML = `<p class="hint">Checking WhatsApp…</p>${typeof skel === "function" ? `<div class="skel-list">${skel("rows", 4)}</div>` : ""}`;
+  openModal("acksModal");
+  try {
+    const res = await fetch(`/api/release-history/${id}/acks`);
+    const r = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(r.error || "Could not check");
+    if (!r.found) { body.innerHTML = `<p class="hint">This message is no longer in WhatsApp's recent history for the group, so it cannot be checked.</p>`; return; }
+    const c = r.counts, seen = c.replied + c.read;
+    const pct = r.total ? Math.round(seen / r.total * 100) : 0;
+    const groups = ["replied", "read", "delivered", "waiting"].filter((k) => c[k]);
+    body.innerHTML = `<div class="acks-sum"><div class="acks-ring" style="--p:${pct}"><b>${seen}</b><span>of ${r.total}</span></div>
+        <div><b>${seen} of ${r.total} have seen it</b><p class="hint" style="margin:2px 0 0">${c.replied} replied or reacted · ${c.read} read · ${c.delivered} received · ${c.waiting} not yet. Sent ${new Date(r.sentAt).toLocaleString()}.</p></div></div>` +
+      groups.map((k) => `<div class="acks-group"><div class="acks-h acks-${k}">${ACK_LABEL[k]} <span>${c[k]}</span></div>${r.people.filter((p) => p.state === k).map((p) =>
+        `<div class="acks-person"><span class="av xs">${avatarInner(p.name, "")}</span><span class="acks-name">${esc(p.name)}${p.phone && !p.name.startsWith("+") ? `<small>+${esc(p.phone)}</small>` : ""}</span>${p.at ? `<time title="${esc(new Date(p.at).toLocaleString())}">${esc(relTime(p.at))}</time>` : ""}</div>`).join("")}</div>`).join("") +
+      (c.waiting + c.delivered ? `<div class="acks-actions"><button class="btn btn-soft btn-sm" type="button" onclick="copyAckNames(${id})">Copy names of those who haven't read it</button></div>` : "");
+    d._last = r;
+  } catch (e) { body.innerHTML = `<p class="hint">${esc(e.message)}</p>`; }
+}
+async function copyAckNames() {
+  const r = document.getElementById("acksModal")?._last; if (!r) return;
+  const names = r.people.filter((p) => p.state === "waiting" || p.state === "delivered").map((p) => p.name).join("\n");
+  try { await navigator.clipboard.writeText(names); toast("Names copied ✓"); } catch { toast("Copy failed", "err"); }
+}
 async function retryRelease(id) {
   if (!(await confirmDialog("Retry this failed send?", { ok: "Retry" }))) return;
   const d = await (await fetch("/api/release/retry", post({ id }))).json();

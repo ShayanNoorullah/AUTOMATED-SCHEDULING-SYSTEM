@@ -195,6 +195,24 @@ async function loadAssistantConfig() {
     const state = d.providerReady ? (d.localReady ? "Ready — provider, with local fallback" : "Ready") : d.localReady ? "Ready — local model only" : "Not set up yet";
     document.getElementById("asStatus").textContent = d.canEdit ? state : "Only admins can change these.";
   } catch {}
+  loadWaAssistant();
+}
+async function loadWaAssistant(d) {
+  try {
+    d = d || await (await fetch("/api/assistant/whatsapp")).json();
+    const t = document.getElementById("waAsstToggle"), n = document.getElementById("waAsstNote"); if (!t) return;
+    t.checked = !!d.enabled;
+    t.disabled = !d.enabled && !(d.ready && d.linked);
+    n.textContent = !d.linked ? "Link WhatsApp on Automated Send first." : !d.ready ? "Set up the assistant above first." : d.pending ? "A change is waiting for your “ssies yes”." : "";
+  } catch {}
+}
+async function setWaAssistant(on) {
+  try {
+    const res = await fetch("/api/assistant/whatsapp", put({ enabled: on }));
+    const d = await res.json(); if (!res.ok) throw new Error(d.error || "Could not save");
+    loadWaAssistant(d);
+    toast(on ? "On — message yourself in WhatsApp, starting with “ssies”" : "WhatsApp assistant off", "ok");
+  } catch (e) { toast(e.message, "err"); loadWaAssistant(); }
 }
 async function saveAssistantConfig() {
   const body = { baseUrl: document.getElementById("asBase").value.trim(), model: document.getElementById("asModel").value.trim(),
