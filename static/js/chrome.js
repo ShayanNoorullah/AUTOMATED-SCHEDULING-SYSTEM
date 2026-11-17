@@ -273,6 +273,7 @@ function queueAllIndicators(root = document) { root.querySelectorAll(IND_SEL).fo
 /* Icon-only buttons get a spoken name from their tooltip (screen readers skip the title). */
 /* Follow the pointer after it has moved a few pixels; onEnd gets the last event, or null
    when it was only a click, was cancelled, or Escape was pressed. */
+const _copyKey = (e) => e.ctrlKey || e.altKey || e.metaKey;   // copy instead of move
 function _pointerTrack(ev, onMove, onEnd) {
   const sx = ev.clientX, sy = ev.clientY; let live = false;
   const mv = (e) => { if (!live && Math.hypot(e.clientX - sx, e.clientY - sy) < 5) return; live = true; onMove(e); };

@@ -358,6 +358,13 @@ function initScrollShadow() {
 
 /* User menu (avatar → dropdown with details + logout) — supports multiple instances */
 /* Profile link for the current site (user / admin / superadmin) */
+/* In the user portal, Profile and Notifications are views of the same page — no reload. */
+function inAppGo(e, view) {
+  if (!document.getElementById("view-" + view) || typeof navGo !== "function") return true;
+  e.preventDefault();
+  document.querySelectorAll(".user-menu-pop.open,#notifPanel.open").forEach((p) => p.classList.remove("open"));
+  navGo(view); return false;
+}
 function siteProfileHref() {
   const p = (location.pathname || "/").toLowerCase();
   if (p.startsWith("/superadmin")) return "/superadmin/profile";
@@ -376,7 +383,7 @@ function buildUserMenu() {
     `<button class="user-menu-btn" onclick="toggleUserMenu(event)" title="Account" aria-haspopup="true">${av("")}</button>` +
     `<div class="user-menu-pop">` +
     `<div class="user-menu-head">${av("lg")}<div class="user-menu-id"><div class="nm">${esc(name)}</div><div class="em">${esc(u.email)}</div><span class="user-menu-role">${esc(u.role)}</span></div></div>` +
-    `<a class="user-menu-item" href="${siteProfileHref()}"><span class="umi-ico">${userIco}</span> Profile</a>` +
+    `<a class="user-menu-item" href="${siteProfileHref()}" onclick="return inAppGo(event,'profile')"><span class="umi-ico">${userIco}</span> Profile</a>` +
     `<button class="user-menu-item danger" onclick="logout()"><span class="umi-ico">${outIco}</span> Log out</button>` +
     `</div>`;
   return wrap;
@@ -432,7 +439,7 @@ function renderNotifList() {
   const notes = notificationsFor();
   html += '<div class="notif-section">Recent</div>';
   html += notes.length ? notes.map((n) => `<div class="notif-item${n.read ? "" : " unread"}"><span class="notif-dot"></span><div class="notif-item-body"><div class="notif-text">${esc(n.text)}</div><div class="notif-time">${relTime(n.at)}</div></div></div>`).join("") : '<div class="notif-empty">You\'re all caught up</div>';
-  html += '<div class="notif-foot"><a class="notif-view-all" href="/notifications">View all notifications</a></div>';
+  html += '<div class="notif-foot"><a class="notif-view-all" href="/notifications" onclick="return inAppGo(event,&quot;notifications&quot;)">View all notifications</a></div>';
   el.innerHTML = html;
   markNotificationsRead(); updateNotifBadge();
 }

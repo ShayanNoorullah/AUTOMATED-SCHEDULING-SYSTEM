@@ -217,6 +217,9 @@ body.ve-lock{ overflow:hidden; }
   :root{ --ve-gutter:44px; }
   .ve-clash{ max-width:40vw; }
   .ve-tools{ padding:8px 12px; gap:8px; }
+  .ve-top{ padding:12px; gap:8px; }
+  .ve-actions{ margin-left:0; width:100%; flex-wrap:wrap; gap:5px; }
+  .ve-actions #veSaveBtn{ margin-left:auto; }
   .ve-total{ width:100%; order:5; }
   .ve-overlay{ --ve-hgut:62px; --ve-rmgut:92px; --ve-rm-dayw:40px; }
   .ve-hlabel{ padding:0 8px; font-size:.78rem; gap:5px; }
@@ -242,3 +245,30 @@ body.ve-lock{ overflow:hidden; }
   body.ve-print .ve-block{ box-shadow:none; -webkit-print-color-adjust:exact; print-color-adjust:exact; }
   @page{ size:landscape; margin:10mm; }
 }
+
+/* ── Phase 11: zoom, mini-map, drag guides, touch ── */
+.ve-scrollwrap{ flex:1; min-height:0; display:flex; position:relative; }
+.ve-scrollwrap > .ve-scroll{ flex:1; min-width:0; }
+.ve-zoom{ display:inline-flex; align-items:center; gap:2px; border:1px solid var(--border); border-radius:999px; padding:1px 3px; }
+.ve-zoom .btn{ min-width:28px; padding:2px 8px; font-weight:800; }
+.ve-zoom-lbl{ font-size:.74rem; font-weight:700; color:var(--text-muted); min-width:38px; text-align:center; font-variant-numeric:tabular-nums; }
+.ve-minimap{ position:absolute; right:14px; bottom:14px; width:84px; height:120px; border:1px solid var(--border); border-radius:8px; background:color-mix(in srgb,var(--surface) 92%,transparent); box-shadow:0 6px 18px -8px rgba(0,0,0,.35); cursor:pointer; touch-action:none; overflow:hidden; z-index:4; }
+.ve-minimap[hidden]{ display:none; }
+.ve-minimap{ opacity:.6; transition:opacity .15s ease; }
+.ve-minimap:hover{ opacity:1; }
+@media(max-width:760px){ .ve-minimap{ display:none !important; } }
+.ve-minimap i{ position:absolute; width:calc(100% / 7 - 2px); margin-left:1px; border-radius:2px; opacity:.85; }
+.ve-mm-view{ position:absolute; left:0; right:0; border:2px solid var(--accent); border-radius:4px; background:color-mix(in srgb,var(--accent) 12%,transparent); pointer-events:none; }
+.ve-guide{ position:absolute; left:0; right:0; border-top:1.5px dashed var(--accent); pointer-events:none; z-index:3; opacity:.8; }
+.ve-guide.v{ top:0; bottom:0; right:auto; border-top:none; border-left:1.5px dashed var(--accent); }
+.ve-guide.hit{ border-color:var(--success,#16a34a); border-style:solid; opacity:1; }
+.ve-ghost{ position:absolute; border:2px dashed color-mix(in srgb,var(--text-muted) 70%,transparent); border-radius:10px; background:color-mix(in srgb,var(--text-muted) 8%,transparent); pointer-events:none; z-index:0; }
+.ve-dragtip{ position:fixed; left:0; top:0; z-index:4100; pointer-events:none; padding:5px 10px; border-radius:8px; background:var(--text); color:var(--surface); font-size:.78rem; font-weight:700; white-space:nowrap; box-shadow:0 8px 20px -8px rgba(0,0,0,.45); font-variant-numeric:tabular-nums; }
+/* Touch: bigger, always-visible resize handles */
+@media (pointer:coarse){
+  .ve-hnd{ height:18px; opacity:1; }
+  .ve-hnd.n{ top:-4px; } .ve-hnd.s{ bottom:-4px; }
+  .ve-block.h .ve-hnd{ width:18px; }
+  .ve-block.h .ve-hnd.n{ left:-4px; } .ve-block.h .ve-hnd.s{ right:-4px; }
+}
+@media print{ .ve-minimap,.ve-zoom{ display:none !important; } }

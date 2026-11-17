@@ -2058,3 +2058,37 @@ body.ws-moving,body.ws-moving *{cursor:grabbing !important;user-select:none;}
 .ap-txt span{font-size:.8rem;color:var(--text-muted);}
 .ap-row .field{flex:1;min-width:0;}
 .ap-btns .toggle{margin-left:auto;}
+
+/* ============ Phase 11: in-app Notifications and Profile, password meter ============ */
+.np-wrap{max-width:860px;}
+.np-group{margin-bottom:18px;}
+.np-h{font-size:.74rem;font-weight:750;text-transform:uppercase;letter-spacing:.04em;color:var(--text-soft);margin:0 0 8px 4px;}
+.np-item{display:flex;align-items:flex-start;gap:12px;width:100%;text-align:left;border:1px solid var(--border);background:var(--surface);color:var(--text);font:inherit;padding:12px 14px;border-radius:var(--r-md);margin-bottom:6px;cursor:default;transition:background .15s,border-color .15s;}
+.np-item.unread{cursor:pointer;border-color:color-mix(in srgb,var(--accent) 35%,var(--border));background:color-mix(in srgb,var(--accent) 5%,var(--surface));}
+.np-item.unread:hover{background:var(--accent-soft);}
+.np-item .notif-dot{flex-shrink:0;margin-top:6px;width:8px;height:8px;border-radius:50%;background:transparent;}
+.np-item.unread .notif-dot{background:var(--accent);}
+.np-text{flex:1;min-width:0;font-size:.9rem;line-height:1.45;overflow-wrap:anywhere;}
+.np-item:not(.unread) .np-text{color:var(--text-muted);}
+.np-time{flex-shrink:0;font-size:.76rem;color:var(--text-soft);white-space:nowrap;}
+#view-profile .profile-content-wrap{max-width:1000px;}
+.pw-meter{display:flex;align-items:center;gap:10px;margin-top:6px;}
+.pw-bar{flex:1;max-width:220px;height:6px;border-radius:99px;background:var(--surface-3);overflow:hidden;}
+.pw-bar i{display:block;height:100%;width:0;border-radius:inherit;transition:width .25s var(--ease),background .25s;}
+.pw-word{font-size:.76rem;font-weight:700;color:var(--text-soft);min-width:64px;}
+.pw-meter[data-s="0"] i{width:12%;background:var(--error);}
+.pw-meter[data-s="1"] i{width:35%;background:var(--warn);}
+.pw-meter[data-s="2"] i{width:60%;background:var(--warn);}
+.pw-meter[data-s="3"] i{width:82%;background:var(--success);}
+.pw-meter[data-s="4"] i{width:100%;background:var(--success);}
+.pw-meter[data-s="0"] .pw-word{color:var(--error);}
+.pw-meter[data-s="3"] .pw-word,.pw-meter[data-s="4"] .pw-word{color:var(--success);}
+@media(max-width:560px){ .np-item{flex-wrap:wrap;} .np-time{margin-left:20px;} }
+/* Lists: drag rows onto another list */
+.lrow-grip{display:none;place-items:center;color:var(--text-soft);cursor:grab;touch-action:none;width:16px;flex-shrink:0;margin-right:-4px;}
+.lrow-grip svg{width:13px;height:13px;}
+.lists-workspace .lrow-grip{display:grid;}
+.lists-workspace .lrow:not(:hover):not(.sel) .lrow-grip{opacity:.35;}
+@media (hover:none){ .lists-workspace .lrow .lrow-grip{opacity:1;} }
+.lists-side.list-drag-on .lists-side-item:not(.on){outline:1px dashed var(--border);outline-offset:-3px;}
+.lists-side-item.list-drop{outline:2px dashed var(--accent) !important;outline-offset:-3px;background:var(--accent-soft) !important;}

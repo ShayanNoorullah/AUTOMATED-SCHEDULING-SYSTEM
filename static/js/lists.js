@@ -294,7 +294,7 @@ function memberRow(list, c) {
   const pic = typeof entityPic === "function" ? entityPic(c) : (c.photoUrl || c.pic || "");
   const display = (c.name && c.name !== c.phone) ? c.name : (c.name || c.phone);
   return `<div class="lrow lists-clickrow${sel ? " sel" : ""}" onclick="openListEntity('${list.id}','c','${escA(c.phone)}')">
-    <span class="lrow-check" onclick="event.stopPropagation()"><input type="checkbox" ${sel ? "checked" : ""} onchange="toggleListSel('${list.id}','${escA(key)}',this.checked);this.closest('.lrow').classList.toggle('sel',this.checked)"/></span>
+    ${listGrip(list.id, "c", c.phone)}<span class="lrow-check" onclick="event.stopPropagation()"><input type="checkbox" ${sel ? "checked" : ""} onchange="toggleListSel('${list.id}','${escA(key)}',this.checked);this.closest('.lrow').classList.toggle('sel',this.checked)"/></span>
     <span class="av small${pic ? " has-img" : ""}">${avatarInner(display, pic)}${c.waLinked ? '<span class="wa-badge"></span>' : ""}</span>
     <span class="lrow-body"><b>${esc(display)}</b><span class="lrow-sub">+${esc(c.phone)}</span></span>
     <span class="lrow-type"><span class="lists-type-tag">Contact</span></span>
@@ -307,12 +307,78 @@ function groupRow(list, g) {
   const sel = !!listSelSet(list.id)[key];
   const gname = g.name || g.id || "Group";
   return `<div class="lrow lists-clickrow${sel ? " sel" : ""}" onclick="openListEntity('${list.id}','g',${gi})">
-    <span class="lrow-check" onclick="event.stopPropagation()"><input type="checkbox" ${sel ? "checked" : ""} onchange="toggleListSel('${list.id}','${escA(key)}',this.checked);this.closest('.lrow').classList.toggle('sel',this.checked)"/></span>
+    ${listGrip(list.id, "g", g.id || g.name)}<span class="lrow-check" onclick="event.stopPropagation()"><input type="checkbox" ${sel ? "checked" : ""} onchange="toggleListSel('${list.id}','${escA(key)}',this.checked);this.closest('.lrow').classList.toggle('sel',this.checked)"/></span>
     <span class="av small lists-av-group">${avatarInner(gname, "")}</span>
     <span class="lrow-body"><b>${esc(gname)}</b><span class="lrow-sub">WhatsApp group</span></span>
     <span class="lrow-type"><span class="lists-type-tag is-group">Group</span></span>
     <button class="btn btn-soft btn-sm lrow-send" type="button" onclick="event.stopPropagation();sendListGroupIdx('${list.id}',${gi})">Send</button>
   </div>`;
+}
+/* ── Drag contacts and groups onto another list in the sidebar (Ctrl / Alt / ⌘ copies).
+   Dragging a selected row takes every selected row with it. Undo in the toast. ── */
+function listGrip(listId, type, key) {
+  return `<span class="lrow-grip" title="Drag onto another list · hold Ctrl to copy" aria-hidden="true" onclick="event.stopPropagation()" onpointerdown="listDragStart(event,'${listId}','${type}','${escA(String(key))}')">${typeof GRIP_ICO !== "undefined" ? GRIP_ICO : "⠿"}</span>`;
+}
+function listDragStart(ev, listId, type, key) {
+  if (ev.button > 0 || !listById(listId)) return;
+  ev.preventDefault(); ev.stopPropagation();
+  const sel = listSelSet(listId), mine = type + ":" + key;
+  const keys = sel[mine] ? Object.keys(sel).filter((k) => sel[k]) : [mine];
+  const row = ev.target.closest(".lrow"), label = keys.length > 1 ? `${keys.length} items` : (row?.querySelector(".lrow-body b")?.textContent || "1 item");
+  let ghost = null, over = null;
+  const clear = () => { if (over) over.classList.remove("list-drop"); over = null; };
+  _pointerTrack(ev, (e) => {
+    if (!ghost) {
+      ghost = document.createElement("div"); ghost.className = "slot-ghost"; ghost.textContent = label;
+      document.body.appendChild(ghost); document.body.classList.add("slot-dragging");
+      document.querySelector(".lists-side")?.classList.add("list-drag-on");
+    }
+    ghost.style.transform = `translate(${e.clientX + 14}px,${e.clientY + 14}px)`;
+    ghost.classList.toggle("is-copy", _copyKey(e));
+    const t = document.elementFromPoint(e.clientX, e.clientY)?.closest(".lists-side-item");
+    clear();
+    if (t && t.dataset.id !== listId) { t.classList.add("list-drop"); over = t; }
+  }, (e) => {
+    const t = over; clear();
+    if (ghost) ghost.remove();
+    document.body.classList.remove("slot-dragging");
+    document.querySelector(".lists-side")?.classList.remove("list-drag-on");
+    if (e && t) moveListItems(listId, t.dataset.id, keys, _copyKey(e));
+  });
+}
+const _gk = (g) => g.id || g.name;
+async function _putListMembers(l) {
+  const res = await fetch(`/api/lists/${encodeURIComponent(l.id)}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ members: l.members || [], groups: l.groups || [] }) });
+  if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || "Could not update the list");
+}
+async function moveListItems(fromId, toId, keys, copy) {
+  const a = listById(fromId), b = listById(toId); if (!a || !b) return;
+  const snap = [a, b].map((l) => [l, [...(l.members || [])], (l.groups || []).map((g) => ({ ...g })), { ...(l.memberNames || {}) }]);
+  const phones = keys.filter((k) => k.startsWith("c:")).map((k) => phoneKey(k.slice(2)));
+  const gkeys = keys.filter((k) => k.startsWith("g:")).map((k) => k.slice(2));
+  const gobjs = (a.groups || []).filter((g) => gkeys.includes(_gk(g)));
+  const had = new Set((b.members || []).map(phoneKey)), hadG = new Set((b.groups || []).map(_gk));
+  const added = phones.filter((p) => !had.has(p)).length + gobjs.filter((g) => !hadG.has(_gk(g))).length;
+  b.members = [...had, ...phones.filter((p) => !had.has(p))];
+  b.groups = [...(b.groups || []), ...gobjs.filter((g) => !hadG.has(_gk(g)))];
+  b.memberNames = { ...(b.memberNames || {}) };
+  phones.forEach((p) => { if (a.memberNames && a.memberNames[p]) b.memberNames[p] = a.memberNames[p]; });
+  if (!copy) {
+    a.members = (a.members || []).filter((p) => !phones.includes(phoneKey(p)));
+    a.groups = (a.groups || []).filter((g) => !gkeys.includes(_gk(g)));
+    listSel[fromId] = {};
+  }
+  const restore = async () => {
+    snap.forEach(([l, m, g, n]) => { l.members = m; l.groups = g; l.memberNames = n; });
+    renderLists();
+    try { await Promise.all([a, b].map(_putListMembers)); } catch (e) { toast(e.message, "err"); await loadLists(); renderLists(); }
+  };
+  renderLists();
+  try { await Promise.all((copy ? [b] : [a, b]).map(_putListMembers)); }
+  catch (e) { toast(e.message, "err"); await loadLists(); renderLists(); return; }
+  const n = keys.length, what = n === 1 ? "1 item" : `${n} items`;
+  const already = added < n ? ` (${n - added} already there)` : "";
+  toast(`${copy ? "Copied" : "Moved"} ${what} to “${b.name}”${already}`, "", { label: "Undo", fn: restore });
 }
 function listMembersView(list) {
   if (!listTotalCount(list)) {

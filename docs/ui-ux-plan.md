@@ -2,13 +2,36 @@
 
 Audit date: 2026-11-16. Scope: everything under `templates/user/` plus the CSS/JS it loads.
 
-**Status (2026-11-17):** Phases 1–9 and the assistant's local fallback are deployed
-(Phase 9 is commit `948bc5e`); Phase 10 below is built but not yet deployed. The assistant currently answers from the local model only
+**Status (2026-11-17):** Phases 1–10 and the assistant's local fallback are deployed
+(Phase 10 is commit `838c1f5`); Phase 11 below is built but not yet deployed. The assistant currently answers from the local model only
 (`qwen2.5:7b` in the `ollama` service), because no hosted provider key has been entered
 yet; once one is added it becomes primary and the local model is the fallback. The
 assistant has never talked to a real hosted provider — see "Before first use" below.
 
-- **Phase 10** (2026-11-17, not yet deployed) — done:
+- **Phase 11** (2026-11-17, not yet deployed) — done:
+  - Profile and Notifications open inside the portal (no page reload) from the side menu,
+    the avatar menu, the bell's "View all" and the command palette. Notifications are
+    grouped Today / Yesterday / Earlier this week / Older, can be searched or narrowed to
+    unread, and clicking one marks it read. The in-app Profile shows name and photo; the
+    password form stays in Settings → Security (a button links there). `/profile` and
+    `/notifications` still work as pages, and admins keep using them.
+  - Profile photo goes through the same square crop step as group photos; new-password
+    boxes show a strength meter.
+  - Lists: drag a contact or group onto another list in the sidebar to move it (Ctrl, Alt
+    or ⌘ copies). Dragging a selected row takes every selected row. Undo in the toast.
+  - Visual Editor: zoom the time axis (− / + buttons, or Ctrl + scroll / trackpad pinch) in
+    the views where time runs down the page; a mini-map of the week appears when zoomed in
+    (click or drag it to jump; hidden on phones); while dragging, dashed guides mark the new
+    start and end, a dashed ghost marks where the class was, a tip shows the new day and
+    time, and edges stick to a neighbouring class's edge within 10 minutes. Touch: bigger
+    always-visible resize handles, and a tap (not a scroll) on empty space adds a class.
+  - Fix: on a phone the Visual Editor's "Save & apply" button ran off the screen.
+- **Still not done after Phase 11** — needs live WhatsApp data to build and test:
+  messaging the assistant from WhatsApp; tracking who acknowledged a message. Rooms are
+  still left out of the WhatsApp schedule message on purpose, so existing messages do not
+  change.
+
+- **Phase 10** (2026-11-17, deployed as `838c1f5`) — done:
   - Scheduler: drag a class by its grip to another day or group (table and board). Dropping
     on a filled cell swaps the two; holding Ctrl, Alt or ⌘ copies instead. Undo in the toast.
     Works with a finger too (pointer events). Only the class shown in the cell moves, so a
@@ -24,14 +47,6 @@ assistant has never talked to a real hosted provider — see "Before first use" 
     change saves itself (a layout saved under a name is updated too, with a "Saved ✓" tick).
   - Settings → Appearance has a preview card at the top; choosing Light / Dark / System
     there now uses the same circular reveal as the top-bar theme button.
-- **Still not done after Phase 10**, by kind:
-  - Needs live WhatsApp data to build and test: messaging the assistant from WhatsApp;
-    tracking who acknowledged a message.
-  - Larger interaction work: Visual Editor snap guides, zoom, mini-map, touch mode; lists
-    drag-between.
-  - Smaller polish: Profile as an in-app view; rooms in the WhatsApp schedule message
-    (left out on purpose so existing messages do not change).
-
 - **Phase 9** (2026-11-17, deployed as `948bc5e`) — done:
   - Rooms and teachers: every class (one group, one day) can have a room and a teacher.
     They are entered in the group editor (with suggestions from ones already used) or the

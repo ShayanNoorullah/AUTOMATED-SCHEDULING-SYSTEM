@@ -327,7 +327,6 @@ function _schedSnap(gs) { return gs.map((g) => [g, g.schedule.map((e) => ({ ...e
 function _schedChanged() { tableDirty = true; markUnsaved(); renderTable(); }
 function _schedSort(g) { g.schedule.sort((a, b) => DAYS.indexOf(a.day) - DAYS.indexOf(b.day)); }
 function _schedUndo(snap) { return { label: "Undo", fn: () => { snap.forEach(([g, s]) => { g.schedule = s; }); _schedChanged(); } }; }
-const _copyKey = (e) => e.ctrlKey || e.altKey || e.metaKey;
 
 function slotDragStart(ev, ci, day) {
   const src = groups[ci] && groups[ci].schedule.find((x) => x.day === day);

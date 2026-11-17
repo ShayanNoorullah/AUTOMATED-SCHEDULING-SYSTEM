@@ -15,7 +15,9 @@
   const COLORS = ["#3B5BDB", "#E8890C", "#0F9F74", "#D6336C", "#7048E8", "#2F9E44",
     "#1098AD", "#C92A2A", "#D9A400", "#1C7ED6", "#F76707", "#5C7CFA"];
   const SHORT = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
-  const HOUR_PX = 56;          // vertical pixels per hour (week vertical + day)
+  const HOUR_PX = 56;          // vertical pixels per hour at 100% zoom (week vertical + day)
+  const ZOOMS = [0.6, 0.8, 1, 1.25, 1.5, 2, 2.5];
+  const MAG = 10 / 60;         // drag edges stick to a neighbour's edge within 10 minutes
   const LANE_H = 40;           // horizontal week: pixels per overlap lane (incl. gap)
   const LANE_GAP = 9;          // horizontal: vertical gap between stacked lanes
   const CMP_LANE_H = 24;       // compact: denser lanes
@@ -28,6 +30,8 @@
   let veSwap = false;          // week only: days as rows / time across
   let veDayIdx = todayIdx();   // day view: selected day
   let drag = null, movedFlag = false;
+  let veZoom = 1;              // time-axis zoom for the views where time runs down the page
+  function HPX() { return Math.round(HOUR_PX * veZoom); }
   const undoStack = [];        // snapshots of veItems for Ctrl+Z / Undo button
   const redoStack = [];        // snapshots undone, for Ctrl+Shift+Z / Ctrl+Y / Redo button
   let GEO = { mode: "vgrid" }; // vgrid | hgrid | day | rooms | none — drives pointer→(day,hour)
@@ -49,8 +53,8 @@
     const r = document.getElementById("veRedoBtn"); if (r) r.disabled = !redoStack.length;
   }
 
-  function savePrefs() { try { localStorage.setItem("ve-view", veView); localStorage.setItem("ve-swap", veSwap ? "1" : "0"); } catch (e) {} }
-  function loadPrefs() { try { const v = localStorage.getItem("ve-view"); if (["week", "compact", "day", "rooms", "agenda"].includes(v)) veView = v; veSwap = localStorage.getItem("ve-swap") === "1"; } catch (e) {} }
+  function savePrefs() { try { localStorage.setItem("ve-view", veView); localStorage.setItem("ve-swap", veSwap ? "1" : "0"); localStorage.setItem("ve-zoom", String(veZoom)); } catch (e) {} }
+  function loadPrefs() { try { const v = localStorage.getItem("ve-view"); if (["week", "compact", "day", "rooms", "agenda"].includes(v)) veView = v; veSwap = localStorage.getItem("ve-swap") === "1"; const z = +localStorage.getItem("ve-zoom"); if (ZOOMS.includes(z)) veZoom = z; } catch (e) {} }
 
   /* ---- colour per group (deterministic, with a per-browser override) ---- */
   function veColors() { try { return JSON.parse(localStorage.getItem("ve-colors") || "{}"); } catch (e) { return {}; } }
@@ -187,27 +191,27 @@
     const DG = days(), span = veEnd - veStart;
     head.innerHTML = `<div class="ve-corner">Time</div>` +
       DG.map((d, i) => `<div class="ve-dh"><span class="ve-dh-full">${d}</span><span class="ve-dh-short">${SHORT[i]}</span></div>`).join("");
-    body.style.setProperty("--ve-h", (span * HOUR_PX) + "px");
+    body.style.setProperty("--ve-h", (span * HPX()) + "px");
 
     const gutter = el("div", "ve-gutter");
-    for (let h = veStart; h <= veEnd; h++) { const lab = el("div", "ve-tl", hourLab(h)); lab.style.top = ((h - veStart) * HOUR_PX) + "px"; gutter.appendChild(lab); }
+    for (let h = veStart; h <= veEnd; h++) { const lab = el("div", "ve-tl", hourLab(h)); lab.style.top = ((h - veStart) * HPX()) + "px"; gutter.appendChild(lab); }
     body.appendChild(gutter);
 
     const cols = el("div", "ve-cols"); cols.id = "veCanvas";
-    for (let h = veStart; h <= veEnd; h++) { const line = el("div", "ve-hline" + (h % 1 ? "" : " hr")); line.style.top = ((h - veStart) * HOUR_PX) + "px"; cols.appendChild(line); }
+    for (let h = veStart; h <= veEnd; h++) { const line = el("div", "ve-hline" + (h % 1 ? "" : " hr")); line.style.top = ((h - veStart) * HPX()) + "px"; cols.appendChild(line); }
     for (let d = 0; d < 7; d++) { const col = el("div", "ve-col"); col.style.left = (d / 7 * 100) + "%"; col.style.width = (100 / 7) + "%"; col.dataset.dayi = d; cols.appendChild(col); }
     DG.forEach((day, di) => layout(day).forEach((it) => {
       const laneW = (100 / 7) / it._lanes;
       const b = makeBlock(it, "v");
       b.style.left = (di / 7 * 100 + it._lane * laneW) + "%";
       b.style.width = "calc(" + laneW + "% - 3px)";
-      b.style.top = ((it.a - veStart) * HOUR_PX) + "px";
-      b.style.height = Math.max(16, (it.b - it.a) * HOUR_PX - 2) + "px";
+      b.style.top = ((it.a - veStart) * HPX()) + "px";
+      b.style.height = Math.max(16, (it.b - it.a) * HPX() - 2) + "px";
       cols.appendChild(b);
     }));
     const ti = DG.indexOf(todayName()), nh = nowHour();
     if (ti >= 0 && nh >= veStart && nh <= veEnd) {
-      const line = el("div", "ve-now"); line.style.top = ((nh - veStart) * HOUR_PX) + "px";
+      const line = el("div", "ve-now"); line.style.top = ((nh - veStart) * HPX()) + "px";
       line.style.left = (ti / 7 * 100) + "%"; line.style.width = (100 / 7) + "%"; cols.appendChild(line);
     }
     cols.addEventListener("pointerdown", onEmptyDown);
@@ -343,21 +347,21 @@
     wireDayTabs(head);
 
     const day = DG[veDayIdx];
-    body.style.setProperty("--ve-h", (span * HOUR_PX) + "px");
+    body.style.setProperty("--ve-h", (span * HPX()) + "px");
     const gutter = el("div", "ve-gutter");
-    for (let h = veStart; h <= veEnd; h++) { const lab = el("div", "ve-tl", hourLab(h)); lab.style.top = ((h - veStart) * HOUR_PX) + "px"; gutter.appendChild(lab); }
+    for (let h = veStart; h <= veEnd; h++) { const lab = el("div", "ve-tl", hourLab(h)); lab.style.top = ((h - veStart) * HPX()) + "px"; gutter.appendChild(lab); }
     body.appendChild(gutter);
 
     const cols = el("div", "ve-cols ve-day1"); cols.id = "veCanvas";
-    for (let h = veStart; h <= veEnd; h++) { const line = el("div", "ve-hline" + (h % 1 ? "" : " hr")); line.style.top = ((h - veStart) * HOUR_PX) + "px"; cols.appendChild(line); }
+    for (let h = veStart; h <= veEnd; h++) { const line = el("div", "ve-hline" + (h % 1 ? "" : " hr")); line.style.top = ((h - veStart) * HPX()) + "px"; cols.appendChild(line); }
     const items = layout(day), n = items.length ? items[0]._lanes : 1, laneW = 100 / Math.max(1, n);
     items.forEach((it) => {
       const b = makeBlock(it, "v");
       b.style.left = (it._lane * laneW) + "%"; b.style.width = "calc(" + laneW + "% - 3px)";
-      b.style.top = ((it.a - veStart) * HOUR_PX) + "px"; b.style.height = Math.max(16, (it.b - it.a) * HOUR_PX - 2) + "px";
+      b.style.top = ((it.a - veStart) * HPX()) + "px"; b.style.height = Math.max(16, (it.b - it.a) * HPX() - 2) + "px";
       cols.appendChild(b);
     });
-    if (veDayIdx === ti) { const nh = nowHour(); if (nh >= veStart && nh <= veEnd) { const line = el("div", "ve-now"); line.style.top = ((nh - veStart) * HOUR_PX) + "px"; line.style.left = "0"; line.style.width = "100%"; cols.appendChild(line); } }
+    if (veDayIdx === ti) { const nh = nowHour(); if (nh >= veStart && nh <= veEnd) { const line = el("div", "ve-now"); line.style.top = ((nh - veStart) * HPX()) + "px"; line.style.left = "0"; line.style.width = "100%"; cols.appendChild(line); } }
     cols.addEventListener("pointerdown", onEmptyDown);
     body.appendChild(cols);
   }
@@ -378,13 +382,13 @@
     head.innerHTML = `<div class="ve-daytabs">${dayTabsHTML()}</div>` + rh;
     wireDayTabs(head);
 
-    body.style.setProperty("--ve-h", (span * HOUR_PX) + "px");
+    body.style.setProperty("--ve-h", (span * HPX()) + "px");
     const gutter = el("div", "ve-gutter");
-    for (let h = veStart; h <= veEnd; h++) { const lab = el("div", "ve-tl", hourLab(h)); lab.style.top = ((h - veStart) * HOUR_PX) + "px"; gutter.appendChild(lab); }
+    for (let h = veStart; h <= veEnd; h++) { const lab = el("div", "ve-tl", hourLab(h)); lab.style.top = ((h - veStart) * HPX()) + "px"; gutter.appendChild(lab); }
     body.appendChild(gutter);
 
     const canvas = el("div", "ve-cols ve-day1"); canvas.id = "veCanvas";
-    for (let h = veStart; h <= veEnd; h++) { const line = el("div", "ve-hline" + (h % 1 ? "" : " hr")); line.style.top = ((h - veStart) * HOUR_PX) + "px"; canvas.appendChild(line); }
+    for (let h = veStart; h <= veEnd; h++) { const line = el("div", "ve-hline" + (h % 1 ? "" : " hr")); line.style.top = ((h - veStart) * HPX()) + "px"; canvas.appendChild(line); }
     for (let c = 0; c < nc; c++) { const col = el("div", "ve-col"); col.style.left = (c / nc * 100) + "%"; col.style.width = (100 / nc) + "%"; col.dataset.dayi = c; canvas.appendChild(col); }
     cols.forEach((c, ci) => {
       const items = packLanes(veItems.filter((i) => i.day === day && (i.room || "") === c.key));
@@ -394,11 +398,11 @@
         b.classList.remove("clash");                           // same time / different room is fine here
         if (hasRoomClash(it)) b.classList.add("roomclash");
         b.style.left = (ci / nc * 100 + it._lane * laneW) + "%"; b.style.width = "calc(" + laneW + "% - 3px)";
-        b.style.top = ((it.a - veStart) * HOUR_PX) + "px"; b.style.height = Math.max(16, (it.b - it.a) * HOUR_PX - 2) + "px";
+        b.style.top = ((it.a - veStart) * HPX()) + "px"; b.style.height = Math.max(16, (it.b - it.a) * HPX() - 2) + "px";
         canvas.appendChild(b);
       });
     });
-    if (veDayIdx === ti) { const nh = nowHour(); if (nh >= veStart && nh <= veEnd) { const line = el("div", "ve-now"); line.style.top = ((nh - veStart) * HOUR_PX) + "px"; line.style.left = "0"; line.style.width = "100%"; canvas.appendChild(line); } }
+    if (veDayIdx === ti) { const nh = nowHour(); if (nh >= veStart && nh <= veEnd) { const line = el("div", "ve-now"); line.style.top = ((nh - veStart) * HPX()) + "px"; line.style.left = "0"; line.style.width = "100%"; canvas.appendChild(line); } }
     canvas.addEventListener("pointerdown", onEmptyDown);
     body.appendChild(canvas);
   }
@@ -457,7 +461,88 @@
     else renderAgenda(head, body);
 
     fillWindowSelects(); renderLegend(); renderClashSummary(); savePrefs();
+    const vert = ["vgrid", "day", "rooms"].includes(GEO.mode);
+    const zw = document.getElementById("veZoomWrap");
+    if (zw) {
+      zw.style.display = vert ? "" : "none";
+      document.getElementById("veZoomLbl").textContent = Math.round(veZoom * 100) + "%";
+      document.getElementById("veZoomOut").disabled = veZoom === ZOOMS[0];
+      document.getElementById("veZoomIn").disabled = veZoom === ZOOMS[ZOOMS.length - 1];
+    }
+    renderMinimap();
   }
+
+  /* ---- zoom the time axis (buttons, or Ctrl + scroll wheel / trackpad pinch) ---- */
+  function setZoom(z, anchorY) {
+    z = ZOOMS.reduce((best, x) => (Math.abs(x - z) < Math.abs(best - z) ? x : best), ZOOMS[0]);
+    if (z === veZoom) return;
+    const sc = document.querySelector(".ve-scroll");
+    const cy = anchorY == null ? (sc ? sc.clientHeight / 2 : 0) : anchorY;   // keep this hour in place
+    const h = sc ? (sc.scrollTop + cy) / HPX() : 0;
+    veZoom = z; render();
+    if (sc) sc.scrollTop = h * HPX() - cy;
+  }
+  function zoomStep(dir, anchorY) { const i = ZOOMS.indexOf(veZoom); setZoom(ZOOMS[Math.max(0, Math.min(ZOOMS.length - 1, i + dir))], anchorY); }
+  function onWheel(e) {
+    if (!(e.ctrlKey || e.metaKey) || !["vgrid", "day", "rooms"].includes(GEO.mode)) return;
+    e.preventDefault();
+    const sc = e.currentTarget, now = Date.now();
+    if (now - (onWheel._t || 0) < 120) return;   // one step per gesture burst
+    onWheel._t = now;
+    zoomStep(e.deltaY < 0 ? 1 : -1, e.clientY - sc.getBoundingClientRect().top);
+  }
+
+  /* ---- mini-map: the whole week in miniature when zoomed in; click or drag to jump ---- */
+  function renderMinimap() {
+    const mm = document.getElementById("veMinimap"), sc = document.querySelector(".ve-scroll");
+    if (!mm || !sc) return;
+    const show = GEO.mode === "vgrid" && sc.scrollHeight > sc.clientHeight * 1.15;
+    mm.hidden = !show; if (!show) return;
+    const span = veEnd - veStart, DG = days();
+    mm.innerHTML = veItems.filter((it) => it.b > veStart && it.a < veEnd).map((it) => {
+      const di = DG.indexOf(it.day);
+      return `<i style="left:${di / 7 * 100}%;top:${(Math.max(it.a, veStart) - veStart) / span * 100}%;height:${(Math.min(it.b, veEnd) - Math.max(it.a, veStart)) / span * 100}%;background:${colorFor(it.gi)}"></i>`;
+    }).join("") + `<b class="ve-mm-view"></b>`;
+    syncMinimap();
+  }
+  function syncMinimap() {
+    const mm = document.getElementById("veMinimap"), sc = document.querySelector(".ve-scroll");
+    const v = mm && !mm.hidden && mm.querySelector(".ve-mm-view"); if (!v) return;
+    v.style.top = (sc.scrollTop / sc.scrollHeight * 100) + "%";
+    v.style.height = (sc.clientHeight / sc.scrollHeight * 100) + "%";
+  }
+  function onMinimapDown(e) {
+    const mm = e.currentTarget, sc = document.querySelector(".ve-scroll"); if (!sc) return;
+    e.preventDefault(); mm.setPointerCapture?.(e.pointerId);
+    const go = (ev) => { const r = mm.getBoundingClientRect(); sc.scrollTop = (ev.clientY - r.top) / r.height * sc.scrollHeight - sc.clientHeight / 2; };
+    go(e);
+    const mv = (ev) => go(ev), up = () => { mm.removeEventListener("pointermove", mv); mm.removeEventListener("pointerup", up); };
+    mm.addEventListener("pointermove", mv); mm.addEventListener("pointerup", up);
+  }
+
+  /* ---- drag feedback: guide lines at the new start and end, a ghost where the class was,
+     and a tip with the new day and time ---- */
+  function magnet(h, day, self) {
+    let best = h, bd = MAG;
+    veItems.forEach((o) => { if (o === self || o.day !== day) return; [o.a, o.b].forEach((x) => { const d = Math.abs(x - h); if (d < bd) { bd = d; best = x; } }); });
+    return best;
+  }
+  function dragFeedback(e) {
+    const c = document.getElementById("veCanvas"); if (!c || !drag) return;
+    const it = drag.it, span = veEnd - veStart;
+    if (drag.ghost && drag.view === veView) { const g = el("div", "ve-ghost"); g.style.cssText = drag.ghost; c.appendChild(g); }
+    const across = GEO.mode === "hgrid" || GEO.mode === "roomsgrid";
+    if (GEO.mode !== "none") [it.a, it.b].forEach((h) => {
+      const g = el("div", "ve-guide" + (across ? " v" : "") + (veItems.some((o) => o !== it && o.day === it.day && (o.a === h || o.b === h)) ? " hit" : ""));
+      if (across) g.style.left = ((h - veStart) / span * 100) + "%"; else g.style.top = ((h - veStart) * HPX()) + "px";
+      c.appendChild(g);
+    });
+    let tip = document.getElementById("veDragTip");
+    if (!tip) { tip = el("div", "ve-dragtip"); tip.id = "veDragTip"; document.body.appendChild(tip); }
+    tip.textContent = `${it.day.slice(0, 3)} ${fmt(it.a)} – ${fmt(it.b)}${it.room ? " · " + it.room : ""}`;
+    tip.style.transform = `translate(${e.clientX + 14}px,${e.clientY + 16}px)`;
+  }
+  function dropFeedback() { document.getElementById("veDragTip")?.remove(); }
 
   function setView(v) {
     veView = v; render();
@@ -506,7 +591,7 @@
   function evHour(e) {
     const r = canvasRect(); if (!r) return veStart;
     if (GEO.mode === "hgrid" || GEO.mode === "roomsgrid") { const span = veEnd - veStart; return snap(veStart + (e.clientX - r.left) / (r.width / span)); }
-    return snap(veStart + (e.clientY - r.top) / HOUR_PX);
+    return snap(veStart + (e.clientY - r.top) / HPX());
   }
   function evRoom(e) {
     if (GEO.mode === "roomsgrid") { const s = subRowAt(e); return s ? s.room : ""; }
@@ -521,7 +606,7 @@
     e.stopPropagation();
     const hnd = e.target.closest(".ve-hnd");
     const mode = hnd ? (hnd.classList.contains("n") ? "t0" : "t1") : "move";
-    drag = { it, bEl, mode, grabH: evHour(e) - it.a, a0: it.a, b0: it.b, x0: e.clientX, y0: e.clientY, pre: snapshot() };
+    drag = { it, bEl, mode, grabH: evHour(e) - it.a, a0: it.a, b0: it.b, x0: e.clientX, y0: e.clientY, pre: snapshot(), ghost: bEl.style.cssText, view: veView };
     movedFlag = false;
     bEl.classList.add("dragging"); bEl.setPointerCapture?.(e.pointerId);
     document.addEventListener("pointermove", onMove);
@@ -533,23 +618,27 @@
     const it = drag.it, len = drag.b0 - drag.a0;
     if (drag.mode === "move") {
       let a = snap(evHour(e) - drag.grabH);
+      const d = evDay(e); if (d) it.day = d;
+      const ma = magnet(a, it.day, it), mb = magnet(a + len, it.day, it);   // either edge may stick
+      if (ma !== a) a = ma; else if (mb !== a + len) a = mb - len;
       a = Math.max(veStart, Math.min(veEnd - len, a));
       it.a = a; it.b = a + len;
-      const d = evDay(e); if (d) it.day = d;
       if (GEO.mode === "rooms" || GEO.mode === "roomsgrid") it.room = evRoom(e);   // drag between rooms reassigns
     } else if (drag.mode === "t0") {
-      it.a = Math.max(veStart, Math.min(it.b - MIN_LEN, evHour(e)));
+      it.a = Math.max(veStart, Math.min(it.b - MIN_LEN, magnet(evHour(e), it.day, it)));
     } else {
-      it.b = Math.min(veEnd, Math.max(it.a + MIN_LEN, evHour(e)));
+      it.b = Math.min(veEnd, Math.max(it.a + MIN_LEN, magnet(evHour(e), it.day, it)));
     }
     render();
     drag.bEl = document.querySelector(".ve-block.dragging");
+    if (movedFlag) dragFeedback(e);
   }
   function onUp() {
     if (!drag) return;
     const it = drag.it;
     document.removeEventListener("pointermove", onMove);
     document.removeEventListener("pointerup", onUp);
+    dropFeedback();
     const dup = veItems.find((o) => o !== it && o.gi === it.gi && o.day === it.day);
     if (dup) { it.a = drag.a0; it.b = drag.b0; veToast("That group already has a class that day"); }
     const pre = drag.pre; drag = null;
@@ -563,7 +652,14 @@
     if (e.button !== 0 || e.target.closest(".ve-block")) return;
     const day = evDay(e); if (!day) return;
     const a = Math.max(veStart, Math.min(veEnd - 1, evHour(e)));
-    openForm(null, { day, a, b: Math.min(veEnd, a + 1), room: (GEO.mode === "rooms" || GEO.mode === "roomsgrid") ? evRoom(e) : "" });
+    const preset = { day, a, b: Math.min(veEnd, a + 1), room: (GEO.mode === "rooms" || GEO.mode === "roomsgrid") ? evRoom(e) : "" };
+    if (e.pointerType !== "touch") { openForm(null, preset); return; }
+    const x0 = e.clientX, y0 = e.clientY;
+    const end = (u) => {
+      removeEventListener("pointerup", end); removeEventListener("pointercancel", end);
+      if (u.type === "pointerup" && Math.hypot(u.clientX - x0, u.clientY - y0) < 10) openForm(null, preset);
+    };
+    addEventListener("pointerup", end); addEventListener("pointercancel", end);
   }
 
   /* ---- add / edit form ---- */
@@ -665,7 +761,7 @@
     ["veForm", "veRoomsDlg"].forEach((id) => { const d = document.getElementById(id); if (d && d.open) { try { d.close(); } catch (e) {} } });
     document.removeEventListener("pointermove", onMove);   // drop any interrupted drag
     document.removeEventListener("pointerup", onUp);
-    drag = null;
+    drag = null; dropFeedback();
     const ov = document.getElementById("veOverlay"); if (ov) ov.classList.remove("open");
     document.body.classList.remove("ve-lock");
     document.removeEventListener("keydown", onKey);
@@ -715,12 +811,17 @@
             <label class="ve-win">Day ends<select id="veWinEnd"></select></label>
             <button class="btn btn-ghost btn-sm" type="button" id="veWinAuto" title="Fit the window to your classes">Auto-fit</button>
           </span>
+          <span class="ve-zoom" id="veZoomWrap" role="group" aria-label="Zoom the time axis">
+            <button class="btn btn-ghost btn-sm" type="button" id="veZoomOut" title="Zoom out (Ctrl + scroll)" aria-label="Zoom out">−</button>
+            <span id="veZoomLbl" class="ve-zoom-lbl">100%</span>
+            <button class="btn btn-ghost btn-sm" type="button" id="veZoomIn" title="Zoom in (Ctrl + scroll)" aria-label="Zoom in">+</button>
+          </span>
           <button class="btn btn-ghost btn-sm" type="button" id="veRoomsBtn" title="Manage rooms">⚙ Rooms</button>
           <span class="ve-spacer"></span>
           <span class="ve-total" id="veTotal"></span>
         </div>
         <div class="ve-head" id="veHead"></div>
-        <div class="ve-scroll"><div class="ve-body" id="veBody"></div></div>
+        <div class="ve-scrollwrap"><div class="ve-scroll"><div class="ve-body" id="veBody"></div></div><div class="ve-minimap" id="veMinimap" hidden title="Click or drag to jump" aria-hidden="true"></div></div>
         <div class="ve-foot"><div class="ve-legend" id="veLegend"></div></div>
       </div>
       <dialog class="ve-dlg" id="veForm">
@@ -767,6 +868,12 @@
     ov.querySelector("#veCancel").onclick = closeForm;
     ov.querySelector("#veDelete").onclick = deleteForm;
     ov.querySelector("#veRoomsBtn").onclick = openRoomsManager;
+    ov.querySelector("#veZoomIn").onclick = () => zoomStep(1);
+    ov.querySelector("#veZoomOut").onclick = () => zoomStep(-1);
+    const sc = ov.querySelector(".ve-scroll");
+    sc.addEventListener("wheel", onWheel, { passive: false });
+    sc.addEventListener("scroll", syncMinimap, { passive: true });
+    ov.querySelector("#veMinimap").addEventListener("pointerdown", onMinimapDown);
     ov.querySelector("#veRoomAdd").onclick = roomAdd;
     ov.querySelector("#veRoomsClose").onclick = () => { const d = document.getElementById("veRoomsDlg"); d.close ? d.close() : (d.open = false); };
     // light-dismiss: clicking the dim backdrop of a dialog closes just that dialog

@@ -84,6 +84,7 @@ def index():
         role=g.profile.role,
         photo_url=photo_url,
         csrf_token="",
+        profile=g.profile,
     )
 
 

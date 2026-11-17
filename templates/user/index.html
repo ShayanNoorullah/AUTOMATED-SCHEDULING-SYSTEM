@@ -23,11 +23,11 @@
 </script>
 <link rel="preconnect" href="https://api.fontshare.com">
 <link href="https://api.fontshare.com/v2/css?f[]=satoshi@400,500,700,900&display=swap" rel="stylesheet">
-<link href="{{ url_for('static', filename='css/app.css') }}?v=poc69" rel="stylesheet"/>
+<link href="{{ url_for('static', filename='css/app.css') }}?v=poc70" rel="stylesheet"/>
 <link href="{{ url_for('static', filename='css/compat.css') }}?v=poc54" rel="stylesheet"/>
 <link href="{{ url_for('static', filename='css/dashboard.css') }}?v=poc66" rel="stylesheet"/>
 <link href="{{ url_for('static', filename='css/components.css') }}?v=poc54" rel="stylesheet"/>
-<link href="{{ url_for('static', filename='css/visual-editor.css') }}?v=poc59" rel="stylesheet"/>
+<link href="{{ url_for('static', filename='css/visual-editor.css') }}?v=poc70" rel="stylesheet"/>
 <script>
 window.SSIES_USER = {{ {"email": email|default(username), "display_name": username, "role": role, "photo_url": photo_url|default(none)} | tojson }};
 </script>
@@ -453,6 +453,28 @@ window.SSIES_USER = {{ {"email": email|default(username), "display_name": userna
         <div class="pager" id="historyPager"></div>
       </section>
 
+      <!-- ════ NOTIFICATIONS ════ -->
+      <section class="view" id="view-notifications">
+        <div class="toolbar list-toolbar">
+          <div class="search-wrap" style="flex:1;max-width:300px">
+            <svg class="search-ico" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+            <input class="field search" id="notifSearch" placeholder="Search notifications…" aria-label="Search notifications" oninput="renderNotifPage()"/>
+          </div>
+          <div class="seg" id="notifFilterSeg"><button type="button" data-val="all" class="on" onclick="setNotifFilter('all')">All</button><button type="button" data-val="unread" onclick="setNotifFilter('unread')">Unread</button></div>
+          <span class="hint" id="notifSummary" style="margin:0 0 0 auto"></span>
+          <button class="btn btn-soft btn-sm" type="button" onclick="notifPageMarkAll()">Mark all read</button>
+        </div>
+        <div id="notifPage" class="np-wrap"></div>
+      </section>
+
+      <!-- ════ PROFILE ════ -->
+      <section class="view" id="view-profile">
+        <div class="profile-content-wrap">
+          {% set in_app = true %}
+          {% include "user/_profile_panel.html" %}
+        </div>
+      </section>
+
       <!-- ════ SETTINGS ════ -->
       <section class="view" id="view-settings">
         <div class="view-pad">
@@ -765,7 +787,7 @@ window.SSIES_USER = {{ {"email": email|default(username), "display_name": userna
                     <div><div class="st">Password reset</div><div class="sd">Submit a request to reset your password — an admin or superadmin reviews and approves it. You'll be notified of the outcome.</div></div>
                     <div id="settingsPwPending" class="pending-banner" style="display:none"></div>
                     <input class="field" id="curPw" type="password" placeholder="Current password"/>
-                    <input class="field" id="newPw" type="password" placeholder="New password (min 8 chars)"/>
+                    <input class="field" id="newPw" type="password" placeholder="New password (min 8 chars)" data-pw-meter/>
                     <button class="btn btn-soft" style="align-self:flex-start" onclick="changePassword()">Request password reset</button>
                   </div>
                 </div>
@@ -1033,8 +1055,8 @@ window.SSIES_USER = {{ {"email": email|default(username), "display_name": userna
 </dialog>
 
 
-<script src="{{ url_for('static', filename='js/chrome.js') }}?v=poc69"></script>
-<script src="{{ url_for('static', filename='js/theme.js') }}?v=poc69"></script>
+<script src="{{ url_for('static', filename='js/chrome.js') }}?v=poc70"></script>
+<script src="{{ url_for('static', filename='js/theme.js') }}?v=poc70"></script>
 <script src="{{ url_for('static', filename='js/whatsapp.js') }}?v=poc66"></script>
 <script src="{{ url_for('static', filename='js/waha.js') }}?v=poc67"></script>
 <script>
@@ -1111,6 +1133,8 @@ const VIEW_META = {
   contacts:{t:"Contacts",d:"Save people and send messages via automation or direct links"},
   history:{t:"Send History",d:"Recent automated sends and retry failed deliveries"},
   settings:{t:"Settings",d:"Appearance, layout, WhatsApp, automation, security and data"},
+  notifications:{t:"Notifications",d:"Everything the app has told you, newest first"},
+  profile:{t:"My profile",d:"Your name and photo"},
 };
 
 function navGo(v){ showView(v); if(typeof closeNavGroups==="function") closeNavGroups(); }
@@ -1171,6 +1195,7 @@ function _showView(v){
   if (v==="wa-direct") renderDirectPanel();
   if (v==="wa-auto") renderAutoSendPanel();
   if (v==="history") loadReleaseHistory();
+  if (v==="notifications" && typeof loadNotifPage==="function") loadNotifPage();
   if (v==="settings") { loadScheduledJob(); loadEmailReport(); loadPreviewReport(); loadReminders(); loadAssistantConfig(); }
   if (window.innerWidth<=820) document.getElementById("shell").classList.remove("rail-open");
   if(typeof syncNavSched==="function") syncNavSched();
@@ -2821,13 +2846,14 @@ async function copyBox(id){try{await navigator.clipboard.writeText(document.getE
 async function copyText(t){try{await navigator.clipboard.writeText(t);toast("Copied ✓");}catch{toast("Copy failed","err");}}
 
 </script>
-<script src="{{ url_for('static', filename='js/lists.js') }}?v=poc68"></script>
+<script src="{{ url_for('static', filename='js/lists.js') }}?v=poc70"></script>
 <script src="{{ url_for('static', filename='js/features.js') }}?v=poc67"></script>
+<script src="{{ url_for('static', filename='js/account.js') }}?v=poc70"></script>
 <script src="{{ url_for('static', filename='js/workspace.js') }}?v=poc69"></script>
-<script src="{{ url_for('static', filename='js/visual_editor.js') }}?v=poc68"></script>
+<script src="{{ url_for('static', filename='js/visual_editor.js') }}?v=poc70"></script>
 <script src="{{ url_for('static', filename='js/dashboard.js') }}?v=poc64"></script>
-<script src="{{ url_for('static', filename='js/scheduler.js') }}?v=poc69"></script>
-<script src="{{ url_for('static', filename='js/palette.js') }}?v=poc62"></script>
+<script src="{{ url_for('static', filename='js/scheduler.js') }}?v=poc70"></script>
+<script src="{{ url_for('static', filename='js/palette.js') }}?v=poc70"></script>
 <script src="{{ url_for('static', filename='js/assistant.js') }}?v=poc68"></script>
 <script src="{{ url_for('static', filename='js/contacts.js') }}?v=poc63"></script>
 <script src="{{ url_for('static', filename='js/exceptions.js') }}?v=poc67"></script>

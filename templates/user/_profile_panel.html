@@ -67,6 +67,17 @@
     </div>
   </section>
 
+  {% if in_app %}
+  <section class="profile-card">
+    <div class="profile-card-head">
+      <h3>Security</h3>
+      <p>Your password and passkeys are in Settings.</p>
+    </div>
+    <div class="profile-card-actions">
+      <button class="btn btn-soft" type="button" onclick="navGo('settings');showSettingsTab('security')">Open Settings → Security</button>
+    </div>
+  </section>
+  {% else %}
   <section class="profile-card">
     <div class="profile-card-head">
       <h3>Security</h3>
@@ -84,7 +95,7 @@
       <div class="profile-field">
         <label for="newPw">New password</label>
         <div class="profile-pw-row">
-          <input id="newPw" type="password" autocomplete="new-password" minlength="8"/>
+          <input id="newPw" type="password" autocomplete="new-password" minlength="8" data-pw-meter/>
           <button type="button" class="btn btn-ghost btn-sm" onclick="togglePw('newPw',this)">Show</button>
         </div>
         <span class="field-hint">Minimum 8 characters.</span>
@@ -101,4 +112,5 @@
       <button class="btn btn-soft" id="savePwBtn" onclick="changePw()">{% if profile.role == 'superadmin' %}Update password{% else %}Request password reset{% endif %}</button>
     </div>
   </section>
+  {% endif %}
 </div>

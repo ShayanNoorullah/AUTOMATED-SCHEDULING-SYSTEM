@@ -16,8 +16,8 @@ function paletteItems() {
   add("Toggle light / dark theme", "Action", () => quickToggleTheme());
   add("Keyboard shortcuts", "Help", () => showShortcuts());
   Object.entries(VIEW_META).forEach(([k, m]) => { if (!k.endsWith("-detail")) add(m.t, "Go to", () => (k === "table" ? navSched(getScheduleView()) : navGo(k))); });
-  add("Profile", "Go to", () => { location.href = "/profile"; });
-  add("Notifications", "Go to", () => { location.href = "/notifications"; });
+  add("Profile", "Go to", () => { document.getElementById("view-profile") ? navGo("profile") : (location.href = "/profile"); });
+  add("Notifications", "Go to", () => { document.getElementById("view-notifications") ? navGo("notifications") : (location.href = "/notifications"); });
   groups.forEach((g, i) => add(g.name, "Group", () => openGroupDetail(i)));
   contacts.forEach((c, i) => add(c.name, "Contact", () => openContactDetail(i)));
   templates.forEach((t, i) => add(t.name, "Template", () => { navGo("templates"); editTemplate(i); }));

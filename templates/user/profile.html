@@ -30,7 +30,7 @@ window.SSIES_USER = {{ {
 </script>
 <link rel="preconnect" href="https://api.fontshare.com">
 <link href="https://api.fontshare.com/v2/css?f[]=satoshi@400,500,700,900&display=swap" rel="stylesheet">
-<link href="{{ url_for('static', filename='css/app.css') }}?v=poc69" rel="stylesheet"/>
+<link href="{{ url_for('static', filename='css/app.css') }}?v=poc70" rel="stylesheet"/>
 <link href="{{ url_for('static', filename='css/compat.css') }}?v=poc54" rel="stylesheet"/>
 {% if not use_portal %}
 <link href="{{ url_for('static', filename='css/dashboard.css') }}?v=poc54" rel="stylesheet"/>
@@ -134,110 +134,10 @@ window.SSIES_USER = {{ {
 {% endif %}
 <div class="toast" id="toast" role="status" aria-live="polite" aria-atomic="true"></div>
 <script src="{{ url_for('static', filename='js/api.js') }}?v=poc60"></script>
-<script src="{{ url_for('static', filename='js/chrome.js') }}?v=poc69"></script>
-<script src="{{ url_for('static', filename='js/theme.js') }}?v=poc69"></script>
+<script src="{{ url_for('static', filename='js/chrome.js') }}?v=poc70"></script>
+<script src="{{ url_for('static', filename='js/theme.js') }}?v=poc70"></script>
 <script src="{{ url_for('static', filename='js/portal.js') }}?v=poc54"></script>
-<script>
-async function loadPwPending(){
-  if((window.SSIES_USER&&window.SSIES_USER.role)==="superadmin") return;
-  try{
-    const d=await api("/api/profile/password-request");
-    const ban=document.getElementById("pwPendingBanner");
-    if(!ban) return;
-    if(d.pending){
-      const when=typeof relTime==="function"?relTime(d.pending.requested_at||d.pending.requestedAt):"";
-      ban.style.display="";
-      ban.textContent="⏳ A password reset request is pending approval"+(when?" · "+when:"");
-    }else{
-      ban.style.display="none";
-      ban.textContent="";
-    }
-  }catch(e){}
-}
-async function saveProfile(){
-  const btn=document.getElementById("saveProfileBtn");
-  if(btn)btn.disabled=true;
-  try{
-    const name=document.getElementById("displayName").value.trim();
-    await api("/api/profile",{method:"PUT",body:JSON.stringify({displayName:name})});
-    const hero=document.getElementById("profileHeroName");
-    if(hero) hero.textContent=name||"{{ profile.email }}";
-    if(window.SSIES_USER) window.SSIES_USER.display_name=name;
-    toast("Profile saved");
-    if(typeof applyTheme==="function") applyTheme();
-    if(typeof renderUserMenu==="function"){ document.querySelectorAll(".user-menu").forEach(el=>el.remove()); renderUserMenu(); renderRailAccount(); }
-  }catch(e){toast(e.message||"Save failed",true);}
-  finally{if(btn)btn.disabled=false;}
-}
-async function changePw(){
-  const btn=document.getElementById("savePwBtn");
-  const cur=document.getElementById("curPw").value;
-  const nw=document.getElementById("newPw").value;
-  const nw2=document.getElementById("newPw2").value;
-  if(nw.length<8){toast("Password must be at least 8 characters",true);return;}
-  if(nw!==nw2){toast("New passwords do not match",true);return;}
-  if(btn)btn.disabled=true;
-  const isSuper=(window.SSIES_USER&&window.SSIES_USER.role)==="superadmin";
-  try{
-    if(isSuper){
-      await api("/api/auth/change-password",{method:"POST",body:JSON.stringify({current:cur,new:nw})});
-      toast("Password updated");
-    }else{
-      await api("/api/profile/password-request",{method:"POST",body:JSON.stringify({current:cur,password:nw})});
-      toast("Password reset requested — awaiting approval");
-      await loadPwPending();
-    }
-    document.getElementById("curPw").value="";
-    document.getElementById("newPw").value="";
-    document.getElementById("newPw2").value="";
-  }catch(e){toast(e.message||"Password update failed",true);}
-  finally{if(btn)btn.disabled=false;}
-}
-function togglePw(id,btn){
-  const el=document.getElementById(id);
-  if(!el)return;
-  const show=el.type==="password";
-  el.type=show?"text":"password";
-  if(btn)btn.textContent=show?"Hide":"Show";
-}
-async function pickProfileImage(input){
-  const f=input.files&&input.files[0]; input.value="";
-  if(!f) return;
-  if(!f.type.startsWith("image/")){ toast("Please choose an image file",true); return; }
-  if(f.size>3*1024*1024){ toast("Image too large (max 3 MB)",true); return; }
-  const fd=new FormData(); fd.append("file", f);
-  try{
-    const res=await fetch("/api/photos/profile",{method:"POST",body:fd,credentials:"same-origin"});
-    const data=await res.json().catch(()=>({}));
-    if(!res.ok) throw new Error(data.error||"Upload failed");
-    const url=data.photo_url||data.url||"/api/photos/file/profile";
-    const av=document.getElementById("profileAvatar");
-    if(av){ av.classList.add("has-img"); av.innerHTML=`<img src="${url}?t=${Date.now()}" alt=""/>`; }
-    const rm=document.getElementById("removePhotoBtn"); if(rm) rm.style.display="";
-    if(window.SSIES_USER) window.SSIES_USER.photo_url=url;
-    toast("Photo updated");
-    if(typeof applyTheme==="function") applyTheme();
-    document.querySelectorAll(".user-menu").forEach(el=>el.remove());
-    if(typeof renderUserMenu==="function"){ renderUserMenu(); renderRailAccount(); }
-  }catch(e){ toast(e.message||"Upload failed",true); }
-}
-async function removeProfileImage(){
-  try{
-    await api("/api/photos/profile",{method:"DELETE"});
-    const av=document.getElementById("profileAvatar");
-    const ch=(window.SSIES_USER&&(window.SSIES_USER.display_name||window.SSIES_USER.email)||"?").charAt(0).toUpperCase();
-    if(av){ av.classList.remove("has-img"); av.textContent=ch; }
-    const rm=document.getElementById("removePhotoBtn"); if(rm) rm.style.display="none";
-    if(window.SSIES_USER) window.SSIES_USER.photo_url=null;
-    toast("Photo removed");
-    document.querySelectorAll(".user-menu").forEach(el=>el.remove());
-    if(typeof renderUserMenu==="function"){ renderUserMenu(); renderRailAccount(); }
-  }catch(e){ toast(e.message||"Remove failed",true); }
-}
-document.addEventListener("DOMContentLoaded", function(){
-  if(typeof applyTheme==="function") applyTheme();
-  loadPwPending();
-});
-</script>
+<script src="{{ url_for('static', filename='js/account.js') }}?v=poc70"></script>
+<script>document.addEventListener("DOMContentLoaded", function () { if (typeof applyTheme === "function") applyTheme(); });</script>
 </body>
 </html>
