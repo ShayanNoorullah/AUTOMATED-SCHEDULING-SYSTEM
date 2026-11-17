@@ -15,7 +15,7 @@ from app.services.audit import audit
 from app.services.users import maintenance_mode
 from app.services.whatsapp import (
     group_dict, template_dict, contact_dict, digits, format_message,
-    run_release, status_queue, any_release_busy, cancel_release,
+    run_release, status_queue, any_release_busy, cancel_release, pause_release,
 )
 
 bp = Blueprint("user", __name__)
@@ -1494,6 +1494,15 @@ def release_cancel():
     if not cancel_release(_effective_user_id()):
         return jsonify({"error": "No send is running"}), 409
     return jsonify({"ok": True})
+
+
+@bp.route("/api/release/pause", methods=["POST"])
+@login_required
+def release_pause():
+    paused = bool((request.json or {}).get("paused", True))
+    if not pause_release(_effective_user_id(), paused):
+        return jsonify({"error": "No send is running"}), 409
+    return jsonify({"ok": True, "paused": paused})
 
 
 def _scheduled_dict(m):

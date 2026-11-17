@@ -175,7 +175,7 @@ function messageCard(list) {
   if (msgEditId === list.id) {
     return `<div class="lists-msg-card editing">
       <div class="lists-msg-head"><span class="le-label" style="margin:0">Default message</span></div>
-      <textarea class="field" id="listMsgEdit" style="min-height:120px">${esc(list.message || "")}</textarea>
+      <textarea class="field" id="listMsgEdit" data-emoji style="min-height:120px">${esc(list.message || "")}</textarea>
       <div class="lists-msg-actions">
         <button class="btn btn-soft btn-sm" type="button" onclick="cancelListMsg()">Cancel</button>
         <button class="btn btn-primary btn-sm" type="button" onclick="saveListMsg('${list.id}')">Save message</button>
@@ -636,7 +636,7 @@ function openListEntity(listId, type, key, gname) {
       </div>
       <div class="le-field"><div class="le-label">Labels</div><div class="lbl-row">${labels}</div></div>
       <div class="le-field"><div class="le-label">Message to send</div>
-        <textarea class="field" id="leMsg" style="min-height:110px" oninput="leRenderPreview()">${esc(info.message || listMsg(list))}</textarea>
+        <textarea class="field" id="leMsg" data-emoji style="min-height:110px" oninput="leRenderPreview()">${esc(info.message || listMsg(list))}</textarea>
         <div class="hint" style="margin:6px 0 0">Wrap *text* for bold. {date} / {weekday} are replaced when sent.</div></div>
       <div class="le-field"><div class="le-label">Preview</div><div class="msg-preview le-preview"><div class="preview-b" id="lePreview"></div></div></div>`;
     document.getElementById("leOpenGroup").style.display = "none";
@@ -655,7 +655,7 @@ function openListEntity(listId, type, key, gname) {
           <div class="le-badges"><span class="chip chip-default">WhatsApp group</span></div></div>
       </div>
       <div class="le-field"><div class="le-label">Message to send</div>
-        <textarea class="field" id="leMsg" style="min-height:110px" oninput="leRenderPreview()">${esc(listMsg(list))}</textarea>
+        <textarea class="field" id="leMsg" data-emoji style="min-height:110px" oninput="leRenderPreview()">${esc(listMsg(list))}</textarea>
         <div class="hint" style="margin:6px 0 0">Sent to the whole group. Open the Groups page to see its members and manage it.</div></div>
       <div class="le-field"><div class="le-label">Preview</div><div class="msg-preview le-preview"><div class="preview-b" id="lePreview"></div></div></div>`;
     document.getElementById("leOpenGroup").style.display = "";

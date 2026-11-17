@@ -112,14 +112,25 @@ def _fold(line):
     return out
 
 
+def _where(slot):
+    """LOCATION / DESCRIPTION lines for a slot's optional room and teacher."""
+    out = []
+    if str(slot.get("room") or "").strip():
+        out.append(f"LOCATION:{_text(str(slot['room']).strip())}")
+    if str(slot.get("teacher") or "").strip():
+        out.append(f"DESCRIPTION:{_text('Teacher: ' + str(slot['teacher']).strip())}")
+    return out
+
+
 def build_ics(groups, exceptions, today, name="Class schedule", now=None):
     """Weekly timetable as an iCalendar feed.
 
-    groups: [{"id", "name", "schedule": [{"day", "from", "to"}]}]
+    groups: [{"id", "name", "schedule": [{"day", "from", "to", "room"?, "teacher"?}]}]
     exceptions: [{"group_id", "date": "YYYY-MM-DD", "kind", "from_time", "to_time"}]
     Times are written without a timezone ("floating"), i.e. the same wall-clock time the
     timetable shows. Cancelled, moved and holiday dates are excluded from the weekly repeat;
-    moved and extra classes are added as single events.
+    moved and extra classes are added as single events. A slot's room becomes the event's
+    LOCATION and its teacher the DESCRIPTION; a moved class keeps that day's room and teacher.
     """
     stamp = (now or datetime.utcnow()).strftime("%Y%m%dT%H%M%SZ")
     monday = today - timedelta(days=today.weekday())
@@ -147,7 +158,7 @@ def build_ics(groups, exceptions, today, name="Class schedule", now=None):
                           if datetime.strptime(d, "%Y-%m-%d").weekday() == di)
             extra = ["RRULE:FREQ=WEEKLY"] + [
                 f"EXDATE:{(datetime.strptime(d, '%Y-%m-%d') + timedelta(minutes=start)).strftime(fmt)}" for d in skip]
-            event(f"g{g['id']}-{di}@ssies-schedule", first, length, g["name"], extra)
+            event(f"g{g['id']}-{di}@ssies-schedule", first, length, g["name"], extra + _where(e))
         for x in mine:
             start = _minutes(x.get("from_time"))
             if x["kind"] not in ("move", "extra") or start is None or x["date"] in holidays:
@@ -155,6 +166,7 @@ def build_ics(groups, exceptions, today, name="Class schedule", now=None):
             end = _minutes(x.get("to_time"))
             length = end - start if end is not None and end > start else 60
             when = datetime.strptime(x["date"], "%Y-%m-%d") + timedelta(minutes=start)
-            event(f"g{g['id']}-x{x['date']}@ssies-schedule", when, length, g["name"])
+            usual = next((e for e in g.get("schedule") or [] if e.get("day") == DAYS[when.weekday()]), {})
+            event(f"g{g['id']}-x{x['date']}@ssies-schedule", when, length, g["name"], _where(usual))
     lines.append("END:VCALENDAR")
     return "\r\n".join(part for line in lines for part in _fold(line)) + "\r\n"

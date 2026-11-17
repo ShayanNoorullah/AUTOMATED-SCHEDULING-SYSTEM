@@ -18,8 +18,9 @@ function applyChanges(base, changes) {
     let g = next.find((x) => x.name === c.group);
     if (c.op === "create_group") { if (!g) next.push({ name: c.group, schedule: [], message: "" }); return; }
     if (!g) return;
+    const was = (g.schedule || []).find((e) => e.day === c.day);    // a new time keeps that day's room and teacher
     g.schedule = (g.schedule || []).filter((e) => e.day !== c.day);
-    if (c.op === "set") g.schedule.push({ day: c.day, from: c.from, to: c.to || "" });
+    if (c.op === "set") g.schedule.push({ ...slotExtras(was), day: c.day, from: c.from, to: c.to || "" });
     g.schedule.sort((a, b) => DAYS.indexOf(a.day) - DAYS.indexOf(b.day));
   });
   return next;

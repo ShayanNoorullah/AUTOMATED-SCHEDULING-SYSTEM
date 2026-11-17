@@ -23,7 +23,7 @@
 </script>
 <link rel="preconnect" href="https://api.fontshare.com">
 <link href="https://api.fontshare.com/v2/css?f[]=satoshi@400,500,700,900&display=swap" rel="stylesheet">
-<link href="{{ url_for('static', filename='css/app.css') }}?v=poc67" rel="stylesheet"/>
+<link href="{{ url_for('static', filename='css/app.css') }}?v=poc68" rel="stylesheet"/>
 <link href="{{ url_for('static', filename='css/compat.css') }}?v=poc54" rel="stylesheet"/>
 <link href="{{ url_for('static', filename='css/dashboard.css') }}?v=poc66" rel="stylesheet"/>
 <link href="{{ url_for('static', filename='css/components.css') }}?v=poc54" rel="stylesheet"/>
@@ -169,7 +169,7 @@ window.SSIES_USER = {{ {"email": email|default(username), "display_name": userna
                       <button class="lk" type="button" onclick="gRegen()">Regenerate</button>
                     </div>
                   </div>
-                  <textarea class="msg-edit" id="gMsg" oninput="gMsgEdited=true;updateGroupPreview()" placeholder="Select days to auto-generate the message…"></textarea>
+                  <textarea class="msg-edit" id="gMsg" data-emoji oninput="gMsgEdited=true;updateGroupPreview()" placeholder="Select days to auto-generate the message…"></textarea>
                   <div class="msg-preview" id="gMsgPreview"></div>
                   <div class="msg-hint">Wrap *text* for bold. Use {date} / {weekday} — replaced when sent.</div>
                 </div>
@@ -351,7 +351,7 @@ window.SSIES_USER = {{ {"email": email|default(username), "display_name": userna
                       <button class="lk" type="button" onclick="copyBox('cMsg')">Copy</button>
                     </div>
                   </div>
-                  <textarea class="msg-edit" id="cMsg" oninput="updateContactPreview()" placeholder="Type a message, or load a group's message / template above…"></textarea>
+                  <textarea class="msg-edit" id="cMsg" data-emoji oninput="updateContactPreview()" placeholder="Type a message, or load a group's message / template above…"></textarea>
                   <div class="msg-preview" id="cMsgPreview"></div>
                   <div class="msg-hint">Wrap *text* for bold. Use {date} / {weekday} tokens — replaced when sent.</div>
                 </div>
@@ -860,7 +860,7 @@ window.SSIES_USER = {{ {"email": email|default(username), "display_name": userna
               <button class="tpl-tb-btn" type="button" onclick="tplEmoji('🎓')">🎓</button>
             </div>
           </div>
-          <textarea class="field" id="tplContent" style="min-height:240px" placeholder="Type your template…" oninput="tplPreview()"></textarea>
+          <textarea class="field" id="tplContent" data-emoji style="min-height:240px" placeholder="Type your template…" oninput="tplPreview()"></textarea>
           <div class="tpl-editor-foot"><span class="hint" id="tplCharCount">0 chars</span><span class="hint">Formatting: *bold* _italic_ ~strike~ ```mono```</span></div>
         </div>
         <div class="tpl-editor-side">
@@ -891,7 +891,7 @@ window.SSIES_USER = {{ {"email": email|default(username), "display_name": userna
   </div>
 </dialog>
 
-<datalist id="timeOptions"></datalist>
+<datalist id="timeOptions"></datalist><datalist id="roomOptions"></datalist><datalist id="teacherOptions"></datalist>
 <datalist id="waGroupNames"></datalist>
 
 <!-- Column name / nickname editor -->
@@ -920,7 +920,7 @@ window.SSIES_USER = {{ {"email": email|default(username), "display_name": userna
       </div>
       <div class="profile-field" id="bcTimeField" style="display:none"><label>New time</label><input id="bcTime" list="timeOptions" placeholder="e.g. 5:00pm" oninput="bcPreview()"/></div>
       <div class="profile-field"><label>Note <span class="field-hint" style="display:inline">optional — added to the message</span></label><input id="bcNote" placeholder="e.g. apologies for the short notice" oninput="bcPreview()"/></div>
-      <div class="profile-field"><label>Message <span class="field-hint" style="display:inline">edit before sending</span></label><textarea class="field" id="bcMsg" style="min-height:90px"></textarea></div>
+      <div class="profile-field"><label>Message <span class="field-hint" style="display:inline">edit before sending</span></label><textarea class="field" id="bcMsg" data-emoji style="min-height:90px"></textarea></div>
     </div>
     <div class="modal-f"><span class="hint" id="bcStatus" style="margin-right:auto"></span><button class="btn btn-soft" type="button" onclick="closeBroadcast()">Cancel</button><button class="btn btn-primary" type="button" id="bcSendBtn" onclick="sendBroadcast()">Send to group</button></div>
   </div>
@@ -939,7 +939,7 @@ window.SSIES_USER = {{ {"email": email|default(username), "display_name": userna
             <div class="lm-labels" id="lmLabels"></div>
             <div class="lm-addlabel"><input class="field" id="lmNewLabel" placeholder="Add a label…" onkeydown="if(event.key==='Enter'){event.preventDefault();lmAddLabel()}"/><button class="btn btn-soft btn-sm" type="button" onclick="lmAddLabel()">Add</button></div>
           </div>
-          <div class="profile-field"><label>Default message</label><textarea class="field" id="lmMessage" style="min-height:110px" placeholder="*Reminder*&#10;Dear parent, please note the updated schedule." oninput="lmPreview()"></textarea></div>
+          <div class="profile-field"><label>Default message</label><textarea class="field" id="lmMessage" data-emoji style="min-height:110px" placeholder="*Reminder*&#10;Dear parent, please note the updated schedule." oninput="lmPreview()"></textarea></div>
         </div>
         <div class="lm-preview-wrap">
           <div class="le-label">Live preview</div>
@@ -1024,7 +1024,7 @@ window.SSIES_USER = {{ {"email": email|default(username), "display_name": userna
 </dialog>
 
 
-<script src="{{ url_for('static', filename='js/chrome.js') }}?v=poc67"></script>
+<script src="{{ url_for('static', filename='js/chrome.js') }}?v=poc68"></script>
 <script src="{{ url_for('static', filename='js/theme.js') }}?v=poc66"></script>
 <script src="{{ url_for('static', filename='js/whatsapp.js') }}?v=poc66"></script>
 <script src="{{ url_for('static', filename='js/waha.js') }}?v=poc67"></script>
@@ -1364,8 +1364,13 @@ function buildTimeOptions(){
   } document.getElementById("timeOptions").innerHTML=h;
 }
 function fmtTime(e){const f=(e.from||"").trim(),t=(e.to||"").trim();return f&&t?`${f} - ${t}`:f||(e.time||"").trim();}
+/* A slot's optional room and teacher, without empty values. */
+function slotExtras(e){ const o={}; ["room","teacher"].forEach((k)=>{ const v=String((e&&e[k])||"").trim().slice(0,80); if(v) o[k]=v; }); return o; }
+function slotMeta(e){ const x=[e&&e.room,e&&e.teacher].map((v)=>String(v||"").trim()).filter(Boolean); return x.length?`<div class="cell-meta" title="${escA(x.join(" · "))}">${esc(x.join(" · "))}</div>`:""; }
+/* Rooms and teachers already used, for the editors' suggestions. */
+function fillPeopleOptions(){ ["room","teacher"].forEach((k)=>{ const dl=document.getElementById(k+"Options"); if(!dl) return; const seen=[...new Set(groups.flatMap((g)=>(g.schedule||[]).map((e)=>String(e[k]||"").trim())).filter(Boolean))].sort(); dl.innerHTML=seen.map((v)=>`<option value="${escA(v)}"></option>`).join(""); }); }
 function normalize(g){g.schedule=(g.schedule||[]).map(e=>{
-  if(e.from!==undefined||e.to!==undefined)return{day:e.day,from:e.from||"",to:e.to||""};
+  if(e.from!==undefined||e.to!==undefined)return{day:e.day,from:e.from||"",to:e.to||"",...slotExtras(e)};
   const t=(e.time||"").trim(),p=t.split(/\s*[-–]\s*|\s+to\s+/i);
   return p.length===2?{day:e.day,from:p[0].trim(),to:p[1].trim()}:{day:e.day,from:t,to:""};});}
 function genMessage(s){const v=s.filter(e=>(e.from||"").trim());if(!v.length)return"";
@@ -1563,9 +1568,10 @@ function gOnSchedule(){ if(!gMsgEdited) document.getElementById("gMsg").value=ge
 function gRegen(){ gMsgEdited=false; document.getElementById("gMsg").value=genMessage(gReadSchedule()); toast("Regenerated from schedule"); }
 function gInsertTemplate(i){ if(i==="")return; document.getElementById("gMsg").value=replaceTokens(templates[i].content); gMsgEdited=true; document.getElementById("gTplPick").value=""; toast("Template inserted"); }
 function gBuild(){const name=document.getElementById("gName").value.trim();if(!name){toast("Enter the group name","err");return null;}
+  const was=(gSel!==null?groups[gSel].schedule:[])||[];
   const schedule=[];for(const day of DAYS)if(document.getElementById(`chk-${day}`).checked){
     const from=document.getElementById(`from-${day}`).value.trim();if(!from){toast(`Enter a "From" time for ${day}`,"err");return null;}
-    schedule.push({day,from,to:document.getElementById(`to-${day}`).value.trim()});}
+    schedule.push({day,from,to:document.getElementById(`to-${day}`).value.trim(),...slotExtras(was.find((x)=>x.day===day))});}
   if(!schedule.length){toast("Select at least one day","err");return null;}
   const box=document.getElementById("gMsg").value,auto=genMessage(schedule);
   const prev=gSel!==null?groups[gSel]:{};
@@ -1726,19 +1732,19 @@ function gdSetCell(day,field,val){
   let e=(gdWorking.schedule||[]).find((x)=>x.day===day);
   if(!e){ e={day,from:"",to:""}; gdWorking.schedule.push(e); }
   e[field]=val.trim();
-  if(!e.from&&!e.to) gdWorking.schedule=gdWorking.schedule.filter((x)=>x.day!==day);
+  if(!e.from&&!e.to&&!e.room&&!e.teacher) gdWorking.schedule=gdWorking.schedule.filter((x)=>x.day!==day);
   gdWorking.schedule.sort((a,b)=>DAYS.indexOf(a.day)-DAYS.indexOf(b.day));
   gdDirty=true; gdSyncMsgBox(); gdPreview();
 }
-function gdPickImage(input){
-  const f=input.files[0]; input.value="";
+async function gdPickImage(input){
+  const f=await cropImage(input.files[0]); input.value="";
   if(!f) return;
   gdPendingFile=f; gdDirty=true;
   readImageAsDataURL(f,(url)=>{ gdWorking.pic=url; gdRefreshAvatar(); toast("Photo updated — save to keep"); });
 }
 async function gdSave(){
   if(!gdWorking.name.trim()){ toast("Enter a group name","err"); return; }
-  const schedule=(gdWorking.schedule||[]).filter((e)=>(e.from||"").trim());
+  const schedule=(gdWorking.schedule||[]).filter((e)=>(e.from||"").trim()).map((e)=>({day:e.day,from:e.from,to:e.to||"",...slotExtras(e)}));
   if(!schedule.length){ toast("Select at least one day with a From time","err"); return; }
   for(const e of schedule){ if(!(e.from||"").trim()){ toast(`Enter a "From" time for ${e.day}`,"err"); return; } }
   const auto=genMessage(schedule);
@@ -1776,13 +1782,14 @@ function gdPreview(){
 }
 function renderGroupDetail(){
   const el=document.getElementById("groupDetail"); if(!el) return;
+  fillPeopleOptions();
   if(gdWorking==null){ el.innerHTML='<p class="hint">Select a group.</p>'; return; }
   const g=gdWorking;
   const scheduleRows=DAYS.map((day)=>{
     const e=(g.schedule||[]).find((x)=>x.day===day)||{}; const f=e.from||"", t=e.to||"";
     return gdEdit
-      ? `<tr><td class="day-col">${day}</td><td><div class="crange"><input class="cell" list="timeOptions" value="${escA(f)}" placeholder="From" oninput="gdSetCell('${day}','from',this.value)" onchange="gdAutoTo('${day}',this)"/><span class="dash">–</span><input class="cell" list="timeOptions" value="${escA(t)}" placeholder="To" oninput="gdSetCell('${day}','to',this.value)"/></div></td></tr>`
-      : `<tr class="${f||t?"filled":""}"><td class="day-col">${day}</td><td>${(f||t)?`<b>${esc(f)}</b> – <b>${esc(t)}</b>`:'<span class="hint" style="margin:0">—</span>'}</td></tr>`;
+      ? `<tr><td class="day-col">${day}</td><td><div class="crange"><input class="cell" list="timeOptions" value="${escA(f)}" placeholder="From" oninput="gdSetCell('${day}','from',this.value)" onchange="gdAutoTo('${day}',this)"/><span class="dash">–</span><input class="cell" list="timeOptions" value="${escA(t)}" placeholder="To" oninput="gdSetCell('${day}','to',this.value)"/></div><div class="crange meta-in"><input class="cell" list="roomOptions" value="${escA(e.room||"")}" placeholder="Room" maxlength="80" aria-label="${day} room" oninput="gdSetCell('${day}','room',this.value)"/><input class="cell" list="teacherOptions" value="${escA(e.teacher||"")}" placeholder="Teacher" maxlength="80" aria-label="${day} teacher" oninput="gdSetCell('${day}','teacher',this.value)"/></div></td></tr>`
+      : `<tr class="${f||t?"filled":""}"><td class="day-col">${day}</td><td>${(f||t)?`<b>${esc(f)}</b> – <b>${esc(t)}</b>${slotMeta(e)}`:'<span class="hint" style="margin:0">—</span>'}</td></tr>`;
   }).join("");
   const pic=entityPic(g);
   el.innerHTML=`
@@ -1799,7 +1806,7 @@ function renderGroupDetail(){
     <div class="detail-grid">
       <div class="sec"><div class="sec-h">Weekly schedule</div><div class="sec-b" style="padding:0">${gdEdit?`<div class="gd-tools"><span>Copy first day to</span><button class="chip-btn" type="button" onclick="gdCopyFirst(WEEKDAYS)">Weekdays</button><button class="chip-btn" type="button" onclick="gdCopyFirst(DAYS)">Every day</button><span class="gd-tools-sep">Length</span><button class="chip-btn" type="button" onclick="gdSetLength(60)">1h</button><button class="chip-btn" type="button" onclick="gdSetLength(90)">1.5h</button><button class="chip-btn" type="button" onclick="gdSetLength(120)">2h</button></div>`:""}<div class="sched-canvas" style="border:none;box-shadow:none"><table class="sched detail-sched"><tbody>${scheduleRows}</tbody></table></div></div></div>
       <div class="sec"><div class="sec-h">Message &amp; details</div><div class="sec-b">
-        ${gdEdit?`<div class="g-field" style="margin-bottom:14px"><div class="flabel">Invite link <span class="flabel-soft">optional</span></div><input class="field" value="${escA(g.inviteLink||"")}" oninput="gdSetField('inviteLink',this.value)" placeholder="https://chat.whatsapp.com/…"/></div><div class="g-field" style="margin-bottom:10px"><div class="flabel">Message</div><textarea class="field" id="gdMsg" style="min-height:150px" oninput="gdSetField('message',this.value)">${esc(baseMessage(g))}</textarea><div class="gd-tools gd-msg-tools"><span>Insert</span><button class="chip-btn" type="button" onclick="gdInsertToken('{date}')">{date}</button><button class="chip-btn" type="button" onclick="gdInsertToken('{weekday}')">{weekday}</button><button class="chip-btn" type="button" title="Go back to the message generated from the schedule" onclick="gdAutoMessage()">Use automatic</button><span class="hint" id="gdMsgCount" style="margin:0 0 0 auto"></span></div></div>`:(g.inviteLink?'<div class="hint" style="margin:0 0 10px">Invite link set · opens the group directly.</div>':"")}
+        ${gdEdit?`<div class="g-field" style="margin-bottom:14px"><div class="flabel">Invite link <span class="flabel-soft">optional</span></div><input class="field" value="${escA(g.inviteLink||"")}" oninput="gdSetField('inviteLink',this.value)" placeholder="https://chat.whatsapp.com/…"/></div><div class="g-field" style="margin-bottom:10px"><div class="flabel">Message</div><textarea class="field" id="gdMsg" data-emoji style="min-height:150px" oninput="gdSetField('message',this.value)">${esc(baseMessage(g))}</textarea><div class="gd-tools gd-msg-tools"><span>Insert</span><button class="chip-btn" type="button" onclick="gdInsertToken('{date}')">{date}</button><button class="chip-btn" type="button" onclick="gdInsertToken('{weekday}')">{weekday}</button><button class="chip-btn" type="button" title="Go back to the message generated from the schedule" onclick="gdAutoMessage()">Use automatic</button><span class="hint" id="gdMsgCount" style="margin:0 0 0 auto"></span></div></div>`:(g.inviteLink?'<div class="hint" style="margin:0 0 10px">Invite link set · opens the group directly.</div>':"")}
         <div class="msg-preview" id="gdPreview"></div>
       </div></div>
     </div>
@@ -1896,8 +1903,8 @@ function cdToggleEdit(){
 }
 function cdRefreshAvatar(){ const el=document.getElementById("cdAvatar"); if(el){ el.className="editor-av"+(cdWorking.pic?" has-img":""); el.innerHTML=avatarInner(cdWorking.name,cdWorking.pic); } }
 function cdSetField(f,v){ cdWorking[f]=f==="phone"?String(v).replace(/\D/g,""):v; if(f==="name") cdRefreshAvatar(); if(f==="phone") cdPhoneHint(); cdPreview(); }
-function cdPickImage(input){
-  const f=input.files[0]; input.value="";
+async function cdPickImage(input){
+  const f=await cropImage(input.files[0]); input.value="";
   if(!f) return;
   cdPendingFile=f;
   readImageAsDataURL(f,(url)=>{ cdWorking.pic=url; cdRefreshAvatar(); toast("Photo updated — save to keep"); });
@@ -1956,7 +1963,7 @@ function renderContactDetail(){
         ${cdEdit?`<div class="g-field"><div class="flabel">Phone <span class="flabel-soft">country code, digits only</span></div><input class="field" id="cdPhone" inputmode="tel" value="${escA(c.phone||"")}" oninput="cdSetField('phone',this.value)" placeholder="e.g. 923001234567"/><div class="hint phone-hint" id="cdPhoneHint"></div></div>`:`<div class="dash-status-row"><span>Phone</span><span style="margin-left:auto;font-weight:700">+${esc(c.phone||"—")}</span></div><div class="dash-status-row"><span>Status</span><span style="margin-left:auto">${c.waLinked?'<span class="status-on">On WhatsApp</span>':'<span class="status-off">Not verified</span>'}</span></div>`}
       </div></div>
       <div class="sec"><div class="sec-h">Message</div><div class="sec-b">
-        ${cdEdit?`<textarea class="field" style="min-height:150px;margin-bottom:10px" oninput="cdSetField('message',this.value)" placeholder="Type a message… *bold* {date} {weekday}">${esc(c.message||"")}</textarea>`:""}
+        ${cdEdit?`<textarea class="field" data-emoji style="min-height:150px;margin-bottom:10px" oninput="cdSetField('message',this.value)" placeholder="Type a message… *bold* {date} {weekday}">${esc(c.message||"")}</textarea>`:""}
         <div class="msg-preview" id="cdPreview"></div>
       </div></div>
     </div>`;
@@ -2033,7 +2040,7 @@ function renderScheduleGrid(w){
       h+=`<td class="${(f||tv)?'filled ':''}${dim?'col-dim':''}" data-cell="${ci}|${day}"><div class="crange">
         <input class="cell" list="timeOptions" value="${escA(f)}" placeholder="From" ${dim?"disabled":""} aria-label="${escA(g.name)} ${day} from" oninput="updateCell(${ci},'${day}','from',this)"/>
         <span class="dash" aria-hidden="true">–</span>
-        <input class="cell" list="timeOptions" value="${escA(tv)}" placeholder="To" ${dim?"disabled":""} aria-label="${escA(g.name)} ${day} to" oninput="updateCell(${ci},'${day}','to',this)"/></div></td>`;
+        <input class="cell" list="timeOptions" value="${escA(tv)}" placeholder="To" ${dim?"disabled":""} aria-label="${escA(g.name)} ${day} to" oninput="updateCell(${ci},'${day}','to',this)"/></div>${slotMeta(e)}</td>`;
     });
     h+='</tr>';
   });
@@ -2064,7 +2071,7 @@ function renderScheduleBoard(w){
           <input class="cell" list="timeOptions" value="${escA(f)}" placeholder="From" ${dim?"disabled":""} aria-label="${escA(g.name)} ${day} from" oninput="updateCell(${ci},'${day}','from',this)"/>
           <span class="dash" aria-hidden="true">–</span>
           <input class="cell" list="timeOptions" value="${escA(tv)}" placeholder="To" ${dim?"disabled":""} aria-label="${escA(g.name)} ${day} to" oninput="updateCell(${ci},'${day}','to',this)"/>
-        </div>
+        </div>${slotMeta(e)}
       </div>`;
     });
     h+=`</div></article>`;
@@ -2215,8 +2222,14 @@ function acceptedClashes(){ try{ return new Set(JSON.parse(localStorage.getItem(
 function _setAcceptedClashes(s){ try{ localStorage.setItem("sched-accepted-clashes", JSON.stringify([...s])); }catch(e){} }
 function acceptClash(k){ k=decodeURIComponent(k); const s=acceptedClashes(); s.add(k); _setAcceptedClashes(s); refreshClashes(); }
 function unacceptClash(k){ k=decodeURIComponent(k); const s=acceptedClashes(); s.delete(k); _setAcceptedClashes(s); refreshClashes(); }
-function computeClashes(){ const acc=acceptedClashes(), pairs=[]; DAYS.forEach((day)=>{ const items=[]; groups.forEach((g,ci)=>{ const e=g.schedule.find((x)=>x.day===day); if(!e) return; const a=parseTimeMin(e.from); if(a==null) return; let b=parseTimeMin(e.to); if(b==null||b<=a) b=a+30; items.push({ci,a,b}); }); for(let i=0;i<items.length;i++) for(let j=i+1;j<items.length;j++){ if(items[i].a<items[j].b && items[j].a<items[i].b){ const ca=items[i].ci, cb=items[j].ci; const key=clashKey(day, groups[ca].name, groups[cb].name); pairs.push({day,a:ca,b:cb,key,accepted:acc.has(key)}); } } }); return {pairs}; }
-function refreshClashes(){ syncClashBtn(); document.querySelectorAll("[data-cell].cell-clash,[data-cell].cell-clash-ok").forEach((el)=>el.classList.remove("cell-clash","cell-clash-ok")); const banner=document.getElementById("clashBanner"); if(!clashOn){ if(banner) banner.innerHTML=""; return; } const {pairs}=computeClashes(); const warn=new Set(), okc=new Set(); pairs.forEach(p=>{ const ka=p.a+"|"+p.day, kb=p.b+"|"+p.day; if(p.accepted){ okc.add(ka); okc.add(kb); } else { warn.add(ka); warn.add(kb); } }); warn.forEach((key)=>{ const el=document.querySelector(`[data-cell="${key}"]`); if(el) el.classList.add("cell-clash"); }); okc.forEach((key)=>{ if(warn.has(key)) return; const el=document.querySelector(`[data-cell="${key}"]`); if(el) el.classList.add("cell-clash-ok"); }); if(!banner) return; const open=pairs.filter(p=>!p.accepted), accepted=pairs.filter(p=>p.accepted); if(!open.length && !accepted.length){ banner.innerHTML=`<div class="clash-bar ok"><span class="clash-ico">✓</span><span>No time clashes — every class has a distinct slot.</span></div>`; return; } let html=""; if(open.length){ const lines=open.map((p)=>`<span class="clash-pill clash-jump" role="button" tabindex="0" title="Show these two in the table" onclick="focusClash(${p.a},${p.b},'${p.day}')" onkeydown="if(event.key==='Enter')this.click()">${esc(p.day.slice(0,3))}: ${esc(colDisplay(groups[p.a]))} ↔ ${esc(colDisplay(groups[p.b]))} <button class="clash-accept" type="button" title="Move one of the two classes to the nearest free time" onclick="event.stopPropagation();resolveClash(${p.a},${p.b},'${p.day}')">Find a slot</button> <button class="clash-accept" type="button" title="Mark this overlap as acceptable" onclick="event.stopPropagation();acceptClash('${encodeURIComponent(p.key).replace(/'/g,'%27')}')">✓ Accept</button></span>`).join(""); html+=`<div class="clash-bar warn"><span class="clash-ico">⚠</span><div class="clash-body"><b>${open.length} time clash${open.length===1?"":"es"} detected</b><div class="clash-pills">${lines}</div></div></div>`; } if(accepted.length){ const lines=accepted.map((p)=>`<span class="clash-pill accepted">${esc(p.day.slice(0,3))}: ${esc(colDisplay(groups[p.a]))} ↔ ${esc(colDisplay(groups[p.b]))} <button class="clash-accept" type="button" title="Treat as a clash again" onclick="unacceptClash('${encodeURIComponent(p.key).replace(/'/g,'%27')}')">✕</button></span>`).join(""); html+=`<div class="clash-bar ok"${open.length?' style="margin-top:8px"':''}><span class="clash-ico">✓</span><div class="clash-body"><b>${accepted.length} accepted overlap${accepted.length===1?"":"s"}</b><div class="clash-pills">${lines}</div></div></div>`; } banner.innerHTML=html; }
+/* Two overlapping classes clash when they share a room or a teacher, or when nothing tells
+   them apart. Different rooms, or different teachers, make an overlap fine. "" = no clash. */
+const _slotK=(v)=>String(v||"").trim().toLowerCase();
+function clashReason(x,y){ const r1=_slotK(x.room),r2=_slotK(y.room),t1=_slotK(x.teacher),t2=_slotK(y.teacher);
+  if(r1&&r1===r2) return "same room"; if(t1&&t1===t2) return "same teacher";
+  if((r1&&r2)||(t1&&t2)) return ""; return "same time"; }
+function computeClashes(){ const acc=acceptedClashes(), pairs=[]; DAYS.forEach((day)=>{ const items=[]; groups.forEach((g,ci)=>{ const e=g.schedule.find((x)=>x.day===day); if(!e) return; const a=parseTimeMin(e.from); if(a==null) return; let b=parseTimeMin(e.to); if(b==null||b<=a) b=a+30; items.push({ci,a,b,e}); }); for(let i=0;i<items.length;i++) for(let j=i+1;j<items.length;j++){ const reason=clashReason(items[i].e,items[j].e); if(reason && items[i].a<items[j].b && items[j].a<items[i].b){ const ca=items[i].ci, cb=items[j].ci; const key=clashKey(day, groups[ca].name, groups[cb].name); pairs.push({day,a:ca,b:cb,key,reason,accepted:acc.has(key)}); } } }); return {pairs}; }
+function refreshClashes(){ syncClashBtn(); document.querySelectorAll("[data-cell].cell-clash,[data-cell].cell-clash-ok").forEach((el)=>el.classList.remove("cell-clash","cell-clash-ok")); const banner=document.getElementById("clashBanner"); if(!clashOn){ if(banner) banner.innerHTML=""; return; } const {pairs}=computeClashes(); const warn=new Set(), okc=new Set(); pairs.forEach(p=>{ const ka=p.a+"|"+p.day, kb=p.b+"|"+p.day; if(p.accepted){ okc.add(ka); okc.add(kb); } else { warn.add(ka); warn.add(kb); } }); warn.forEach((key)=>{ const el=document.querySelector(`[data-cell="${key}"]`); if(el) el.classList.add("cell-clash"); }); okc.forEach((key)=>{ if(warn.has(key)) return; const el=document.querySelector(`[data-cell="${key}"]`); if(el) el.classList.add("cell-clash-ok"); }); if(!banner) return; const open=pairs.filter(p=>!p.accepted), accepted=pairs.filter(p=>p.accepted); if(!open.length && !accepted.length){ banner.innerHTML=`<div class="clash-bar ok"><span class="clash-ico">✓</span><span>No clashes — no two classes overlap in the same room or with the same teacher.</span></div>`; return; } let html=""; if(open.length){ const lines=open.map((p)=>`<span class="clash-pill clash-jump" role="button" tabindex="0" title="Show these two in the table" onclick="focusClash(${p.a},${p.b},'${p.day}')" onkeydown="if(event.key==='Enter')this.click()">${esc(p.day.slice(0,3))}: ${esc(colDisplay(groups[p.a]))} ↔ ${esc(colDisplay(groups[p.b]))}${p.reason!=="same time"?` <em class="clash-why">${p.reason}</em>`:""} <button class="clash-accept" type="button" title="Move one of the two classes to the nearest free time" onclick="event.stopPropagation();resolveClash(${p.a},${p.b},'${p.day}')">Find a slot</button> <button class="clash-accept" type="button" title="Mark this overlap as acceptable" onclick="event.stopPropagation();acceptClash('${encodeURIComponent(p.key).replace(/'/g,'%27')}')">✓ Accept</button></span>`).join(""); html+=`<div class="clash-bar warn"><span class="clash-ico">⚠</span><div class="clash-body"><b>${open.length} time clash${open.length===1?"":"es"} detected</b><div class="clash-pills">${lines}</div></div></div>`; } if(accepted.length){ const lines=accepted.map((p)=>`<span class="clash-pill accepted">${esc(p.day.slice(0,3))}: ${esc(colDisplay(groups[p.a]))} ↔ ${esc(colDisplay(groups[p.b]))} <button class="clash-accept" type="button" title="Treat as a clash again" onclick="unacceptClash('${encodeURIComponent(p.key).replace(/'/g,'%27')}')">✕</button></span>`).join(""); html+=`<div class="clash-bar ok"${open.length?' style="margin-top:8px"':''}><span class="clash-ico">✓</span><div class="clash-body"><b>${accepted.length} accepted overlap${accepted.length===1?"":"s"}</b><div class="clash-pills">${lines}</div></div></div>`; } banner.innerHTML=html; }
 function showLog(){ const p=document.getElementById("statusPanel"); p.classList.remove("hidden"); p.classList.remove("collapsed"); syncLogCollapseBtn(); }
 function toggleStatusLog(){ const p=document.getElementById("statusPanel"); p.classList.toggle("collapsed"); syncLogCollapseBtn(); }
 function clearStatusLog(){ const l=document.getElementById("logLines"); if(l) l.innerHTML=""; toast("Status log cleared"); }
@@ -2346,8 +2359,8 @@ function renderEditorAvatar(id, name, pic){
   el.className="editor-av"+(pic?" has-img":"");
   el.innerHTML=typeof avatarInner==="function"?avatarInner(name||"C", pic):esc((name||"C").slice(0,1).toUpperCase());
 }
-function cPickImage(input){
-  const f=input.files&&input.files[0]; input.value="";
+async function cPickImage(input){
+  const f=await cropImage(input.files&&input.files[0]); input.value="";
   if(!f) return;
   cPendingFile=f;
   if(typeof readImageAsDataURL==="function"){
@@ -2534,7 +2547,9 @@ function renderSsFooter(){
     return;
   }
   if(ssPhase==="running"){
-    f.innerHTML=ssStopping?`<span class="hint">Stopping after the current message…</span>`:`<span class="hint">Sending… progress also appears in the status log.</span><button class="btn btn-danger" style="margin-left:auto" onclick="ssStop()">Stop sending</button>`;
+    f.innerHTML=ssStopping?`<span class="hint">Stopping after the current message…</span>`
+      :ssPaused?`<span class="hint">Paused — nothing more is sent until you resume.</span><button class="btn btn-primary" style="margin-left:auto" onclick="ssPause(false)">Resume</button><button class="btn btn-danger" onclick="ssStop()">Stop sending</button>`
+      :`<span class="hint">Sending… progress also appears in the status log.</span><button class="btn btn-soft" style="margin-left:auto" onclick="ssPause(true)" title="Hold the next message; the one being sent now still goes">Pause</button><button class="btn btn-danger" onclick="ssStop()">Stop sending</button>`;
     return;
   }
   if(ssPf&&ssPf.ready) f.innerHTML=`<button class="btn btn-soft" onclick="closeSendStatus()">Cancel</button><button class="btn btn-primary" style="margin-left:auto" onclick="ssStart()">${ICO_SEND_BTN} Start send · ${ssTargets.length}</button>`;
@@ -2544,7 +2559,12 @@ async function ssCopyLog(){
   const lines=document.getElementById("logLines")?.innerText||ssTargets.map((t,i)=>`${t.name}: ${ssStatus[i]}`).join("\n");
   try{ await navigator.clipboard.writeText(lines); toast("Log copied ✓"); }catch{ toast("Copy failed","err"); }
 }
-let ssStopping=false;
+let ssStopping=false, ssPaused=false;
+async function ssPause(on){
+  const d=await (await fetch("/api/release/pause",post({paused:on}))).json();
+  if(d.error){ toast(d.error,"err"); return; }
+  ssPaused=on; renderSsFooter(); toast(on?"Paused after the current message":"Resumed");
+}
 async function ssStop(){
   if(!(await confirmDialog("Stop after the message being sent now? The rest are skipped.",{ok:"Stop sending",cancel:"Keep sending",danger:true}))) return;
   const d=await (await fetch("/api/release/cancel",post({}))).json();
@@ -2553,7 +2573,7 @@ async function ssStop(){
 }
 async function ssStart(){
   if(!ssMeta||!ssPf?.ready) return;
-  ssPhase="running"; ssStopping=false;
+  ssPhase="running"; ssStopping=false; ssPaused=false;
   ssStatus=ssTargets.map(()=>"queued");
   if(ssStatus.length) ssStatus[0]="sending";
   renderSendStatus();
@@ -2661,7 +2681,7 @@ function setBusy(spin,btn,txt,busy,label){const b=document.getElementById(btn); 
 function resetBusy(){["relAll","relTbl","relCAll","auto"].forEach(p=>{const b=document.getElementById(p+"Btn");if(b){b.disabled=false;const s=document.getElementById(p+"Spin");if(s)s.classList.add("hidden");}});
   const m={relAllTxt:"Automated All",relTblTxt:"Automated Selected",relCAllTxt:"Automated All",autoTxt:"Send selected"};
   for(const k in m){const e=document.getElementById(k);if(e)e.textContent=m[k];}
-  if(ssPhase==="running"){ ssPhase="done"; ssStatus=ssStatus.map((s)=>s==="queued"||s==="sending"?(ssStopping?"skipped":"success"):s); ssStopping=false; renderSendStatus(); }
+  if(ssPhase==="running"){ ssPhase="done"; ssStatus=ssStatus.map((s)=>s==="queued"||s==="sending"?(ssStopping?"skipped":"success"):s); ssStopping=false; ssPaused=false; renderSendStatus(); }
 }
 
 function startSSE(){const es=new EventSource("/api/status");es.onmessage=e=>{if(e.data==="ping")return;
@@ -2787,14 +2807,14 @@ async function copyBox(id){try{await navigator.clipboard.writeText(document.getE
 async function copyText(t){try{await navigator.clipboard.writeText(t);toast("Copied ✓");}catch{toast("Copy failed","err");}}
 
 </script>
-<script src="{{ url_for('static', filename='js/lists.js') }}?v=poc63"></script>
+<script src="{{ url_for('static', filename='js/lists.js') }}?v=poc68"></script>
 <script src="{{ url_for('static', filename='js/features.js') }}?v=poc67"></script>
 <script src="{{ url_for('static', filename='js/workspace.js') }}?v=poc60"></script>
-<script src="{{ url_for('static', filename='js/visual_editor.js') }}?v=poc66"></script>
+<script src="{{ url_for('static', filename='js/visual_editor.js') }}?v=poc68"></script>
 <script src="{{ url_for('static', filename='js/dashboard.js') }}?v=poc64"></script>
-<script src="{{ url_for('static', filename='js/scheduler.js') }}?v=poc67"></script>
+<script src="{{ url_for('static', filename='js/scheduler.js') }}?v=poc68"></script>
 <script src="{{ url_for('static', filename='js/palette.js') }}?v=poc62"></script>
-<script src="{{ url_for('static', filename='js/assistant.js') }}?v=poc65"></script>
+<script src="{{ url_for('static', filename='js/assistant.js') }}?v=poc68"></script>
 <script src="{{ url_for('static', filename='js/contacts.js') }}?v=poc63"></script>
 <script src="{{ url_for('static', filename='js/exceptions.js') }}?v=poc67"></script>
 <script>boot();</script>

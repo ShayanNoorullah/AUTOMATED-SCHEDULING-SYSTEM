@@ -1962,3 +1962,31 @@ body.no-anim .view.entering :is(.card-grid,.cards,.grid,.dash-actions,.wa-steps)
   .wa-flow-label{font-size:.66rem;white-space:normal;text-align:center;}
   .wa-flow-conn{min-width:8px;}
 }
+
+/* ============ Phase 9: rooms and teachers, pause, photo crop ============ */
+.cell-meta{margin-top:4px;font-size:.72rem;color:var(--text-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;}
+td .cell-meta{padding:0 2px;}
+.crange.meta-in{margin-top:6px;}
+.crange.meta-in .cell{font-size:.8rem;height:30px;min-height:30px;padding-top:4px;padding-bottom:4px;}
+.clash-why{font-style:normal;font-size:.72rem;font-weight:600;padding:1px 7px;border-radius:var(--r-full);background:color-mix(in srgb,var(--warn) 18%,transparent);color:var(--text);}
+.crop-dlg .modal{max-width:360px;}
+.crop-view{position:relative;width:280px;height:280px;margin:0 auto;overflow:hidden;border-radius:var(--r-md);background:var(--surface-3);cursor:grab;touch-action:none;}
+.crop-view:active{cursor:grabbing;}
+.crop-view img{position:absolute;left:50%;top:50%;max-width:none;user-select:none;pointer-events:none;}
+.crop-view::after{content:"";position:absolute;inset:0;border-radius:50%;box-shadow:0 0 0 999px color-mix(in srgb,var(--scrim) 45%,transparent);pointer-events:none;}
+.crop-zoom{display:flex;align-items:center;gap:10px;margin:14px 0 8px;font-size:.85rem;color:var(--text-muted);}
+.crop-zoom input{flex:1;accent-color:var(--accent);}
+/* Groups table on phones: WhatsApp status shows as the avatar badge, so drop those columns */
+@media (max-width:560px){
+  #groupTableWrap .grid-table th:nth-child(4),#groupTableWrap .grid-table td:nth-child(4),
+  #groupTableWrap .grid-table th:nth-child(5),#groupTableWrap .grid-table td:nth-child(5){display:none;}
+  #groupTableWrap .grid-name b{white-space:normal;}
+}
+.emoji-btn{display:inline-flex;align-self:flex-start;width:auto;align-items:center;gap:4px;margin-top:6px;padding:3px 10px;font-size:.78rem;border-radius:var(--r-full);border:1px solid var(--border);background:var(--surface-2);color:var(--text-muted);cursor:pointer;}
+.emoji-btn:hover{color:var(--text);border-color:var(--border-strong);}
+.emoji-pop{display:grid;grid-template-columns:repeat(8,34px);gap:2px;margin-top:6px;padding:6px;width:max-content;max-width:100%;
+  background:var(--surface);border:1px solid var(--border-strong);border-radius:var(--r-md);box-shadow:var(--shadow-lg);animation:popIn .18s var(--ease);}
+.emoji-pop button{width:34px;height:34px;border:0;border-radius:var(--r-xs);background:transparent;font-size:1.2rem;cursor:pointer;}
+.emoji-pop button:hover,.emoji-pop button:focus-visible{background:var(--surface-3);}
+@media (max-width:380px){.emoji-pop{grid-template-columns:repeat(6,34px);}}
+@media (max-width:560px){ #groupTableWrap .grid-table{min-width:0;} #groupTableWrap .grid-table th:nth-child(6),#groupTableWrap .grid-table td:nth-child(6){display:none;} }

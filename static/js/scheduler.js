@@ -94,7 +94,8 @@ function findFreeSlot(gi, day) {
   const a = e && parseTimeMin(e.from);
   if (a == null) return null;
   const b = parseTimeMin(e.to), hasEnd = b != null && b > a, len = hasEnd ? b - a : 30;
-  const busy = (d) => groups.flatMap((o, oi) => (oi === gi ? [] : (o.schedule || []).filter((x) => x.day === d)).map((x) => {
+  // only classes that would clash with this one (same room / teacher, or nothing tells them apart)
+  const busy = (d) => groups.flatMap((o, oi) => (oi === gi ? [] : (o.schedule || []).filter((x) => x.day === d && clashReason(e, x))).map((x) => {
     const s = parseTimeMin(x.from); let t = parseTimeMin(x.to);
     if (s == null) return null; if (t == null || t <= s) t = s + 30; return [s, t];
   }).filter(Boolean));
@@ -118,7 +119,7 @@ async function resolveClash(a, b, day) {
   const where = best.day === day ? `to ${span(best.from, best.to)}` : `to ${best.day}, same time`;
   if (!(await confirmDialog(`Move ${colDisplay(g)} on ${day} (${span(cur.from, cur.to)}) ${where}?\n\nIt is the nearest time that clashes with no other class. Save afterwards to keep it.`, { ok: "Move it" }))) return;
   const before = g.schedule.map((x) => ({ ...x }));
-  g.schedule = g.schedule.filter((x) => x.day !== day).concat({ day: best.day, from: best.from, to: best.to })
+  g.schedule = g.schedule.filter((x) => x.day !== day).concat({ ...slotExtras(cur), day: best.day, from: best.from, to: best.to })
     .sort((x, y) => DAYS.indexOf(x.day) - DAYS.indexOf(y.day));
   tableDirty = true; markUnsaved(); renderTable(); focusClash(best.gi, best.gi, best.day);
   toast(`Moved ${colDisplay(g)} — save to keep it`, "ok", { label: "Undo", fn: () => { g.schedule = before; tableDirty = true; renderTable(); } });
@@ -177,7 +178,7 @@ function gdCopyFirst(days) {
   const src = (gdWorking.schedule || []).find((e) => (e.from || "").trim());
   if (!src) { toast("Fill in one day first", "err"); return; }
   const rest = gdWorking.schedule.filter((e) => !days.includes(e.day));
-  gdWorking.schedule = rest.concat(days.map((day) => ({ day, from: src.from, to: src.to })))
+  gdWorking.schedule = rest.concat(days.map((day) => ({ ...slotExtras(src), day, from: src.from, to: src.to })))
     .sort((x, y) => DAYS.indexOf(x.day) - DAYS.indexOf(y.day));
   gdDirty = true; renderGroupDetail();
 }
@@ -243,12 +244,13 @@ function parseGroupSheet(text) {
   const byName = {}; let bad = 0;
   if (!lines.length) return { byName, bad };
   const head = lines[0], dayCols = head.map(importDay);
-  const add = (name, day, from, to) => {
+  const add = (name, day, from, to, room, teacher) => {
     const f = importTime(from), t = to ? importTime(to) : "";
     if (!name || !day || !f || t == null) { bad++; return; }
     const list = byName[name] || (byName[name] = []);
+    const slot = { day, from: f, to: t, ...slotExtras({ room, teacher }) };
     const k = list.findIndex((e) => e.day === day);
-    if (k >= 0) list[k] = { day, from: f, to: t }; else list.push({ day, from: f, to: t });
+    if (k >= 0) list[k] = slot; else list.push(slot);
   };
   if (dayCols.filter(Boolean).length >= 2) {                       // days as columns
     lines.slice(1).forEach((r) => {
@@ -259,7 +261,7 @@ function parseGroupSheet(text) {
   } else {                                                         // one class per row
     lines.forEach((r, i) => {
       if (i === 0 && !importDay(r[1])) return;                     // header row
-      add(r[0], importDay(r[1]), r[2], r[3]);
+      add(r[0], importDay(r[1]), r[2], r[3], r[4], r[5]);
     });
   }
   Object.values(byName).forEach((l) => l.sort((a, b) => IMPORT_DAYS.indexOf(a.day) - IMPORT_DAYS.indexOf(b.day)));
@@ -272,7 +274,7 @@ function openGroupImport() {
     d.innerHTML = `<div class="modal modal-lg">
       <div class="modal-h"><span>Import groups</span><button class="modal-x" type="button" onclick="closeModal('groupImportModal')">✕</button></div>
       <div class="modal-b">
-        <p class="hint" style="margin:0">Copy the cells in Excel or Google Sheets and paste them here, or choose a .csv file. Either one class per row — <b>Group, Day, From, To</b> — or a row per group with the days as column headings and times like <b>3:00pm - 4:30pm</b>. Groups in the file get the file's weekly schedule; other groups are not changed. A copy of the current schedule is saved first, so History can bring it back.</p>
+        <p class="hint" style="margin:0">Copy the cells in Excel or Google Sheets and paste them here, or choose a .csv file. Either one class per row — <b>Group, Day, From, To</b>, optionally then <b>Room, Teacher</b> — or a row per group with the days as column headings and times like <b>3:00pm - 4:30pm</b>. Groups in the file get the file's weekly schedule; other groups are not changed. A copy of the current schedule is saved first, so History can bring it back.</p>
         <textarea class="field" id="giText" style="min-height:190px;font-family:ui-monospace,monospace;font-size:.84rem" placeholder="Group, Day, From, To&#10;CS Batch A, Monday, 3:00pm, 4:30pm&#10;CS Batch A, Wednesday, 3pm, 4:30pm" oninput="groupImportPreview()"></textarea>
         <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
           <button class="btn btn-soft btn-sm" type="button" onclick="document.getElementById('giFile').click()">Choose file…</button>

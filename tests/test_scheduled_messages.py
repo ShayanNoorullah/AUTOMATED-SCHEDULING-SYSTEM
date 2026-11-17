@@ -121,6 +121,27 @@ def main():
     while not wa.status_queue.empty():
         msgs.append(wa.status_queue.get())
     assert msgs[-1].startswith("done:── Stopped: 1/5"), msgs
+
+    # ── pausing holds the next message until resumed ──
+    sent.clear()
+    assert wa.pause_release(uid, True) is False                                 # nothing running
+    ok, err = wa.run_release(app, uid, False, 0, [{"name": f"P{i}", "message": "x"} for i in range(3)])
+    assert ok, err
+    assert wa.pause_release(uid, True) is True
+    time.sleep(0.6)
+    held = len(sent)
+    assert held <= 1, sent                                                      # at most the one already going
+    time.sleep(0.6)
+    assert len(sent) == held                                                    # nothing more while paused
+    assert wa.pause_release(uid, False) is True
+    deadline = time.time() + 5
+    while wa._user_release_lock(uid).locked() and time.time() < deadline:
+        time.sleep(0.05)
+    assert sent == ["P0", "P1", "P2"], sent
+    msgs = []
+    while not wa.status_queue.empty():
+        msgs.append(wa.status_queue.get())
+    assert any("Paused" in x for x in msgs) and any("Resumed" in x for x in msgs) and msgs[-1].startswith("done:── Finished: 3/3"), msgs
     print("ok")
 
 

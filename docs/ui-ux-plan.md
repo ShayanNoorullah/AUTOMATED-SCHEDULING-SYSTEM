@@ -2,13 +2,39 @@
 
 Audit date: 2026-11-16. Scope: everything under `templates/user/` plus the CSS/JS it loads.
 
-**Status (2026-11-17):** Phases 1–7 and the assistant's local fallback are deployed
-(Phase 7 is commit `cef998a`); Phase 8 below is built but not yet deployed. The assistant currently answers from the local model only
+**Status (2026-11-17):** Phases 1–8 and the assistant's local fallback are deployed
+(Phase 8 is commit `68fab29`); Phase 9 below is built but not yet deployed. The assistant currently answers from the local model only
 (`qwen2.5:7b` in the `ollama` service), because no hosted provider key has been entered
 yet; once one is added it becomes primary and the local model is the fallback. The
 assistant has never talked to a real hosted provider — see "Before first use" below.
 
-- **Phase 8** (2026-11-17, not yet deployed) — done:
+- **Phase 9** (2026-11-17, not yet deployed) — done:
+  - Rooms and teachers: every class (one group, one day) can have a room and a teacher.
+    They are entered in the group editor (with suggestions from ones already used) or the
+    Visual Editor form, shown under the times in the Scheduler, kept by the assistant,
+    "Find a slot", "Copy first day" and spreadsheet import (optional Room, Teacher columns),
+    and sent to calendar apps as the event's location and description. Stored as optional
+    `room` / `teacher` keys on schedule entries — no database change.
+  - Clashes now mean a real conflict: two overlapping classes clash when they share a room
+    or a teacher, or when neither room nor teacher tells them apart. The clash bar says
+    which ("same room", "same teacher"). The Visual Editor uses the same rule.
+  - Pause and resume a send from the send window (the message being sent still goes).
+  - Photo crop: group and contact photos are cropped to a square before upload (drag,
+    zoom, keyboard), saved as a 512×512 JPEG.
+  - Emoji picker under every message box (groups, contacts, templates, lists, notices).
+  - Groups table fits a phone: status, last-sent and arrow columns are hidden there.
+  - Fixes: rooms set in the Visual Editor were dropped the next time the page loaded
+    (and then deleted on the next save); the Visual Editor said "clashs".
+- **Still not done after Phase 9**, by kind:
+  - Needs live WhatsApp data to build and test: messaging the assistant from WhatsApp;
+    tracking who acknowledged a message.
+  - Larger interaction work: Workspace drag/resize and widget gallery; Scheduler drag a
+    slot, fill handle, board day-lanes, notes slide-over; Visual Editor snap guides, zoom,
+    mini-map, touch mode; lists drag-between.
+  - Smaller polish: Profile as an in-app view; Settings live preview pane; rooms in the
+    WhatsApp schedule message (left out on purpose so existing messages do not change).
+
+- **Phase 8** (2026-11-17, deployed as `68fab29`) — done:
   - Send later: on Automated Send, "Send later…" schedules the selected messages for one
     moment (new `scheduled_messages` table, created on startup). {date}, {weekday} and the
     "Changes this week" lines are worked out for that day; the messages are then sent exactly
@@ -30,16 +56,6 @@ assistant has never talked to a real hosted provider — see "Before first use" 
     whole send had finished; the finished dialog showed "View history" twice; the WhatsApp
     link steps pushed "Connected" off a phone screen; a busy-account send returned 400
     instead of 409.
-- **Still not done after Phase 8**, by kind:
-  - Needs live WhatsApp data to build and test: messaging the assistant from WhatsApp;
-    tracking who acknowledged a message.
-  - Data-model change: teachers and rooms as first-class fields.
-  - Larger interaction work: Workspace drag/resize and widget gallery; Scheduler drag a
-    slot, fill handle, board day-lanes, notes slide-over; Visual Editor snap guides, zoom,
-    mini-map, touch mode; lists drag-between and emoji picker; contact avatar crop.
-  - Smaller polish: Profile as an in-app view; Settings live preview pane; pausing (not just
-    stopping) a send; the Groups table still scrolls sideways on phones.
-
 - **Phase 7** (2026-11-17, deployed as `cef998a`) — done:
   - Motion: one pill slides between options in every segmented control and the settings
     tabs; settings tabs run down the left on wide screens; the light/dark toggle spreads the

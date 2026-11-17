@@ -97,6 +97,7 @@ def run_release(app, user_id, headless, delay, targets, actor_id=None):
         lock.release()
         return False, "Nothing to send"
     stop = _stops[str(user_id)] = threading.Event()
+    pause = _pauses[str(user_id)] = threading.Event()   # set = paused
 
     audit("release", f"{len(targets)} recipient(s)", actor_id=actor_id or user_id, target_id=user_id)
 
@@ -111,6 +112,12 @@ def run_release(app, user_id, headless, delay, targets, actor_id=None):
                     log(f"info:── Releasing to {len(targets)} recipient(s){mode} ──")
                     ok = 0
                     for i, t in enumerate(targets):
+                        if pause.is_set() and not stop.is_set():
+                            log("info:Paused — nothing more is sent until you resume")
+                            while pause.is_set() and not stop.is_set():
+                                stop.wait(0.5)
+                            if not stop.is_set():
+                                log("info:Resumed")
                         if stop.is_set():
                             break
                         phone = t.get("phone")
@@ -148,6 +155,7 @@ def run_release(app, user_id, headless, delay, targets, actor_id=None):
 _release_locks = {}
 _release_locks_guard = threading.Lock()
 _stops = {}   # user id -> Event of that user's current send
+_pauses = {}  # user id -> Event, set while that send is paused
 
 
 def cancel_release(user_id):
@@ -156,6 +164,15 @@ def cancel_release(user_id):
     if not stop or not _user_release_lock(user_id).locked():
         return False
     stop.set()
+    return True
+
+
+def pause_release(user_id, paused):
+    """Pause (before the next message) or resume the user's send. False when none is running."""
+    ev = _pauses.get(str(user_id))
+    if not ev or not _user_release_lock(user_id).locked():
+        return False
+    ev.set() if paused else ev.clear()
     return True
 
 

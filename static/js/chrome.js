@@ -271,6 +271,45 @@ function queueIndicator(box) {
 function queueAllIndicators(root = document) { root.querySelectorAll(IND_SEL).forEach(queueIndicator); }
 
 /* Icon-only buttons get a spoken name from their tooltip (screen readers skip the title). */
+/* Emoji picker for message boxes: any <textarea data-emoji> gets a small button under it.
+   The emoji goes in at the caret and an input event runs, so previews update. */
+const EMOJI = "😊 🙂 😀 😂 🙏 👍 👏 🙌 👋 🤝 ✅ ❌ ⚠️ ❗ ❓ ⏰ 🕒 📅 🗓️ 📌 📍 📝 📚 📖 ✏️ 🎓 🏫 💡 🔔 📢 🎉 🌟 ⭐ 💯 🔥 ❤️ 💙 💚 ☀️ 🌙 🚫 ➡️ ⬅️ 🔁 ☑️ 📞 💬".split(" ");
+function attachEmoji(root) {
+  const tas = root.matches && root.matches("textarea[data-emoji]") ? [root] : [...(root.querySelectorAll ? root.querySelectorAll("textarea[data-emoji]") : [])];
+  tas.forEach((ta) => {
+    if (ta._emoji) return;
+    ta._emoji = true;
+    const b = document.createElement("button");
+    b.type = "button"; b.className = "emoji-btn"; b.textContent = "😊 Emoji";
+    b.setAttribute("aria-haspopup", "true"); b.setAttribute("aria-expanded", "false");
+    b.onclick = (e) => { e.stopPropagation(); emojiMenu(b, ta); };
+    ta.insertAdjacentElement("afterend", b);
+  });
+}
+function emojiMenu(btn, ta) {
+  const open = document.querySelector(".emoji-pop");
+  if (open) { const same = open._btn === btn; open._close(); if (same) return; }
+  const pop = document.createElement("div");
+  pop.className = "emoji-pop"; pop.setAttribute("role", "dialog"); pop.setAttribute("aria-label", "Insert emoji"); pop._btn = btn;
+  pop.innerHTML = EMOJI.map((e) => `<button type="button" aria-label="Insert ${e}">${e}</button>`).join("");
+  const close = () => { pop.remove(); btn.setAttribute("aria-expanded", "false"); document.removeEventListener("click", outside, true); document.removeEventListener("keydown", key, true); };
+  const outside = (e) => { if (!pop.contains(e.target) && e.target !== btn) close(); };
+  const key = (e) => { if (e.key === "Escape") { e.stopPropagation(); close(); btn.focus(); } };
+  pop._close = close;
+  pop.onclick = (e) => {
+    const t = e.target.closest("button"); if (!t) return;
+    const s = ta.selectionStart ?? ta.value.length, en = ta.selectionEnd ?? s;
+    ta.setRangeText(t.textContent, s, en, "end");
+    ta.dispatchEvent(new Event("input", { bubbles: true }));
+    ta.focus();
+  };
+  btn.insertAdjacentElement("afterend", pop);
+  btn.setAttribute("aria-expanded", "true");
+  document.addEventListener("click", outside, true);
+  document.addEventListener("keydown", key, true);
+  pop.querySelector("button").focus();
+}
+
 function labelIconButtons(root) {
   const els = root.matches && root.matches("button, a") ? [root] : [...(root.querySelectorAll ? root.querySelectorAll("button, a[title]") : [])];
   els.forEach((b) => {
@@ -293,11 +332,12 @@ new MutationObserver((muts) => {
         if (n.nodeType !== 1) return;
         if (n.matches(IND_SEL)) queueIndicator(n); else queueAllIndicators(n);
         labelIconButtons(n);
+        attachEmoji(n);
       });
     }
   }
 }).observe(document.documentElement, { subtree: true, childList: true, attributes: true, attributeFilter: ["class"] });
-addEventListener("DOMContentLoaded", () => { queueAllIndicators(); labelIconButtons(document.body); });
+addEventListener("DOMContentLoaded", () => { queueAllIndicators(); labelIconButtons(document.body); attachEmoji(document.body); });
 addEventListener("resize", () => queueAllIndicators());
 if (document.fonts) document.fonts.ready.then(() => queueAllIndicators());   // web font changes button widths
 
@@ -325,3 +365,61 @@ function toggleTbMore(id, on) {
 }
 document.addEventListener("click", (e) => { document.querySelectorAll(".tb-more.open").forEach((b) => { if (!b.contains(e.target)) toggleTbMore(b.id, false); }); });
 document.addEventListener("keydown", (e) => { if (e.key === "Escape") document.querySelectorAll(".tb-more.open").forEach((b) => { toggleTbMore(b.id, false); b.querySelector(".tb-more-btn")?.focus(); }); });
+
+/* Square photo crop before upload. Resolves to a size×size JPEG File, or null when cancelled.
+   Drag (or arrow keys) to position, slider / wheel / + − to zoom. */
+function cropImage(file, size = 512) {
+  return new Promise((resolve) => {
+    if (!file || !String(file.type || "").startsWith("image/")) { toast("Choose an image file", "err"); resolve(null); return; }
+    const url = URL.createObjectURL(file), img = new Image();
+    img.onerror = () => { URL.revokeObjectURL(url); toast("Could not read image", "err"); resolve(null); };
+    img.onload = () => {
+      const V = 280, base = V / Math.min(img.width, img.height);   // view size; scale that covers it
+      let z = 1, x = 0, y = 0, drag = null, done = false;           // zoom, image-centre offset in view px
+      const d = document.createElement("dialog");
+      d.className = "modal-scrim crop-dlg";
+      d.innerHTML = `<div class="modal"><div class="modal-h"><span>Crop photo</span><button class="modal-x" type="button" aria-label="Close">✕</button></div>
+        <div class="modal-b"><div class="crop-view" tabindex="0" role="img" aria-label="Photo crop area — drag or use arrow keys to position"><img alt="" draggable="false"/></div>
+          <label class="crop-zoom"><span>Zoom</span><input type="range" min="1" max="4" step="0.01" value="1"/></label>
+          <p class="hint" style="margin:0;text-align:center">Drag to position · arrow keys nudge · + and − zoom</p></div>
+        <div class="modal-f"><button class="btn btn-soft" type="button" data-no>Cancel</button><button class="btn btn-primary" type="button" data-ok style="margin-left:auto">Use photo</button></div></div>`;
+      const view = d.querySelector(".crop-view"), pic = d.querySelector("img"), zoom = d.querySelector("input");
+      pic.src = url;
+      const draw = () => {
+        const w = img.width * base * z, h = img.height * base * z;
+        x = Math.max(-(w - V) / 2, Math.min((w - V) / 2, x)); y = Math.max(-(h - V) / 2, Math.min((h - V) / 2, y));
+        pic.style.width = w + "px"; pic.style.height = h + "px";
+        pic.style.transform = `translate(calc(-50% + ${x}px), calc(-50% + ${y}px))`;
+      };
+      const setZoom = (v) => { z = Math.max(1, Math.min(4, v)); zoom.value = z; draw(); };
+      view.onpointerdown = (e) => { drag = { px: e.clientX, py: e.clientY, x, y }; view.setPointerCapture(e.pointerId); };
+      view.onpointermove = (e) => { if (drag) { x = drag.x + e.clientX - drag.px; y = drag.y + e.clientY - drag.py; draw(); } };
+      view.onpointerup = view.onpointercancel = () => { drag = null; };
+      view.onwheel = (e) => { e.preventDefault(); setZoom(z * (e.deltaY < 0 ? 1.1 : 1 / 1.1)); };
+      view.onkeydown = (e) => {
+        const mv = { ArrowLeft: [-10, 0], ArrowRight: [10, 0], ArrowUp: [0, -10], ArrowDown: [0, 10] }[e.key];
+        if (mv) { e.preventDefault(); x += mv[0]; y += mv[1]; draw(); }
+        else if (e.key === "+" || e.key === "=") setZoom(z * 1.1);
+        else if (e.key === "-") setZoom(z / 1.1);
+      };
+      zoom.oninput = () => setZoom(+zoom.value);
+      const finish = (ok) => {
+        if (done) return; done = true;
+        closeDialog(d); d.remove();
+        if (!ok) { URL.revokeObjectURL(url); resolve(null); return; }
+        const c = document.createElement("canvas"); c.width = c.height = size;
+        const k = size / V, w = img.width * base * z, h = img.height * base * z, ctx = c.getContext("2d");
+        ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, size, size);              // transparent PNGs get a white backing
+        ctx.drawImage(img, (V / 2 - w / 2 + x) * k, (V / 2 - h / 2 + y) * k, w * k, h * k);
+        URL.revokeObjectURL(url);
+        c.toBlob((b) => resolve(b ? new File([b], String(file.name || "photo").replace(/\.\w+$/, "") + ".jpg", { type: "image/jpeg" }) : null), "image/jpeg", 0.9);
+      };
+      d.querySelector("[data-ok]").onclick = () => finish(true);
+      d.querySelector("[data-no]").onclick = d.querySelector(".modal-x").onclick = () => finish(false);
+      d.addEventListener("cancel", (e) => { e.preventDefault(); finish(false); });
+      document.body.appendChild(d);
+      d.showModal(); draw(); view.focus();
+    };
+    img.src = url;
+  });
+}

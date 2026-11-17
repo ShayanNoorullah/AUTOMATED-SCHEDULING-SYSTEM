@@ -70,6 +70,13 @@ def main():
     assert x.add_change_notes(msg, []) == msg
     assert x.add_change_notes("Custom text", ["* a"]) == "Custom text\n*Changes this week:*\n* a"
 
+    # ── room and teacher become LOCATION / DESCRIPTION; a moved class keeps that day's room ──
+    roomy = [{"id": 3, "name": "Bio", "schedule": [{"day": "Monday", "from": "3:00pm", "to": "4:00pm", "room": "Lab 2", "teacher": "Ms Rao"},
+                                                     {"day": "Tuesday", "from": "3:00pm", "to": "4:00pm"}]}]
+    ics = x.build_ics(roomy, [ex(3, "move", "5:00pm", "6:00pm", day="2026-11-23")], date(2026, 11, 18))
+    assert ics.count("LOCATION:Lab 2") == 2 and ics.count("DESCRIPTION:Teacher: Ms Rao") == 2, ics
+    assert ics.count("LOCATION:") == 2                                              # Tuesday has no room
+
     # ── link token: stable per user, different per user and per secret ──
     t = x.feed_token("secret", "user-1")
     assert len(t) == 32 and t == x.feed_token("secret", "user-1")

@@ -81,7 +81,7 @@
     (groups || []).forEach((g, gi) => (g.schedule || []).forEach((e) => {
       const a = toH(e.from); if (a == null) return;
       let b = toH(e.to); if (b == null || b <= a) b = a + 1;
-      out.push({ gi, day: e.day, a, b, room: (e.room || "").trim() });
+      out.push({ gi, day: e.day, a, b, room: (e.room || "").trim(), teacher: (e.teacher || "").trim() });
     }));
     return out;
   }
@@ -132,7 +132,8 @@
     } catch (e) {}
     return false;
   }
-  const clashing = (x, y) => overlaps(x, y) && !pairAccepted(x, y);
+  // same rule as the Scheduler: different rooms or different teachers make an overlap fine
+  const clashing = (x, y) => overlaps(x, y) && (typeof clashReason !== "function" || !!clashReason(x, y)) && !pairAccepted(x, y);
   function hasClash(it) { return veItems.some((o) => o !== it && clashing(o, it)); }
   // two classes in the same (non-empty) room at an overlapping time = a room double-booking
   const roomClash = (x, y) => x !== y && x.day === y.day && !!x.room && x.room === y.room && x.a < y.b && y.a < x.b;
@@ -480,10 +481,10 @@
     const pairs = [], rooms = veView === "rooms" || (veView === "week" && veRooms.length > 0);
     for (let i = 0; i < veItems.length; i++) for (let j = i + 1; j < veItems.length; j++)
       if (rooms ? roomClash(veItems[i], veItems[j]) : clashing(veItems[i], veItems[j])) pairs.push([veItems[i], veItems[j]]);
-    if (!pairs.length) { e2.className = "ve-clash ok"; e2.textContent = rooms ? "✓ No room double-bookings" : "✓ No time clashes"; return; }
+    if (!pairs.length) { e2.className = "ve-clash ok"; e2.textContent = rooms ? "✓ No room double-bookings" : "✓ No clashes"; return; }
     e2.className = "ve-clash warn";
     const word = rooms ? "room double-booking" : "clash";
-    e2.textContent = `⚠ ${pairs.length} ${word}${pairs.length === 1 ? "" : "s"} — ` +
+    e2.textContent = `⚠ ${pairs.length} ${word}${pairs.length === 1 ? "" : rooms ? "s" : "es"} — ` +
       pairs.slice(0, 3).map(([a, b]) => rooms ? `${a.day.slice(0, 3)} ${veEsc(a.room)}` : `${a.day.slice(0, 3)} ${nameOf(a.gi)}↔${nameOf(b.gi)}`).join(", ") + (pairs.length > 3 ? "…" : "");
   }
 
@@ -569,7 +570,7 @@
   function openForm(it, preset) {
     const dlg = document.getElementById("veForm"); if (!dlg) return;
     const editing = !!it;
-    const v = it || { gi: firstFreeGroup(preset ? preset.day : null), day: preset.day, a: preset.a, b: preset.b, room: (preset && preset.room) || "" };
+    const v = it || { gi: firstFreeGroup(preset ? preset.day : null), day: preset.day, a: preset.a, b: preset.b, room: (preset && preset.room) || "", teacher: "" };
     dlg.dataset.editing = editing ? "1" : "0";
     dlg._it = it || null; dlg._preset = v;
     const gsel = document.getElementById("veGroup");
@@ -580,6 +581,8 @@
     dsel.value = v.day;
     document.getElementById("veFrom").value = fmt(v.a);
     document.getElementById("veTo").value = fmt(v.b);
+    document.getElementById("veTeacher").value = v.teacher || "";
+    if (typeof fillPeopleOptions === "function") fillPeopleOptions();
     const rsel = document.getElementById("veRoom");
     const vroom = (v.room || "");
     const opts = [""].concat(veRooms);
@@ -613,11 +616,12 @@
     const editing = dlg._it;
     if (veItems.some((o) => o !== editing && o.gi === gi && o.day === day)) return err(nameOf(gi) + " already has a class on " + day + ".");
     const room = (document.getElementById("veRoom").value || "").trim();
+    const teacher = (document.getElementById("veTeacher").value || "").trim().slice(0, 80);
     pushUndo();
     const chosen = document.querySelector('#veSwatches button[aria-pressed="true"]');
     if (chosen) setColor(gi, chosen.dataset.c);
-    if (editing) { editing.gi = gi; editing.day = day; editing.a = a; editing.b = b; editing.room = room; }
-    else veItems.push({ gi, day, a, b, room });
+    if (editing) { editing.gi = gi; editing.day = day; editing.a = a; editing.b = b; editing.room = room; editing.teacher = teacher; }
+    else veItems.push({ gi, day, a, b, room, teacher });
     closeForm(); render();
   }
   function deleteForm() {
@@ -633,7 +637,7 @@
     (groups || []).forEach((g, gi) => {
       g.schedule = veItems.filter((i) => i.gi === gi)
         .sort((x, y) => DG.indexOf(x.day) - DG.indexOf(y.day))
-        .map((i) => (i.room ? { day: i.day, from: fmt(i.a), to: fmt(i.b), room: i.room } : { day: i.day, from: fmt(i.a), to: fmt(i.b) }));
+        .map((i) => ({ day: i.day, from: fmt(i.a), to: fmt(i.b), ...slotExtras(i) }));
     });
     if (typeof tableDirty !== "undefined") tableDirty = true;
     if (typeof saveTable === "function") { const ok = await saveTable(); if (!ok) return; }
@@ -731,6 +735,7 @@
             <label class="ve-f">From<input id="veFrom" list="timeOptions" placeholder="3:00pm"></label>
             <label class="ve-f">To<input id="veTo" list="timeOptions" placeholder="4:30pm"></label>
           </div>
+          <label class="ve-f">Teacher<input id="veTeacher" list="teacherOptions" maxlength="80" placeholder="optional"></label>
           <div class="ve-f">Colour<div class="ve-swatches" id="veSwatches"></div></div>
           <p class="ve-err" id="veErr"></p>
           <div class="ve-dlg-actions">
