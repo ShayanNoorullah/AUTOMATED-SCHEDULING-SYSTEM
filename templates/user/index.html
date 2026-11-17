@@ -23,7 +23,7 @@
 </script>
 <link rel="preconnect" href="https://api.fontshare.com">
 <link href="https://api.fontshare.com/v2/css?f[]=satoshi@400,500,700,900&display=swap" rel="stylesheet">
-<link href="{{ url_for('static', filename='css/app.css') }}?v=poc68" rel="stylesheet"/>
+<link href="{{ url_for('static', filename='css/app.css') }}?v=poc69" rel="stylesheet"/>
 <link href="{{ url_for('static', filename='css/compat.css') }}?v=poc54" rel="stylesheet"/>
 <link href="{{ url_for('static', filename='css/dashboard.css') }}?v=poc66" rel="stylesheet"/>
 <link href="{{ url_for('static', filename='css/components.css') }}?v=poc54" rel="stylesheet"/>
@@ -72,7 +72,7 @@ window.SSIES_USER = {{ {"email": email|default(username), "display_name": userna
       <!-- ════ WORKSPACE ════ -->
       <section class="view" id="view-workspace">
         <div class="toolbar ws-toolbar">
-          <div class="ws-name"><span class="ws-dot"></span><b id="wsName">My workspace</b></div>
+          <div class="ws-name"><span class="ws-dot"></span><b id="wsName">My workspace</b><span class="notes-saved" id="wsSaved">Saved ✓</span></div>
           <div class="ws-actions">
             <button class="btn btn-soft btn-sm" type="button" onclick="wsNew()">New</button>
             <div class="ws-open-wrap">
@@ -234,7 +234,7 @@ window.SSIES_USER = {{ {"email": email|default(username), "display_name": userna
         </div>
         <div class="sched-notes-bar">
           <div class="notes-panel">
-            <div class="notes-head" onclick="if(event.target.closest('.notes-toolbar'))return;toggleNotes()">
+            <div class="notes-head" onclick="if(event.target.closest('.notes-toolbar')||this.closest('.is-open'))return;toggleNotes()">
               <button class="notes-toggle is-collapsed" onclick="event.stopPropagation();toggleNotes()" aria-expanded="false" type="button"><svg class="notes-caret" viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M6 9l6 6 6-6"/></svg><span>Notes</span></button>
               <span class="notes-head-hint" id="notesHeadHint"></span>
               <div class="notes-toolbar hidden" id="notesToolbar">
@@ -252,10 +252,11 @@ window.SSIES_USER = {{ {"email": email|default(username), "display_name": userna
                   <button class="notes-tb-btn" type="button" title="Copy notes" onclick="notesCopy()"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button>
                   <button class="notes-tb-btn danger" type="button" title="Clear all notes" onclick="notesClear()"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/></svg></button>
                 </div>
+                <button class="notes-tb-btn notes-close" type="button" title="Close notes (Esc)" aria-label="Close notes" onclick="toggleNotes()">✕</button>
               </div>
             </div>
             <div class="notes-body collapsed" id="notesBody">
-              <textarea id="tableNotes" class="notes-area" placeholder="Jot schedule notes, reminders and follow-ups… the box grows as you type." oninput="saveTableNotes();notesAutoGrow();notesUpdateMeta()"></textarea>
+              <textarea id="tableNotes" class="notes-area" placeholder="Jot schedule notes, reminders and follow-ups…" oninput="saveTableNotes();notesAutoGrow();notesUpdateMeta()"></textarea>
               <div class="notes-foot"><span id="notesMeta">0 words · 0 characters</span><span id="notesSaved" class="notes-saved"></span></div>
             </div>
           </div>
@@ -473,12 +474,20 @@ window.SSIES_USER = {{ {"email": email|default(username), "display_name": userna
               <div class="sec">
                 <div class="sec-h">Appearance</div>
                 <div class="sec-b">
+                  <div class="appear-preview" inert aria-label="Preview of the current look">
+                    <div class="ap-label">Preview · changes apply as you pick them</div>
+                    <div class="ap-card">
+                      <div class="ap-row"><span class="ap-av">OC</span><div class="ap-txt"><b>O'Level CS</b><span>Mon 9:00 – 10:30 · Lab 2</span></div><span class="status-on">On WhatsApp</span></div>
+                      <div class="ap-row"><input class="field" value="Reminder: class at {time}" readonly tabindex="-1"/></div>
+                      <div class="ap-row ap-btns"><span class="btn btn-primary btn-sm">Send</span><span class="btn btn-soft btn-sm">Save</span><span class="btn btn-ghost btn-sm">Cancel</span><label class="toggle"><input type="checkbox" checked tabindex="-1"/><span class="tk"></span></label></div>
+                    </div>
+                  </div>
                   <div class="srow">
                     <div><div class="st">Theme mode</div><div class="sd">Light, dark, or follow your operating system.</div></div>
                     <div class="seg" id="modeSeg">
-                      <button data-mode="light" onclick="setMode('light')">Light</button>
-                      <button data-mode="dark" onclick="setMode('dark')">Dark</button>
-                      <button data-mode="system" onclick="setMode('system')">System</button>
+                      <button data-mode="light" onclick="revealMode(this,'light')">Light</button>
+                      <button data-mode="dark" onclick="revealMode(this,'dark')">Dark</button>
+                      <button data-mode="system" onclick="revealMode(this,'system')">System</button>
                     </div>
                   </div>
                   <div class="srow">
@@ -1024,8 +1033,8 @@ window.SSIES_USER = {{ {"email": email|default(username), "display_name": userna
 </dialog>
 
 
-<script src="{{ url_for('static', filename='js/chrome.js') }}?v=poc68"></script>
-<script src="{{ url_for('static', filename='js/theme.js') }}?v=poc66"></script>
+<script src="{{ url_for('static', filename='js/chrome.js') }}?v=poc69"></script>
+<script src="{{ url_for('static', filename='js/theme.js') }}?v=poc69"></script>
 <script src="{{ url_for('static', filename='js/whatsapp.js') }}?v=poc66"></script>
 <script src="{{ url_for('static', filename='js/waha.js') }}?v=poc67"></script>
 <script>
@@ -1476,10 +1485,13 @@ function toggleNotes(){
   const body=document.getElementById("notesBody"), tb=document.getElementById("notesToolbar"), btn=document.querySelector(".notes-toggle");
   if(!body)return; const collapsed=body.classList.toggle("collapsed");
   if(tb) tb.classList.toggle("hidden",collapsed);
+  document.querySelector(".sched-notes-bar")?.classList.toggle("is-open",!collapsed);
   if(btn){ btn.setAttribute("aria-expanded",String(!collapsed)); btn.classList.toggle("is-collapsed",collapsed); }
   notesUpdateHint();
   if(!collapsed){ notesAutoGrow(); document.getElementById("tableNotes")?.focus(); }
+  else btn?.focus();
 }
+document.addEventListener("keydown",(e)=>{ if(e.key==="Escape"&&e.target.closest&&e.target.closest(".sched-notes-bar.is-open")){ e.preventDefault(); toggleNotes(); } });
 async function loadGroups(){ groups=await (await fetch("/api/groups")).json(); markUnsaved(false);
   groups.forEach(g=>{ if(g.message===undefined)g.message=""; normalize(g); if(!g.pic && (g.photoUrl||g.photo_url)) g.pic=g.photoUrl||g.photo_url; });
   groupsChanged();
@@ -2040,17 +2052,20 @@ function renderScheduleGrid(w){
       h+=`<td class="${(f||tv)?'filled ':''}${dim?'col-dim':''}" data-cell="${ci}|${day}"><div class="crange">
         <input class="cell" list="timeOptions" value="${escA(f)}" placeholder="From" ${dim?"disabled":""} aria-label="${escA(g.name)} ${day} from" oninput="updateCell(${ci},'${day}','from',this)"/>
         <span class="dash" aria-hidden="true">–</span>
-        <input class="cell" list="timeOptions" value="${escA(tv)}" placeholder="To" ${dim?"disabled":""} aria-label="${escA(g.name)} ${day} to" oninput="updateCell(${ci},'${day}','to',this)"/></div>${slotMeta(e)}</td>`;
+        <input class="cell" list="timeOptions" value="${escA(tv)}" placeholder="To" ${dim?"disabled":""} aria-label="${escA(g.name)} ${day} to" oninput="updateCell(${ci},'${day}','to',this)"/></div>${slotMeta(e)}${dim?"":slotGrips(ci,day,true)}</td>`;
     });
     h+='</tr>';
   });
   w.innerHTML=h+'</tbody></table></div>';
   refreshClashes();
 }
+/* Board card header: days with a class, and the week's total hours. */
+function sbMetaText(g){ let n=0,m=0; g.schedule.forEach(e=>{ if(!((e.from||"").trim()||(e.to||"").trim())) return; n++; const a=parseTimeMin(e.from), b=parseTimeMin(e.to); if(a!=null&&b!=null&&b>a) m+=b-a; }); return `${n} day${n===1?"":"s"}`+(m?` · ${+(m/60).toFixed(1)} h`:""); }
+/* Drag grip (move / copy a class) and, in the table, the fill handle. CSS shows them on filled cells only. */
+function slotGrips(ci,day,fill){ return `<span class="slot-grip" title="Drag to move this class · hold Ctrl to copy" aria-hidden="true" onpointerdown="slotDragStart(event,${ci},'${day}')">${GRIP_ICO}</span>`+(fill?`<span class="fill-handle" title="Drag up or down to copy to other days" aria-hidden="true" onpointerdown="fillStart(event,${ci},'${day}')"></span>`:""); }
 function renderScheduleBoard(w){
   let h='<div class="sched-board">';
   groups.forEach((g,ci)=>{
-    const activeDays=g.schedule.filter(e=>(e.from||"").trim()||(e.to||"").trim()).length;
     const dim=tableSelected[ci]===false;
     const hasNick=!!(g.nickname&&g.nickname.trim());
     h+=`<article class="sb-card${dim?" is-dim":""}" data-gi="${ci}" ondragover="schedDragOver(event,${ci})" ondrop="schedDrop(event,${ci})" ondragenter="schedDragEnter(event,${ci})" ondragleave="schedDragLeave(event)">
@@ -2059,7 +2074,7 @@ function renderScheduleBoard(w){
         <label class="sb-check"><input type="checkbox" ${dim?"":"checked"} onchange="tableSelected[${ci}]=this.checked;updateSchedSelCount();renderTable()"/><span class="sr-only">Select</span></label>
         <span class="sb-title"><span class="sb-name" title="${escA(g.name)}">${esc(g.name)}</span>${hasNick?`<span class="sb-nick">${esc(g.nickname)}</span>`:""}</span>
         <button class="col-icn" type="button" title="Rename / nickname" onclick="editColMeta(${ci})">${ICO_PENCIL}</button>
-        <span class="sb-meta">${activeDays} day${activeDays===1?"":"s"}</span>
+        <span class="sb-meta">${sbMetaText(g)}</span>
         <button class="rc" type="button" title="Remove group" onclick="removeColumn(${ci})">${TRASH_ICO}</button>
       </header>
       <div class="sb-days">`;
@@ -2071,7 +2086,7 @@ function renderScheduleBoard(w){
           <input class="cell" list="timeOptions" value="${escA(f)}" placeholder="From" ${dim?"disabled":""} aria-label="${escA(g.name)} ${day} from" oninput="updateCell(${ci},'${day}','from',this)"/>
           <span class="dash" aria-hidden="true">–</span>
           <input class="cell" list="timeOptions" value="${escA(tv)}" placeholder="To" ${dim?"disabled":""} aria-label="${escA(g.name)} ${day} to" oninput="updateCell(${ci},'${day}','to',this)"/>
-        </div>${slotMeta(e)}
+        </div>${slotMeta(e)}${dim?"":slotGrips(ci,day,false)}
       </div>`;
     });
     h+=`</div></article>`;
@@ -2146,9 +2161,8 @@ function updateCell(ci,day,field,inp){const g=groups[ci];let e=g.schedule.find(x
   if(cell) cell.classList.toggle("filled",!!(e.from||e.to));
   const card=inp.closest(".sb-card");
   if(card){
-    const n=g.schedule.filter(x=>(x.from||"").trim()||(x.to||"").trim()).length;
     const meta=card.querySelector(".sb-meta");
-    if(meta) meta.textContent=`${n} day${n===1?"":"s"}`;
+    if(meta) meta.textContent=sbMetaText(g);
   }
   tableDirty=true; markUnsaved(); if(clashOn) refreshClashes();}
 function toggleColExpand(ci){ colCollapsed[ci]=!colCollapsed[ci]; applyColWidthsFromState(); renderTable(); }
@@ -2809,10 +2823,10 @@ async function copyText(t){try{await navigator.clipboard.writeText(t);toast("Cop
 </script>
 <script src="{{ url_for('static', filename='js/lists.js') }}?v=poc68"></script>
 <script src="{{ url_for('static', filename='js/features.js') }}?v=poc67"></script>
-<script src="{{ url_for('static', filename='js/workspace.js') }}?v=poc60"></script>
+<script src="{{ url_for('static', filename='js/workspace.js') }}?v=poc69"></script>
 <script src="{{ url_for('static', filename='js/visual_editor.js') }}?v=poc68"></script>
 <script src="{{ url_for('static', filename='js/dashboard.js') }}?v=poc64"></script>
-<script src="{{ url_for('static', filename='js/scheduler.js') }}?v=poc68"></script>
+<script src="{{ url_for('static', filename='js/scheduler.js') }}?v=poc69"></script>
 <script src="{{ url_for('static', filename='js/palette.js') }}?v=poc62"></script>
 <script src="{{ url_for('static', filename='js/assistant.js') }}?v=poc68"></script>
 <script src="{{ url_for('static', filename='js/contacts.js') }}?v=poc63"></script>

@@ -84,6 +84,15 @@ function quickToggleTheme() {
   if (r) { html.style.setProperty("--rx", `${r.left + r.width / 2}px`); html.style.setProperty("--ry", `${r.top + r.height / 2}px`); }
   typeof vt === "function" ? vt(go, "theme") : go();
 }
+/* Settings → Theme mode: the same circular reveal, spreading from the button pressed. */
+function revealMode(btn, m) {
+  const html = document.documentElement, before = html.getAttribute("data-theme");
+  const r = btn.getBoundingClientRect();
+  html.style.setProperty("--rx", `${r.left + r.width / 2}px`); html.style.setProperty("--ry", `${r.top + r.height / 2}px`);
+  const go = () => setMode(m);
+  const after = m === "system" ? (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light") : m;
+  after !== before && typeof vt === "function" ? vt(go, "theme") : go();
+}
 function setAccent(c) { localStorage.setItem(THEME_KEYS.accent, c); applyTheme(); }
 function resetAccent() { localStorage.removeItem(THEME_KEYS.accent); applyTheme(); }
 function setAnim(on) { localStorage.setItem(THEME_KEYS.anim, on ? "on" : "off"); applyTheme(); }

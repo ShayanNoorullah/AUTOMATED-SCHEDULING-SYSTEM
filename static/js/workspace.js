@@ -17,6 +17,11 @@ const WS_CATALOG = {
   "chart-sends":  { label: "Sends last 7 days", chart: d => d.sendsByDay },
 };
 const WS_DEFAULT = ["kpi-groups", "kpi-contacts", "kpi-lists", "kpi-slots", "chart-weekday", "chart-groups"];
+/* Built-in layouts offered under Open. */
+const WS_PRESETS = {
+  "Morning check": ["kpi-slots", "kpi-linked", "kpi-sends7", "chart-weekday"],
+  "Send day": ["kpi-linked", "kpi-groups", "chart-sends", "chart-groups"],
+};
 
 function wsLayouts() { try { return JSON.parse(localStorage.getItem("ws-layouts") || "{}") || {}; } catch { return {}; } }
 function wsSaveLayouts(o) { try { localStorage.setItem("ws-layouts", JSON.stringify(o)); } catch {} }
@@ -24,7 +29,16 @@ function wsLoadCurrent() {
   try { const c = JSON.parse(localStorage.getItem("ws-current") || "null"); if (c && Array.isArray(c.widgets)) return c; } catch {}
   return { name: "My workspace", widgets: WS_DEFAULT.map(t => ({ id: ++_wsUid, type: t })) };
 }
-function wsPersistCurrent() { try { localStorage.setItem("ws-current", JSON.stringify(wsState)); } catch {} }
+/* Every change is kept as the current workspace; a layout saved under a name is updated too. */
+function wsLayoutOf() { return wsState.widgets.map(w => (w.span ? { type: w.type, span: w.span } : w.type)); }
+function wsPersistCurrent() {
+  try { localStorage.setItem("ws-current", JSON.stringify(wsState)); } catch {}
+  const o = wsLayouts();
+  if (o[wsState.name]) { o[wsState.name] = wsLayoutOf(); wsSaveLayouts(o); }
+  const t = document.getElementById("wsSaved");
+  if (t) { t.classList.add("show"); clearTimeout(t._t); t._t = setTimeout(() => t.classList.remove("show"), 1400); }
+}
+const wsFromLayout = (l) => l.map(t => (typeof t === "string" ? { id: ++_wsUid, type: t } : { id: ++_wsUid, type: t.type, span: t.span }));
 
 function wsData() {
   // index.html/lists.js declare these with `let` → shared lexical globals, reached
@@ -61,15 +75,20 @@ function wsBars(data) {
     `<div class="ws-bar" title="${esc(d.label)}: ${d.value}"><span class="ws-bar-v">${d.value || ""}</span><div class="ws-bar-track"><div class="ws-bar-fill" style="height:${Math.round((d.value / max) * 100)}%"></div></div><span class="ws-bar-l">${esc(d.label)}</span></div>`
   ).join("")}</div>`;
 }
+function wsBody(def, d) {
+  if (def.kpi) { const [n, sub] = def.kpi(d); return `<div class="ws-kpi"><div class="ws-kpi-n">${n}</div><div class="ws-kpi-l">${esc(sub)}</div></div>`; }
+  const data = def.chart(d); return data.some(x => x.value) ? wsBars(data) : `<p class="hint" style="margin:auto">No data yet</p>`;
+}
+const wsSpan = (w) => w.span || (WS_CATALOG[w.type]?.chart ? 2 : 1);
 function wsRenderWidget(w, d) {
   const def = WS_CATALOG[w.type]; if (!def) return "";
-  let body;
-  if (def.kpi) { const [n, sub] = def.kpi(d); body = `<div class="ws-kpi"><div class="ws-kpi-n">${n}</div><div class="ws-kpi-l">${esc(sub)}</div></div>`; }
-  else { const data = def.chart(d); body = data.some(x => x.value) ? wsBars(data) : `<p class="hint" style="margin:auto">No data yet</p>`; }
-  const wide = !!def.chart;
-  return `<div class="ws-card${wide ? " ws-card-wide" : ""}" data-id="${w.id}">
-    <div class="ws-card-h"><span>${esc(def.label)}</span><button class="ws-x" type="button" title="Remove" onclick="wsRemoveWidget(${w.id})">✕</button></div>
-    <div class="ws-card-b">${body}</div>
+  const sp = wsSpan(w);
+  return `<div class="ws-card" data-id="${w.id}" style="--span:${sp}">
+    <div class="ws-card-h" onpointerdown="wsDragStart(event,${w.id})" title="Drag to move"><span class="ws-grip" aria-hidden="true">⠿</span><span class="ws-card-t">${esc(def.label)}</span>
+      <button class="ws-x ws-size" type="button" title="${sp === 2 ? "Make narrower" : "Make wider"}" aria-label="${sp === 2 ? "Make narrower" : "Make wider"}" onclick="wsSetSpan(${w.id},${3 - sp})">${sp === 2 ? "⇤" : "⇥"}</button>
+      <button class="ws-x" type="button" title="Remove" aria-label="Remove ${escA(def.label)}" onclick="wsRemoveWidget(${w.id})">✕</button></div>
+    <div class="ws-card-b">${wsBody(def, d)}</div>
+    <span class="ws-resize" title="Drag to resize" aria-hidden="true" onpointerdown="wsResizeStart(event,${w.id})"></span>
   </div>`;
 }
 
@@ -89,14 +108,17 @@ function wsCloseMenus() { document.getElementById("wsAddMenu")?.classList.remove
 function wsToggleAdd() {
   const m = document.getElementById("wsAddMenu"); if (!m) return;
   const open = m.classList.contains("show"); wsCloseMenus(); if (open) return;
-  m.innerHTML = Object.entries(WS_CATALOG).map(([t, def]) => `<button type="button" onclick="wsAddWidget('${t}')">${def.chart ? "📊" : "🔢"} ${esc(def.label)}</button>`).join("");
+  const d = wsData();
+  m.innerHTML = `<div class="ws-gallery">${Object.entries(WS_CATALOG).map(([t, def]) =>
+    `<button type="button" class="ws-tile${def.chart ? " ws-tile-chart" : ""}" onclick="wsAddWidget('${t}')"><span class="ws-tile-h">${esc(def.label)}</span><span class="ws-tile-b" aria-hidden="true">${wsBody(def, d)}</span></button>`).join("")}</div>`;
   m.classList.add("show");
 }
 function wsToggleOpen() {
   const m = document.getElementById("wsOpenMenu"); if (!m) return;
   const open = m.classList.contains("show"); wsCloseMenus(); if (open) return;
   const names = Object.keys(wsLayouts());
-  m.innerHTML = names.length ? names.map(n => `<button type="button" onclick="wsOpen('${escA(n)}')">${esc(n)}</button>`).join("") : `<p class="hint" style="margin:0;padding:8px 12px">No saved layouts yet</p>`;
+  m.innerHTML = (names.length ? names.map(n => `<button type="button" onclick="wsOpen('${escA(n)}')">${esc(n)}</button>`).join("") : `<p class="hint" style="margin:0;padding:8px 12px">No saved layouts yet</p>`)
+    + `<div class="ws-menu-sep">Presets</div>` + Object.keys(WS_PRESETS).map(n => `<button type="button" onclick="wsOpenPreset('${escA(n)}')">${esc(n)}</button>`).join("");
   m.classList.add("show");
 }
 function wsAddWidget(type) { wsState.widgets.push({ id: ++_wsUid, type }); wsCloseMenus(); wsPersistCurrent(); wsRender(); }
@@ -104,19 +126,79 @@ function wsRemoveWidget(id) { wsState.widgets = wsState.widgets.filter(w => w.id
 function wsNew() { wsState = { name: "Untitled", widgets: [] }; wsPersistCurrent(); wsRender(); toast("New workspace"); }
 function wsSave() {
   if (!wsState.name || wsState.name === "Untitled") return wsSaveAs();
-  const o = wsLayouts(); o[wsState.name] = wsState.widgets.map(w => w.type); wsSaveLayouts(o); wsPersistCurrent();
+  const o = wsLayouts(); o[wsState.name] = wsLayoutOf(); wsSaveLayouts(o); wsPersistCurrent();
   toast(`Saved "${wsState.name}" ✓`);
 }
 async function wsSaveAs() {
   const name = ((await promptDialog("Save workspace as:", wsState.name === "Untitled" ? "" : wsState.name, { ok: "Save" })) || "").trim();
   if (!name) return;
-  wsState.name = name; const o = wsLayouts(); o[name] = wsState.widgets.map(w => w.type); wsSaveLayouts(o);
+  wsState.name = name; const o = wsLayouts(); o[name] = wsLayoutOf(); wsSaveLayouts(o);
   wsPersistCurrent(); document.getElementById("wsName").textContent = name; toast(`Saved "${name}" ✓`);
 }
 function wsOpen(name) {
   const o = wsLayouts(); if (!o[name]) return;
-  wsState = { name, widgets: o[name].map(t => ({ id: ++_wsUid, type: t })) };
+  wsState = { name, widgets: wsFromLayout(o[name]) };
   wsCloseMenus(); wsPersistCurrent(); wsRender(); toast(`Opened "${name}"`);
+}
+function wsOpenPreset(name) {
+  if (!WS_PRESETS[name]) return;
+  wsState = { name, widgets: wsFromLayout(WS_PRESETS[name]) };
+  wsCloseMenus(); wsPersistCurrent(); wsRender(); toast(`Opened the "${name}" preset — Save as to keep changes under your own name`);
+}
+function wsSetSpan(id, sp) { const w = wsState.widgets.find(x => x.id === id); if (!w) return; w.span = sp; wsPersistCurrent(); wsRender(); }
+
+/* Drag a card by its header to reorder; the others slide out of the way (FLIP). */
+function wsDragStart(ev, id) {
+  if (ev.button > 0 || ev.target.closest("button")) return;
+  const grid = document.getElementById("wsGrid"), card = grid && grid.querySelector(`.ws-card[data-id="${id}"]`);
+  if (!card) return;
+  ev.preventDefault();
+  const r0 = card.getBoundingClientRect(), offX = ev.clientX - r0.left, offY = ev.clientY - r0.top;
+  let lastSwap = 0;
+  const follow = (x, y) => { card.style.transform = ""; const r = card.getBoundingClientRect(); card.style.transform = `translate(${x - offX - r.left}px,${y - offY - r.top}px)`; };
+  _pointerTrack(ev, (e) => {
+    card.classList.add("ws-dragging"); document.body.classList.add("ws-moving");
+    const under = document.elementFromPoint(e.clientX, e.clientY)?.closest(".ws-card");
+    if (under && under !== card && grid.contains(under) && Date.now() - lastSwap > 250) {
+      const cards = [...grid.children], before = new Map(cards.map(c => [c, c.getBoundingClientRect()]));
+      grid.insertBefore(card, cards.indexOf(card) < cards.indexOf(under) ? under.nextSibling : under);
+      lastSwap = Date.now();
+      cards.forEach(c => {
+        if (c === card) return;
+        const a = before.get(c), b = c.getBoundingClientRect(), dx = a.left - b.left, dy = a.top - b.top;
+        if (dx || dy) c.animate([{ transform: `translate(${dx}px,${dy}px)` }, { transform: "none" }], { duration: 220, easing: "cubic-bezier(.2,.8,.2,1)" });
+      });
+    }
+    follow(e.clientX, e.clientY);
+  }, (e) => {
+    const a = card.getBoundingClientRect();
+    card.style.transform = ""; card.classList.remove("ws-dragging"); document.body.classList.remove("ws-moving");
+    if (!e) return;
+    const b = card.getBoundingClientRect();
+    card.animate([{ transform: `translate(${a.left - b.left}px,${a.top - b.top}px)` }, { transform: "none" }], { duration: 200, easing: "ease-out" });
+    const order = [...grid.children].map(c => +c.dataset.id);
+    wsState.widgets.sort((x, y) => order.indexOf(x.id) - order.indexOf(y.id));
+    wsPersistCurrent();
+  });
+}
+/* Drag the corner to make a card one or two columns wide. */
+function wsResizeStart(ev, id) {
+  const grid = document.getElementById("wsGrid"), card = grid && grid.querySelector(`.ws-card[data-id="${id}"]`);
+  const w = wsState.widgets.find(x => x.id === id);
+  if (ev.button > 0 || !card || !w) return;
+  ev.preventDefault(); ev.stopPropagation();
+  const cs = getComputedStyle(grid), cols = cs.gridTemplateColumns.split(" ").length, gap = parseFloat(cs.columnGap) || 0;
+  const colW = (grid.clientWidth - gap * (cols - 1)) / cols, startW = card.offsetWidth;
+  let sp = wsSpan(w);
+  card.classList.add("ws-resizing");
+  _pointerTrack(ev, (e) => {
+    sp = Math.max(1, Math.min(2, cols, Math.round((startW + e.clientX - ev.clientX + gap) / (colW + gap))));
+    card.style.setProperty("--span", sp);
+  }, (e) => {
+    card.classList.remove("ws-resizing");
+    if (e && sp !== wsSpan(w)) { w.span = sp; wsPersistCurrent(); }
+    wsRender();
+  });
 }
 document.addEventListener("click", e => { if (!e.target.closest(".ws-open-wrap")) wsCloseMenus(); });
 

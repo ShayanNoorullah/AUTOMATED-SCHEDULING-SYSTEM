@@ -2,13 +2,37 @@
 
 Audit date: 2026-11-16. Scope: everything under `templates/user/` plus the CSS/JS it loads.
 
-**Status (2026-11-17):** Phases 1–8 and the assistant's local fallback are deployed
-(Phase 8 is commit `68fab29`); Phase 9 below is built but not yet deployed. The assistant currently answers from the local model only
+**Status (2026-11-17):** Phases 1–9 and the assistant's local fallback are deployed
+(Phase 9 is commit `948bc5e`); Phase 10 below is built but not yet deployed. The assistant currently answers from the local model only
 (`qwen2.5:7b` in the `ollama` service), because no hosted provider key has been entered
 yet; once one is added it becomes primary and the local model is the fallback. The
 assistant has never talked to a real hosted provider — see "Before first use" below.
 
-- **Phase 9** (2026-11-17, not yet deployed) — done:
+- **Phase 10** (2026-11-17, not yet deployed) — done:
+  - Scheduler: drag a class by its grip to another day or group (table and board). Dropping
+    on a filled cell swaps the two; holding Ctrl, Alt or ⌘ copies instead. Undo in the toast.
+    Works with a finger too (pointer events). Only the class shown in the cell moves, so a
+    second class on the same day is never lost.
+  - Fill handle: the small square in a filled table cell; drag it up or down the column to
+    copy that class to the days covered. Undo in the toast.
+  - Board cards show the week's total hours next to the day count ("3 days · 4.5 h").
+  - Notes open as a panel sliding in from the right (full width on a phone), so the table
+    stays usable beside them; Esc or ✕ closes it.
+  - Workspace: drag a card by its header to reorder (the others slide aside), drag the
+    corner or press ⇥/⇤ to make it one or two columns wide, "Add widget" is a gallery with
+    live previews, two built-in presets ("Morning check", "Send day") under Open, and every
+    change saves itself (a layout saved under a name is updated too, with a "Saved ✓" tick).
+  - Settings → Appearance has a preview card at the top; choosing Light / Dark / System
+    there now uses the same circular reveal as the top-bar theme button.
+- **Still not done after Phase 10**, by kind:
+  - Needs live WhatsApp data to build and test: messaging the assistant from WhatsApp;
+    tracking who acknowledged a message.
+  - Larger interaction work: Visual Editor snap guides, zoom, mini-map, touch mode; lists
+    drag-between.
+  - Smaller polish: Profile as an in-app view; rooms in the WhatsApp schedule message
+    (left out on purpose so existing messages do not change).
+
+- **Phase 9** (2026-11-17, deployed as `948bc5e`) — done:
   - Rooms and teachers: every class (one group, one day) can have a room and a teacher.
     They are entered in the group editor (with suggestions from ones already used) or the
     Visual Editor form, shown under the times in the Scheduler, kept by the assistant,
@@ -25,15 +49,6 @@ assistant has never talked to a real hosted provider — see "Before first use" 
   - Groups table fits a phone: status, last-sent and arrow columns are hidden there.
   - Fixes: rooms set in the Visual Editor were dropped the next time the page loaded
     (and then deleted on the next save); the Visual Editor said "clashs".
-- **Still not done after Phase 9**, by kind:
-  - Needs live WhatsApp data to build and test: messaging the assistant from WhatsApp;
-    tracking who acknowledged a message.
-  - Larger interaction work: Workspace drag/resize and widget gallery; Scheduler drag a
-    slot, fill handle, board day-lanes, notes slide-over; Visual Editor snap guides, zoom,
-    mini-map, touch mode; lists drag-between.
-  - Smaller polish: Profile as an in-app view; Settings live preview pane; rooms in the
-    WhatsApp schedule message (left out on purpose so existing messages do not change).
-
 - **Phase 8** (2026-11-17, deployed as `68fab29`) — done:
   - Send later: on Automated Send, "Send later…" schedules the selected messages for one
     moment (new `scheduled_messages` table, created on startup). {date}, {weekday} and the

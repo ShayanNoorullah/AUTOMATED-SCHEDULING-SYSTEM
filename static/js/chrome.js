@@ -271,6 +271,21 @@ function queueIndicator(box) {
 function queueAllIndicators(root = document) { root.querySelectorAll(IND_SEL).forEach(queueIndicator); }
 
 /* Icon-only buttons get a spoken name from their tooltip (screen readers skip the title). */
+/* Follow the pointer after it has moved a few pixels; onEnd gets the last event, or null
+   when it was only a click, was cancelled, or Escape was pressed. */
+function _pointerTrack(ev, onMove, onEnd) {
+  const sx = ev.clientX, sy = ev.clientY; let live = false;
+  const mv = (e) => { if (!live && Math.hypot(e.clientX - sx, e.clientY - sy) < 5) return; live = true; onMove(e); };
+  const up = (e) => finish(live ? e : null), cancel = () => finish(null);
+  const key = (e) => { if (e.key === "Escape") { e.stopPropagation(); finish(null); } };
+  function finish(e) {
+    removeEventListener("pointermove", mv); removeEventListener("pointerup", up);
+    removeEventListener("pointercancel", cancel); removeEventListener("keydown", key, true);
+    onEnd(e);
+  }
+  addEventListener("pointermove", mv); addEventListener("pointerup", up);
+  addEventListener("pointercancel", cancel); addEventListener("keydown", key, true);
+}
 /* Emoji picker for message boxes: any <textarea data-emoji> gets a small button under it.
    The emoji goes in at the caret and an input event runs, so previews update. */
 const EMOJI = "😊 🙂 😀 😂 🙏 👍 👏 🙌 👋 🤝 ✅ ❌ ⚠️ ❗ ❓ ⏰ 🕒 📅 🗓️ 📌 📍 📝 📚 📖 ✏️ 🎓 🏫 💡 🔔 📢 🎉 🌟 ⭐ 💯 🔥 ❤️ 💙 💚 ☀️ 🌙 🚫 ➡️ ⬅️ 🔁 ☑️ 📞 💬".split(" ");

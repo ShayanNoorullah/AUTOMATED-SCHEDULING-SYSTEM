@@ -313,3 +313,86 @@ async function groupImportRun() {
   if (await saveTable()) { closeModal("groupImportModal"); if (typeof renderGroupTable === "function") renderGroupTable(); }
   else await loadGroups();
 }
+
+/* ── Phase 10: drag a filled slot to another day or group, and a fill handle ──
+   Pointer events, so it works with a mouse, a pen and a finger. Dropping on a filled cell
+   swaps the two; holding Ctrl, Alt or ⌘ while dropping copies instead of moving. */
+function _cellAt(x, y) {
+  const el = document.elementFromPoint(x, y), c = el && el.closest("[data-cell]");
+  if (!c || c.classList.contains("col-dim") || c.closest(".sb-card.is-dim")) return null;
+  const [ci, day] = c.dataset.cell.split("|");
+  return { el: c, ci: +ci, day };
+}
+function _schedSnap(gs) { return gs.map((g) => [g, g.schedule.map((e) => ({ ...e }))]); }
+function _schedChanged() { tableDirty = true; markUnsaved(); renderTable(); }
+function _schedSort(g) { g.schedule.sort((a, b) => DAYS.indexOf(a.day) - DAYS.indexOf(b.day)); }
+function _schedUndo(snap) { return { label: "Undo", fn: () => { snap.forEach(([g, s]) => { g.schedule = s; }); _schedChanged(); } }; }
+const _copyKey = (e) => e.ctrlKey || e.altKey || e.metaKey;
+
+function slotDragStart(ev, ci, day) {
+  const src = groups[ci] && groups[ci].schedule.find((x) => x.day === day);
+  if (ev.button > 0 || !src) return;
+  ev.preventDefault();
+  let ghost = null, over = null;
+  const clear = () => { if (over) over.el.classList.remove("slot-drop"); over = null; };
+  _pointerTrack(ev, (e) => {
+    if (!ghost) {
+      ghost = document.createElement("div"); ghost.className = "slot-ghost";
+      ghost.textContent = `${day.slice(0, 3)} ${src.from || "?"}–${src.to || "?"}`;
+      document.body.appendChild(ghost); document.body.classList.add("slot-dragging");
+    }
+    ghost.style.transform = `translate(${e.clientX + 14}px,${e.clientY + 14}px)`;
+    ghost.classList.toggle("is-copy", _copyKey(e));
+    const t = _cellAt(e.clientX, e.clientY);
+    clear();
+    if (t && !(t.ci === ci && t.day === day)) { t.el.classList.add("slot-drop"); over = t; }
+  }, (e) => {
+    const t = over; clear();
+    if (ghost) ghost.remove();
+    document.body.classList.remove("slot-dragging");
+    if (e && t) moveSlot(ci, day, t.ci, t.day, _copyKey(e));
+  });
+}
+function moveSlot(fci, fday, tci, tday, copy) {
+  const gf = groups[fci], gt = groups[tci];
+  const src = gf && gt && gf.schedule.find((x) => x.day === fday);
+  if (!src || (fci === tci && fday === tday)) return;
+  const snap = _schedSnap(gf === gt ? [gf] : [gf, gt]);
+  const tgt = gt.schedule.find((x) => x.day === tday);
+  // Only the first class of a day shows in the table, so only that one moves or is replaced.
+  gt.schedule = gt.schedule.filter((x) => x !== tgt);
+  if (!copy) {
+    gf.schedule = gf.schedule.filter((x) => x !== src);
+    if (tgt) gf.schedule.push({ ...tgt, day: fday });
+  }
+  gt.schedule.push({ ...src, day: tday });
+  _schedSort(gf); _schedSort(gt); _schedChanged();
+  const what = copy ? "Copied" : tgt ? "Swapped" : "Moved";
+  const where = gf === gt ? `${fday.slice(0, 3)} → ${tday.slice(0, 3)}` : `${colDisplay(gf)} ${fday.slice(0, 3)} → ${colDisplay(gt)} ${tday.slice(0, 3)}`;
+  toast(`${what} ${where}`, "", _schedUndo(snap));
+}
+/* Fill handle: drag up or down a column to copy that day's class to the days covered. */
+function fillStart(ev, ci, day) {
+  const g = groups[ci], src = g && g.schedule.find((x) => x.day === day);
+  if (ev.button > 0 || !src) return;
+  ev.preventDefault(); ev.stopPropagation();
+  const i0 = DAYS.indexOf(day); let range = [];
+  const unpaint = () => document.querySelectorAll(".fill-range").forEach((el) => el.classList.remove("fill-range"));
+  document.body.classList.add("slot-filling");
+  _pointerTrack(ev, (e) => {
+    const t = _cellAt(e.clientX, e.clientY);
+    if (!t || t.ci !== ci) return;
+    const i1 = DAYS.indexOf(t.day), a = Math.min(i0, i1), b = Math.max(i0, i1);
+    range = DAYS.slice(a, b + 1).filter((d) => d !== day);
+    unpaint();
+    range.forEach((d) => document.querySelector(`[data-cell="${ci}|${d}"]`)?.classList.add("fill-range"));
+  }, (e) => {
+    unpaint(); document.body.classList.remove("slot-filling");
+    if (!e || !range.length) return;
+    const snap = _schedSnap([g]);
+    const firsts = new Set(range.map((d) => g.schedule.find((x) => x.day === d)));
+    g.schedule = g.schedule.filter((x) => !firsts.has(x)).concat(range.map((d) => ({ ...src, day: d })));
+    _schedSort(g); _schedChanged();
+    toast(`Copied ${src.from || "?"}–${src.to || "?"} to ${range.length} more day${range.length === 1 ? "" : "s"}`, "", _schedUndo(snap));
+  });
+}
