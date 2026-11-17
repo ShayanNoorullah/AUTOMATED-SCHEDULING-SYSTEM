@@ -9,7 +9,7 @@ from datetime import datetime, timedelta
 from apscheduler.schedulers.background import BackgroundScheduler
 
 from app.config import DAYS
-from app.models import Group, Profile, ReminderLog, ScheduledJob, ScheduleException, db
+from app.models import Group, Profile, ReminderLog, ScheduledJob, ScheduledMessage, ScheduleException, db
 from app.services.users import maintenance_mode
 from app.services.whatsapp import format_message, run_release
 from app.crypto import dec
@@ -94,12 +94,38 @@ def run_scheduled_job(app, job: ScheduledJob):
             log.warning("Scheduled job %s failed: %s", job.id, err)
 
 
+SCHEDULED_MSG_GRACE_MIN = 30   # a one-time send blocked by a busy account keeps trying this long
+
+
+def run_scheduled_message(app, m: ScheduledMessage, now: datetime):
+    """Start one due one-time send. Leaves it pending when another send is busy, until the grace runs out."""
+    profile = db.session.get(Profile, m.user_id)
+    late = now - m.send_at > timedelta(minutes=SCHEDULED_MSG_GRACE_MIN)
+    if not profile or not profile.is_active:
+        ok, err = False, "Account inactive"
+    elif maintenance_mode() and not profile.is_admin():
+        ok, err = False, "Maintenance mode"
+    else:
+        try:
+            targets = json.loads(dec(m.targets_enc) or "[]")
+        except (TypeError, ValueError):
+            targets = []
+        ok, err = run_release(app, m.user_id, profile.headless, profile.delay_seconds, targets, m.user_id)
+    if not ok and not late and err and ("in progress" in err or err == "Maintenance mode"):
+        return                                    # try again next minute
+    m.status, m.detail = ("sent", "") if ok else ("failed", (err or "")[:200])
+    db.session.commit()
+    log.info("Scheduled message %s: %s %s", m.id, m.status, m.detail)
+
+
 def tick(app):
     with app.app_context():
         now = datetime.utcnow()
         for job in ScheduledJob.query.filter_by(enabled=True).all():
             if job_due(job, now):
                 run_scheduled_job(app, job)
+        for m in ScheduledMessage.query.filter(ScheduledMessage.status == "pending", ScheduledMessage.send_at <= now).all():
+            run_scheduled_message(app, m, now)
 
 
 # ── Class reminders ──────────────────────────────────────────────────────────

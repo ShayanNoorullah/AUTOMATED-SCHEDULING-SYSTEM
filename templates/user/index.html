@@ -23,7 +23,7 @@
 </script>
 <link rel="preconnect" href="https://api.fontshare.com">
 <link href="https://api.fontshare.com/v2/css?f[]=satoshi@400,500,700,900&display=swap" rel="stylesheet">
-<link href="{{ url_for('static', filename='css/app.css') }}?v=poc66" rel="stylesheet"/>
+<link href="{{ url_for('static', filename='css/app.css') }}?v=poc67" rel="stylesheet"/>
 <link href="{{ url_for('static', filename='css/compat.css') }}?v=poc54" rel="stylesheet"/>
 <link href="{{ url_for('static', filename='css/dashboard.css') }}?v=poc66" rel="stylesheet"/>
 <link href="{{ url_for('static', filename='css/components.css') }}?v=poc54" rel="stylesheet"/>
@@ -98,6 +98,7 @@ window.SSIES_USER = {{ {"email": email|default(username), "display_name": userna
       <section class="view" id="view-groups">
         <div class="toolbar list-toolbar">
           <button class="btn btn-primary btn-sm" type="button" onclick="newGroupDetail()">+ New group</button>
+          <button class="btn btn-soft btn-sm" type="button" onclick="openGroupImport()" title="Add or update groups from a spreadsheet">Import</button>
           <div class="search-wrap" style="flex:1;max-width:320px">
             <svg class="search-ico" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
             <input class="field search" id="groupTableSearch" placeholder="Search groups…" oninput="renderGroupTable()"/>
@@ -210,10 +211,15 @@ window.SSIES_USER = {{ {"email": email|default(username), "display_name": userna
           </div>
           <div class="sched-toolbar-right">
             <span class="sched-sel-count" id="schedSelCount"></span>
-            <button class="btn btn-soft btn-sm" type="button" onclick="openVisualEditor()" title="Open the drag-and-drop timetable editor"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-2px;margin-right:4px"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18M8 4v16"/></svg>Visual Editor</button>
-            <button class="btn btn-soft btn-sm" type="button" onclick="openBroadcast()" title="Send a quick cancel or reschedule notice to a group's WhatsApp chat"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-2px;margin-right:4px"><path d="M3 11l18-5v12L3 14v-3z"/><path d="M11.6 16.8a3 3 0 0 1-5.8-1.6"/></svg>Notify</button>
-            <button class="btn btn-soft btn-sm" type="button" onclick="openSuperadminReport()" title="Preview and send the whole weekly schedule to configured recipients on WhatsApp">Send Preview</button>
-            <button class="btn btn-soft btn-sm" type="button" onclick="openVersions()" title="Earlier versions of the schedule — one is saved before every change">History</button>
+            <div class="tb-more" id="schedMore">
+              <button class="btn btn-soft btn-sm tb-more-btn" type="button" aria-haspopup="true" aria-expanded="false" aria-controls="schedMoreMenu" onclick="toggleTbMore('schedMore')">More<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.4" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></button>
+              <div class="tb-more-menu" id="schedMoreMenu" onclick="if(event.target.closest('button'))toggleTbMore('schedMore',false)">
+              <button class="btn btn-soft btn-sm" type="button" onclick="openVisualEditor()" title="Open the drag-and-drop timetable editor"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-2px;margin-right:4px"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18M8 4v16"/></svg>Visual Editor</button>
+              <button class="btn btn-soft btn-sm" type="button" onclick="openBroadcast()" title="Send a quick cancel or reschedule notice to a group's WhatsApp chat"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-2px;margin-right:4px"><path d="M3 11l18-5v12L3 14v-3z"/><path d="M11.6 16.8a3 3 0 0 1-5.8-1.6"/></svg>Notify</button>
+              <button class="btn btn-soft btn-sm" type="button" onclick="openSuperadminReport()" title="Preview and send the whole weekly schedule to configured recipients on WhatsApp">Send Preview</button>
+              <button class="btn btn-soft btn-sm" type="button" onclick="openVersions()" title="Earlier versions of the schedule — one is saved before every change">History</button>
+              </div>
+            </div>
             <button class="btn btn-soft btn-sm" type="button" id="schedSaveBtn" onclick="saveTable()" title="Save (Ctrl+S)">Save</button>
             <button class="btn btn-primary btn-sm" type="button" id="relTblBtn" onclick="releaseTable()">
               <span id="relTblTxt">Send selected</span><div class="spinner hidden" id="relTblSpin"></div>
@@ -408,15 +414,19 @@ window.SSIES_USER = {{ {"email": email|default(username), "display_name": userna
               <button class="btn btn-soft btn-sm" onclick="loadAutoSession()">Refresh status</button>
               <button class="btn btn-soft btn-sm" onclick="stopWaSession()">Stop session</button>
             </div>
-            <div class="wa-qr-wrap hidden" id="waQrWrap"><img id="waQrImg" alt="WhatsApp QR code"/></div>
+            <div class="wa-qr-wrap hidden" id="waQrWrap"><img id="waQrImg" alt="WhatsApp QR code"/><div class="qr-timer" id="waQrTimer" aria-live="off"><span class="qr-ring" id="waQrRing"></span><span id="waQrLeft">Waiting for a code…</span></div></div>
           </div>
           <div class="wa-step-card"><h4>Select targets</h4><div id="autoTargetList" data-skel="rows"></div></div>
           <div class="wa-step-card">
             <h4>Send</h4>
             <p class="hint" style="margin-bottom:12px">Requires a connected session. Progress appears in the status log.</p>
-            <button class="btn btn-primary" id="autoBtn" onclick="runAutomatedFromPanel()">
-              <span id="autoTxt">Send selected</span><div class="spinner hidden" id="autoSpin"></div>
-            </button>
+            <div class="auto-send-row">
+              <button class="btn btn-primary" id="autoBtn" onclick="runAutomatedFromPanel()">
+                <span id="autoTxt">Send selected</span><div class="spinner hidden" id="autoSpin"></div>
+              </button>
+              <button class="btn btn-soft" type="button" onclick="scheduleFromPanel()" title="Send the selected messages once, at a time you pick">Send later…</button>
+            </div>
+            <div id="scheduledList" class="sched-msgs" aria-live="polite"></div>
           </div>
         </div>
       </section>
@@ -1014,10 +1024,10 @@ window.SSIES_USER = {{ {"email": email|default(username), "display_name": userna
 </dialog>
 
 
-<script src="{{ url_for('static', filename='js/chrome.js') }}?v=poc66"></script>
+<script src="{{ url_for('static', filename='js/chrome.js') }}?v=poc67"></script>
 <script src="{{ url_for('static', filename='js/theme.js') }}?v=poc66"></script>
 <script src="{{ url_for('static', filename='js/whatsapp.js') }}?v=poc66"></script>
-<script src="{{ url_for('static', filename='js/waha.js') }}?v=poc63"></script>
+<script src="{{ url_for('static', filename='js/waha.js') }}?v=poc67"></script>
 <script>
 const DAYS = {{ days | tojson }};
 const _asUser = new URLSearchParams(location.search).get("asUser");
@@ -1042,7 +1052,7 @@ window.fetch = async (url, opts) => {
 async function flushUndo(){
   const p=pendingDel; if(!p) return;
   pendingDel=null; clearTimeout(p.timer); p.dismiss();
-  try{ const r=await _netFetch(p.url,{method:"DELETE"}); if(!r.ok) throw 0; }
+  try{ const r=p.send?await p.send():await _netFetch(p.url,{method:"DELETE"}); if(!r.ok) throw 0; }
   catch{ toast("Delete failed","err"); p.reload(); }
 }
 async function undoableDelete(arr,i,url,label,render,reload){
@@ -1051,7 +1061,7 @@ async function undoableDelete(arr,i,url,label,render,reload){
   const dismiss=toast(label,"",{label:"Undo",fn:()=>{ if(!pendingDel) return; clearTimeout(pendingDel.timer); pendingDel=null; arr.splice(i,0,item); vt(render); }});
   pendingDel={url,dismiss,reload,timer:setTimeout(flushUndo,UNDO_MS)};
 }
-addEventListener("pagehide",()=>{ if(pendingDel) _netFetch(pendingDel.url,{method:"DELETE",keepalive:true}); });
+addEventListener("pagehide",()=>{ if(pendingDel) pendingDel.send?pendingDel.send(true):_netFetch(pendingDel.url,{method:"DELETE",keepalive:true}); });
 /* view-transition-name for a saved row (stable DB id), so rows and avatars animate between states */
 function vtn(prefix,e){ return e&&e.id!=null ? `view-transition-name:${prefix}${e.id}` : ""; }
 document.querySelectorAll("[data-skel]").forEach((e)=>{ e.innerHTML=skel(e.dataset.skel); });
@@ -1365,8 +1375,10 @@ function genMessage(s){const v=s.filter(e=>(e.from||"").trim());if(!v.length)ret
 function baseMessage(g){return (g.message&&g.message.trim())?g.message:genMessage(g.schedule||[]);}
 function autoMessage(g){const t=genMessage(g.schedule||[]);return typeof withChangeNotes==="function"?withChangeNotes(g,t):t;}
 function messageFor(g){return (g.message&&g.message.trim())?g.message:autoMessage(g);}
+/* sendDate: when a message is built for a later send, tokens and change notes use that moment. */
+let sendDate=null;
 function replaceTokens(t){
-  const d=new Date();
+  const d=sendDate||new Date();
   const date=d.toLocaleDateString(undefined,{day:"numeric",month:"long",year:"numeric"});
   const wd=d.toLocaleDateString(undefined,{weekday:"long"});
   return (t||"").replace(/\{date\}/gi,date).replace(/\{weekday\}/gi,wd);
@@ -1631,12 +1643,61 @@ function renderGroupTable(){
   if(!groups.length){ wrap.innerHTML=`<div class="tbl-wrap"><div class="empty"><div class="empty-ico"><svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg></div><p>No groups yet</p><button class="btn btn-primary btn-sm" onclick="newGroupDetail()">+ New group</button></div></div>`; return; }
   const rows=groups.map((g,i)=>({g,i})).filter(({g})=>!q||g.name.toLowerCase().includes(q));
   if(!rows.length){ wrap.innerHTML='<div class="tbl-wrap"><div class="empty"><p>No groups match your search.</p></div></div>'; return; }
-  wrap.innerHTML=`<div class="tbl-wrap"><table class="data grid-table"><thead><tr><th>Group</th><th>Schedule</th><th>Status</th><th>Last sent</th><th></th></tr></thead><tbody>`+
+  groupSel=new Set([...groupSel].filter((g)=>groups.includes(g)));
+  const allOn=rows.every(({g})=>groupSel.has(g));
+  wrap.innerHTML=`<div class="sel-bar${groupSel.size?" on":""}" role="toolbar" aria-label="Selected groups"><b>${groupSel.size} selected</b><button class="btn btn-soft btn-sm" type="button" onclick="sendSelectedGroups()">Send</button><button class="btn btn-danger btn-sm" type="button" onclick="deleteSelectedGroups()">Delete</button><button class="btn btn-ghost btn-sm" type="button" onclick="groupSel.clear();renderGroupTable()">Clear</button></div>
+    <div class="tbl-wrap"><table class="data grid-table"><thead><tr><th class="sel-col"><input type="checkbox" ${allOn?"checked":""} onclick="groupPickAll(this.checked)" aria-label="Select all groups shown"/></th><th>Group</th><th>Schedule</th><th>Status</th><th>Last sent</th><th></th></tr></thead><tbody>`+
     rows.map(({g,i})=>{
       const days=(g.schedule||[]).filter((e)=>(e.from||"").trim()).map((e)=>e.day.slice(0,3)).join(" · ")||"—";
       const pic=entityPic(g);
-      return `<tr style="${vtn("rg",g)}" onclick="openGroupDetail(${i})"><td><div class="grid-name"><div class="av small${pic?" has-img":""}" style="${vtn("ag",g)}">${avatarInner(g.name,pic)}${g.waLinked?'<span class="wa-badge"></span>':""}</div><b>${esc(g.name)}</b></div></td><td>${(g.schedule||[]).length?`${g.schedule.length} day${g.schedule.length===1?"":"s"} · <span class="hint" style="margin:0">${esc(days)}</span>`:'<span class="hint" style="margin:0">No schedule</span>'}</td><td>${g.waLinked?'<span class="status-on">On WhatsApp</span>':'<span class="status-off">Not linked</span>'}</td><td>${g.lastReleased?relTime(g.lastReleased):"—"}</td><td class="grid-go">›</td></tr>`;
+      return `<tr style="${vtn("rg",g)}" class="${groupSel.has(g)?"is-sel":""}" onclick="openGroupDetail(${i})"><td class="sel-col" onclick="event.stopPropagation()"><input type="checkbox" ${groupSel.has(g)?"checked":""} onchange="groupPick(${i},this.checked)" aria-label="Select ${escA(g.name)}"/></td><td><div class="grid-name"><div class="av small${pic?" has-img":""}" style="${vtn("ag",g)}">${avatarInner(g.name,pic)}${g.waLinked?'<span class="wa-badge"></span>':""}</div><b class="gname">${esc(g.name)}</b><button class="icon-btn rename-btn" type="button" title="Rename" onclick="event.stopPropagation();renameGroupInline(${i},this)"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg></button></div></td><td>${(g.schedule||[]).length?`${g.schedule.length} day${g.schedule.length===1?"":"s"} · <span class="hint" style="margin:0">${esc(days)}</span>`:'<span class="hint" style="margin:0">No schedule</span>'}</td><td>${g.waLinked?'<span class="status-on">On WhatsApp</span>':'<span class="status-off">Not linked</span>'}</td><td>${g.lastReleased?relTime(g.lastReleased):"—"}</td><td class="grid-go">›</td></tr>`;
     }).join("")+`</tbody></table></div>`;
+}
+/* ── Groups table: pick several to send or delete; rename in place ── */
+let groupSel=new Set();
+function groupPick(i,on){ on?groupSel.add(groups[i]):groupSel.delete(groups[i]); renderGroupTable(); }
+function groupPickAll(on){
+  const q=(document.getElementById("groupTableSearch")?.value||"").toLowerCase();
+  groups.filter((g)=>!q||g.name.toLowerCase().includes(q)).forEach((g)=>on?groupSel.add(g):groupSel.delete(g));
+  renderGroupTable();
+}
+function sendSelectedGroups(){
+  const t=groups.filter((g)=>groupSel.has(g)).map((g)=>({name:g.name,message:replaceTokens(messageFor(g))})).filter((x)=>x.message.trim());
+  if(!t.length){ toast("The selected groups have nothing to send","err"); return; }
+  releaseWithMode(t,"relAllSpin","relAllBtn","relAllTxt","Send all","automated");
+}
+async function deleteSelectedGroups(){
+  const idx=groups.map((g,i)=>groupSel.has(g)?i:-1).filter((i)=>i>=0);
+  if(!idx.length) return;
+  const n=idx.length, label=`${n} group${n===1?"":"s"}`;
+  if(!(await confirmDialog(`Delete ${label}? Their schedules and messages go too.`,{ok:"Delete",danger:true}))) return;
+  await flushUndo();
+  const removed=idx.map((i)=>[i,groups[i]]);
+  idx.slice().reverse().forEach((i)=>groups.splice(i,1));
+  groupSel.clear(); gSel=null; vt(groupsChanged);
+  const body=JSON.stringify({groups});                // what the server keeps, fixed now
+  const dismiss=toast(`Deleted ${label}`,"",{label:"Undo",fn:()=>{ if(!pendingDel) return; clearTimeout(pendingDel.timer); pendingDel=null; removed.forEach(([i,g])=>groups.splice(i,0,g)); vt(groupsChanged); }});
+  pendingDel={send:(keepalive)=>_netFetch("/api/groups",{method:"PUT",headers:{"Content-Type":"application/json"},body,keepalive:!!keepalive}),dismiss,reload:loadGroups,timer:setTimeout(flushUndo,UNDO_MS)};
+}
+function renameGroupInline(i,btn){
+  const b=btn.parentElement.querySelector(".gname"), g=groups[i]; if(!b||!g) return;
+  const inp=document.createElement("input");
+  inp.className="field rename-in"; inp.value=g.name; inp.setAttribute("aria-label","Group name");
+  inp.onclick=(e)=>e.stopPropagation();
+  let done=false;
+  const finish=async(save)=>{
+    if(done) return; done=true;
+    const name=inp.value.trim();
+    if(!save||!name||name===g.name){ renderGroupTable(); return; }
+    if(groups.some((x)=>x!==g&&x.name===name)){ toast("Another group already has that name","err"); renderGroupTable(); return; }
+    const res=await fetch(`/api/groups/${i}`,put({...g,name}));
+    const d=await res.json().catch(()=>({}));
+    if(!res.ok||d.error){ toast(d.error||"Rename failed","err"); renderGroupTable(); return; }
+    await loadGroups(); toast(`Renamed to "${name}"`,"ok");
+  };
+  inp.onkeydown=(e)=>{ e.stopPropagation(); if(e.key==="Enter") finish(true); if(e.key==="Escape") finish(false); };
+  inp.onblur=()=>finish(true);
+  b.replaceWith(inp); btn.hidden=true; inp.focus(); inp.select();
 }
 function openGroupDetail(i){
   gdIdx=i; gdEdit=false; gdPendingFile=null; gdDirty=false;
@@ -2430,8 +2491,8 @@ function closeSendStatus(){
   if(ssPhase==="running"){ toast("Send in progress…","err"); return; }
   closeModal("sendStatusModal");
 }
-function ssStatusIcon(st){ return st==="success"?"✓":st==="failed"?"✕":st==="sending"?'<span class="ss-spin"></span>':"•"; }
-function ssStatusLabel(st){ return st==="success"?"Delivered":st==="failed"?"Failed":st==="sending"?"Sending…":"Queued"; }
+function ssStatusIcon(st){ return st==="success"?"✓":st==="failed"?"✕":st==="sending"?'<span class="ss-spin"></span>':st==="skipped"?"–":"•"; }
+function ssStatusLabel(st){ return st==="success"?"Delivered":st==="failed"?"Failed":st==="sending"?"Sending…":st==="skipped"?"Skipped":"Queued"; }
 function renderSendStatus(){
   const provRaw=(document.getElementById("autoProviderLabel")?.textContent||"").trim();
   const prov=(provRaw && provRaw!=="—") ? provRaw.toUpperCase() : "WAHA";
@@ -2454,25 +2515,26 @@ function renderSsList(){
   el.innerHTML=`<div class="ss-sec-h">Recipients</div>`+ssTargets.map((t,i)=>{ const st=ssStatus[i]||"queued"; return `<div class="ss-row st-${st}"><span class="ss-row-ic">${ssStatusIcon(st)}</span><div class="ss-row-body"><b>${esc(t.name)}</b><span>${t.phone?"+"+esc(t.phone):"group message"}</span></div><span class="ss-row-tag">${ssStatusLabel(st)}</span></div>`; }).join("");
 }
 function renderSsProgress(){
-  const done=ssStatus.filter((s)=>s==="success"||s==="failed").length;
+  const done=ssStatus.filter((s)=>s==="success"||s==="failed"||s==="skipped").length;
   const pct=ssTargets.length?Math.round((done/ssTargets.length)*100):0;
   const bar=document.getElementById("ssProgress"); if(bar) bar.style.width=pct+"%";
   const counts=document.getElementById("ssCounts");
   if(counts){
     const ok=ssStatus.filter((s)=>s==="success").length;
     const fail=ssStatus.filter((s)=>s==="failed").length;
-    counts.textContent=ssPhase==="ready"?`${ssTargets.length} recipient${ssTargets.length===1?"":"s"}`: `${ok} delivered · ${fail} failed · ${ssTargets.length-ok-fail} remaining`;
+    const skip=ssStatus.filter((s)=>s==="skipped").length;
+    counts.textContent=ssPhase==="ready"?`${ssTargets.length} recipient${ssTargets.length===1?"":"s"}`: `${ok} delivered · ${fail} failed · `+(skip?`${skip} skipped`:`${ssTargets.length-ok-fail} remaining`);
   }
 }
 function renderSsFooter(){
   const f=document.getElementById("ssFooter"); if(!f) return;
   if(ssPhase==="done"){
     const fail=ssStatus.filter((s)=>s==="failed").length;
-    f.innerHTML=`<button class="btn btn-soft" onclick="ssCopyLog()">Copy log</button>${fail?`<button class="btn btn-soft" onclick="showView('history');closeSendStatus()">View history</button>`:""}<button class="btn btn-soft" onclick="closeSendStatus();showView('history')">View history</button><button class="btn btn-primary" style="margin-left:auto" onclick="closeSendStatus()">Done</button>`;
+    f.innerHTML=`<button class="btn btn-soft" onclick="ssCopyLog()">Copy log</button><button class="btn btn-soft" onclick="closeSendStatus();showView('history')">View history${fail?` · ${fail} failed`:""}</button><button class="btn btn-primary" style="margin-left:auto" onclick="closeSendStatus()">Done</button>`;
     return;
   }
   if(ssPhase==="running"){
-    f.innerHTML=`<span class="hint">Sending… progress also appears in the status log.</span>`;
+    f.innerHTML=ssStopping?`<span class="hint">Stopping after the current message…</span>`:`<span class="hint">Sending… progress also appears in the status log.</span><button class="btn btn-danger" style="margin-left:auto" onclick="ssStop()">Stop sending</button>`;
     return;
   }
   if(ssPf&&ssPf.ready) f.innerHTML=`<button class="btn btn-soft" onclick="closeSendStatus()">Cancel</button><button class="btn btn-primary" style="margin-left:auto" onclick="ssStart()">${ICO_SEND_BTN} Start send · ${ssTargets.length}</button>`;
@@ -2482,9 +2544,16 @@ async function ssCopyLog(){
   const lines=document.getElementById("logLines")?.innerText||ssTargets.map((t,i)=>`${t.name}: ${ssStatus[i]}`).join("\n");
   try{ await navigator.clipboard.writeText(lines); toast("Log copied ✓"); }catch{ toast("Copy failed","err"); }
 }
+let ssStopping=false;
+async function ssStop(){
+  if(!(await confirmDialog("Stop after the message being sent now? The rest are skipped.",{ok:"Stop sending",cancel:"Keep sending",danger:true}))) return;
+  const d=await (await fetch("/api/release/cancel",post({}))).json();
+  if(d.error){ toast(d.error,"err"); return; }
+  ssStopping=true; renderSsFooter();
+}
 async function ssStart(){
   if(!ssMeta||!ssPf?.ready) return;
-  ssPhase="running";
+  ssPhase="running"; ssStopping=false;
   ssStatus=ssTargets.map(()=>"queued");
   if(ssStatus.length) ssStatus[0]="sending";
   renderSendStatus();
@@ -2592,12 +2661,12 @@ function setBusy(spin,btn,txt,busy,label){const b=document.getElementById(btn); 
 function resetBusy(){["relAll","relTbl","relCAll","auto"].forEach(p=>{const b=document.getElementById(p+"Btn");if(b){b.disabled=false;const s=document.getElementById(p+"Spin");if(s)s.classList.add("hidden");}});
   const m={relAllTxt:"Automated All",relTblTxt:"Automated Selected",relCAllTxt:"Automated All",autoTxt:"Send selected"};
   for(const k in m){const e=document.getElementById(k);if(e)e.textContent=m[k];}
-  if(ssPhase==="running"){ ssPhase="done"; ssStatus=ssStatus.map((s)=>s==="queued"||s==="sending"?"success":s); renderSendStatus(); }
+  if(ssPhase==="running"){ ssPhase="done"; ssStatus=ssStatus.map((s)=>s==="queued"||s==="sending"?(ssStopping?"skipped":"success"):s); ssStopping=false; renderSendStatus(); }
 }
 
 function startSSE(){const es=new EventSource("/api/status");es.onmessage=e=>{if(e.data==="ping")return;
   const[type,...r]=e.data.split(":");appendLog(type,r.join(":"));
-  if(type==="done"){resetBusy();loadGroups();loadContacts();if(typeof loadReleaseHistory==="function")loadReleaseHistory();} if(type==="error"){resetBusy(); if(ssPhase==="running"){ ssPhase="done"; renderSendStatus(); }}}; }
+  if(type==="done"){resetBusy();loadGroups();loadContacts();if(typeof loadReleaseHistory==="function")loadReleaseHistory();} if(type==="error"&&/^Release failed/.test(r.join(":"))){resetBusy(); if(ssPhase==="running"){ ssPhase="done"; renderSendStatus(); }}}; }
 function appendLog(type,msg){
   showLog();
   const l=document.getElementById("logLines"); const d=document.createElement("div");
@@ -2719,15 +2788,15 @@ async function copyText(t){try{await navigator.clipboard.writeText(t);toast("Cop
 
 </script>
 <script src="{{ url_for('static', filename='js/lists.js') }}?v=poc63"></script>
-<script src="{{ url_for('static', filename='js/features.js') }}?v=poc66"></script>
+<script src="{{ url_for('static', filename='js/features.js') }}?v=poc67"></script>
 <script src="{{ url_for('static', filename='js/workspace.js') }}?v=poc60"></script>
 <script src="{{ url_for('static', filename='js/visual_editor.js') }}?v=poc66"></script>
 <script src="{{ url_for('static', filename='js/dashboard.js') }}?v=poc64"></script>
-<script src="{{ url_for('static', filename='js/scheduler.js') }}?v=poc66"></script>
+<script src="{{ url_for('static', filename='js/scheduler.js') }}?v=poc67"></script>
 <script src="{{ url_for('static', filename='js/palette.js') }}?v=poc62"></script>
 <script src="{{ url_for('static', filename='js/assistant.js') }}?v=poc65"></script>
 <script src="{{ url_for('static', filename='js/contacts.js') }}?v=poc63"></script>
-<script src="{{ url_for('static', filename='js/exceptions.js') }}?v=poc66"></script>
+<script src="{{ url_for('static', filename='js/exceptions.js') }}?v=poc67"></script>
 <script>boot();</script>
 </body>
 </html>

@@ -97,7 +97,7 @@ function closeDialog(d) {
    (focus trap, Esc and backdrop come with the element). All return a Promise.
    Resolved from the buttons and Esc directly: the dialog's own close event waits for a
    painted frame, which a covered window never produces. */
-function askDialog({ text, input, ok = "OK", cancel = "Cancel", danger = false }) {
+function askDialog({ text, input, ok = "OK", cancel = "Cancel", danger = false, type = "text" }) {
   return new Promise((resolve) => {
     const d = document.createElement("dialog");
     d.className = "ask-dlg";
@@ -107,7 +107,7 @@ function askDialog({ text, input, ok = "OK", cancel = "Cancel", danger = false }
       <button class="btn ${danger ? "btn-danger" : "btn-primary"}"${hasInput || danger ? "" : " autofocus"}>${esc(ok)}</button></div></form>`;
     d.querySelector("p").textContent = text;
     const inp = d.querySelector("input");
-    if (inp) inp.value = input;
+    if (inp) { inp.type = type; inp.value = input; }
     const finish = (yes) => {
       closeDialog(d);
       d.remove();
@@ -119,7 +119,7 @@ function askDialog({ text, input, ok = "OK", cancel = "Cancel", danger = false }
     d.addEventListener("cancel", (e) => { e.preventDefault(); finish(false); });
     document.body.appendChild(d);
     d.showModal();
-    if (inp) inp.select();
+    if (inp && type === "text") inp.select();
   });
 }
 function confirmDialog(text, opts) { return askDialog({ text, ...opts }); }
@@ -315,3 +315,13 @@ if (document.fonts) document.fonts.ready.then(() => queueAllIndicators());   // 
     last = y;
   }, { passive: true, capture: true });
 })();
+
+/* Toolbar "More" menu (narrow screens only — on wide screens its buttons sit in the toolbar). */
+function toggleTbMore(id, on) {
+  const box = document.getElementById(id); if (!box) return;
+  on = on ?? !box.classList.contains("open");
+  box.classList.toggle("open", on);
+  box.querySelector(".tb-more-btn")?.setAttribute("aria-expanded", String(on));
+}
+document.addEventListener("click", (e) => { document.querySelectorAll(".tb-more.open").forEach((b) => { if (!b.contains(e.target)) toggleTbMore(b.id, false); }); });
+document.addEventListener("keydown", (e) => { if (e.key === "Escape") document.querySelectorAll(".tb-more.open").forEach((b) => { toggleTbMore(b.id, false); b.querySelector(".tb-more-btn")?.focus(); }); });

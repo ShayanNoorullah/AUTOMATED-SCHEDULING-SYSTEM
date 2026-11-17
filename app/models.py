@@ -119,6 +119,19 @@ class ScheduleException(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
 
+class ScheduledMessage(db.Model):
+    """A one-time send at a set moment. targets_enc holds the exact recipients and messages."""
+    __tablename__ = "scheduled_messages"
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(GUID(), db.ForeignKey("profiles.id"), index=True, nullable=False)
+    send_at = db.Column(db.DateTime, index=True, nullable=False)          # naive UTC
+    targets_enc = db.Column(db.Text, default="")                          # encrypted JSON list of {name, message, phone?}
+    status = db.Column(db.String(12), default="pending", index=True)      # pending | sent | failed | cancelled
+    detail = db.Column(db.String(200), default="")
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+
 class ReminderLog(db.Model):
     """One row per class reminder already sent, so a restart never sends it twice."""
     __tablename__ = "reminder_log"

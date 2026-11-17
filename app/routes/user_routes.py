@@ -8,14 +8,14 @@ from app.auth.decorators import login_required, superadmin_required
 from app.config import Config, DAYS
 from app.crypto import enc, dec
 from app.models import (
-    Group, Template, Contact, ContactList, Profile, AuditLog, ReleaseLog, ScheduledJob, ScheduleException,
-    ScheduleVersion, db,
+    Group, Template, Contact, ContactList, Profile, AuditLog, ReleaseLog, ScheduledJob, ScheduledMessage,
+    ScheduleException, ScheduleVersion, db,
 )
 from app.services.audit import audit
 from app.services.users import maintenance_mode
 from app.services.whatsapp import (
     group_dict, template_dict, contact_dict, digits, format_message,
-    run_release, status_queue, any_release_busy,
+    run_release, status_queue, any_release_busy, cancel_release,
 )
 
 bp = Blueprint("user", __name__)
@@ -1421,7 +1421,7 @@ def release_retry():
     from flask import current_app
     ok, err = run_release(current_app._get_current_object(), uid, u.headless, u.delay_seconds, targets, g.profile.id)
     if not ok:
-        code = 409 if err == "Release already in progress" else 400
+        code = 409 if "in progress" in (err or "") else 400
         return jsonify({"error": err}), code
     return jsonify({"ok": True})
 
@@ -1483,8 +1483,89 @@ def release():
     from flask import current_app
     ok, err = run_release(current_app._get_current_object(), uid, u.headless, u.delay_seconds, targets, g.profile.id)
     if not ok:
-        code = 409 if err == "Release already in progress" else 400
+        code = 409 if "in progress" in (err or "") else 400
         return jsonify({"error": err}), code
+    return jsonify({"ok": True})
+
+
+@bp.route("/api/release/cancel", methods=["POST"])
+@login_required
+def release_cancel():
+    if not cancel_release(_effective_user_id()):
+        return jsonify({"error": "No send is running"}), 409
+    return jsonify({"ok": True})
+
+
+def _scheduled_dict(m):
+    try:
+        targets = json.loads(dec(m.targets_enc) or "[]")
+    except (TypeError, ValueError):
+        targets = []
+    return {"id": m.id, "sendAt": m.send_at.isoformat() + "Z", "status": m.status, "detail": m.detail or "",
+            "targets": [{"name": t.get("name", ""), "phone": t.get("phone") or "", "message": t.get("message", "")} for t in targets]}
+
+
+@bp.route("/api/scheduled-messages", methods=["GET"])
+@login_required
+def list_scheduled_messages():
+    from datetime import datetime, timedelta
+    uid = _effective_user_id()
+    old = datetime.utcnow() - timedelta(days=7)
+    ScheduledMessage.query.filter(ScheduledMessage.user_id == uid, ScheduledMessage.status != "pending",
+                                  ScheduledMessage.send_at < old).delete()
+    db.session.commit()
+    rows = ScheduledMessage.query.filter_by(user_id=uid).order_by(ScheduledMessage.send_at).all()
+    return jsonify([_scheduled_dict(m) for m in rows])
+
+
+@bp.route("/api/scheduled-messages", methods=["POST"])
+@login_required
+def create_scheduled_message():
+    from datetime import datetime, timedelta, timezone
+    uid = _effective_user_id()
+    data = request.json or {}
+    try:
+        at = datetime.fromisoformat(str(data.get("sendAt", "")).replace("Z", "+00:00"))
+    except ValueError:
+        return jsonify({"error": "Pick a date and time"}), 400
+    if at.tzinfo is None:
+        return jsonify({"error": "The time needs a timezone"}), 400
+    at = at.astimezone(timezone.utc).replace(tzinfo=None)
+    now = datetime.utcnow()
+    if at < now + timedelta(minutes=1):
+        return jsonify({"error": "Pick a time at least a minute from now"}), 400
+    if at > now + timedelta(days=60):
+        return jsonify({"error": "Pick a time within the next 60 days"}), 400
+    targets = []
+    for t in (data.get("targets") or [])[:200]:
+        name, msg = str(t.get("name", "")).strip(), str(t.get("message", ""))
+        if name and msg.strip():
+            item = {"name": name, "message": msg}
+            if t.get("phone"):
+                item["phone"] = digits(t["phone"])
+            targets.append(item)
+    if not targets:
+        return jsonify({"error": "Nothing to send"}), 400
+    if ScheduledMessage.query.filter_by(user_id=uid, status="pending").count() >= 50:
+        return jsonify({"error": "You already have 50 scheduled sends"}), 400
+    m = ScheduledMessage(user_id=uid, send_at=at, targets_enc=enc(json.dumps(targets)))
+    db.session.add(m)
+    db.session.commit()
+    audit("scheduled_message", f"{len(targets)} recipient(s) at {at.isoformat()}Z", actor_id=g.profile.id)
+    return jsonify(_scheduled_dict(m))
+
+
+@bp.route("/api/scheduled-messages/<int:mid>", methods=["DELETE"])
+@login_required
+def cancel_scheduled_message(mid):
+    m = ScheduledMessage.query.filter_by(id=mid, user_id=_effective_user_id()).first()
+    if not m:
+        return jsonify({"error": "Not found"}), 404
+    if m.status == "pending":
+        m.status = "cancelled"
+    else:
+        db.session.delete(m)          # a finished one: remove it from the list
+    db.session.commit()
     return jsonify({"ok": True})
 
 

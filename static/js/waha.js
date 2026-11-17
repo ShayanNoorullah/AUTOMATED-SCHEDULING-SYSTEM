@@ -102,6 +102,23 @@ function stopQrPoll() {
     clearInterval(waQrPoll);
     waQrPoll = null;
   }
+  clearInterval(qrTick); qrTick = null; qrSeen = "";
+}
+
+/* Countdown ring: WhatsApp replaces the code about every 20 seconds; restart when it changes. */
+const QR_LIFE = 20;
+let qrSeen = "", qrBorn = 0, qrTick = null;
+function qrCountdown(data) {
+  if (data && data !== qrSeen) { qrSeen = data; qrBorn = Date.now(); }
+  if (qrTick) return;
+  const draw = () => {
+    const ring = document.getElementById("waQrRing"), left = document.getElementById("waQrLeft");
+    if (!ring || !left || !qrBorn) return;
+    const s = Math.max(0, QR_LIFE - (Date.now() - qrBorn) / 1000);
+    ring.style.setProperty("--p", (s / QR_LIFE).toFixed(3));
+    left.textContent = s > 0 ? `New code in ${Math.ceil(s)}s` : "Getting a new code…";
+  };
+  draw(); qrTick = setInterval(draw, 250);
 }
 
 async function pollQr() {
@@ -114,11 +131,12 @@ async function pollQr() {
       stopQrPoll();
       return;
     }
+    if (data.data) qrCountdown(data.data);
     if (data.format === "image") {
-      img.src = "";
-      img.src = data.data;
-    } else if (data.data) {
-      img.src = `https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(data.data)}&_=${Date.now()}`;
+      if (img.src !== data.data) img.src = data.data;
+    } else if (data.data && img.dataset.qr !== data.data) {
+      img.dataset.qr = data.data;
+      img.src = `https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(data.data)}`;
     }
     const info = await loadAutoSession();
     if (info?.connected) stopQrPoll();
@@ -140,6 +158,7 @@ async function stopWaSession() {
 function renderAutoSendPanel() {
   loadAutoSession();
   renderAutoTargetList();
+  loadScheduledMessages();
 }
 
 function autoTargetMessage(type, name) {
@@ -177,13 +196,8 @@ function renderAutoTargetList() {
   autoPickCount();
 }
 
-async function runAutomatedFromPanel() {
-  const picks = [...document.querySelectorAll(".auto-pick:checked")];
-  if (!picks.length) {
-    toast("Select at least one target", "err");
-    return;
-  }
-  const targets = picks.map((cb) => {
+function panelTargets() {
+  return [...document.querySelectorAll(".auto-pick:checked")].map((cb) => {
     const type = cb.dataset.type;
     const name = cb.dataset.name;
     if (type === "contact") {
@@ -193,9 +207,61 @@ async function runAutomatedFromPanel() {
     const g = groups.find((x) => x.name === name);
     return { name, message: replaceTokens(messageFor(g)) };
   }).filter((t) => t.message?.trim());
+}
+
+async function runAutomatedFromPanel() {
+  if (!document.querySelector(".auto-pick:checked")) {
+    toast("Select at least one target", "err");
+    return;
+  }
+  const targets = panelTargets();
   if (!targets.length) {
     toast("Selected targets have empty messages", "err");
     return;
   }
   releaseWithMode(targets, "autoSpin", "autoBtn", "autoTxt", "Send selected", "automated");
+}
+
+/* ── One-time scheduled sends ──
+   The messages are built now for the chosen moment ({date}, {weekday} and the week's
+   changes are worked out for that day) and sent exactly as built. */
+const pad2 = (n) => String(n).padStart(2, "0");
+const localInputValue = (d) => `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}T${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
+const fmtWhen = (d) => d.toLocaleString(undefined, { weekday: "short", day: "numeric", month: "short", hour: "numeric", minute: "2-digit" });
+
+async function scheduleFromPanel() {
+  if (!document.querySelector(".auto-pick:checked")) { toast("Select at least one target", "err"); return; }
+  const next = new Date(Date.now() + 36e5); next.setMinutes(0, 0, 0);
+  const v = await promptDialog("Send the selected messages at:", localInputValue(next), { ok: "Schedule", type: "datetime-local" });
+  if (!v) return;
+  const at = new Date(v);
+  if (isNaN(at) || at < Date.now() + 6e4) { toast("Pick a time at least a minute from now", "err"); return; }
+  let targets;
+  try { sendDate = at; targets = panelTargets(); } finally { sendDate = null; }
+  if (!targets.length) { toast("Selected targets have empty messages", "err"); return; }
+  const d = await (await fetch("/api/scheduled-messages", post({ sendAt: at.toISOString(), targets }))).json();
+  if (d.error) { toast(d.error, "err"); return; }
+  toast(`Scheduled for ${fmtWhen(at)} ✓`, "ok");
+  loadScheduledMessages();
+}
+
+async function loadScheduledMessages() {
+  const el = document.getElementById("scheduledList"); if (!el) return;
+  let rows = [];
+  try { rows = await readJson(await fetch("/api/scheduled-messages")); } catch { el.innerHTML = '<p class="hint">Could not load scheduled sends.</p>'; return; }
+  if (!Array.isArray(rows) || !rows.length) { el.innerHTML = ""; return; }
+  const label = { pending: "Scheduled", sent: "Started", failed: "Failed", cancelled: "Cancelled" };
+  el.innerHTML = `<div class="ss-sec-h">Scheduled sends</div>` + rows.map((m) => {
+    const names = m.targets.map((t) => t.name), who = names.slice(0, 3).join(", ") + (names.length > 3 ? ` +${names.length - 3}` : "");
+    return `<div class="sched-msg st-${m.status}"><div class="sched-msg-b"><b>${esc(fmtWhen(new Date(m.sendAt)))}</b><span>${esc(who)}${m.detail ? ` · ${esc(m.detail)}` : ""}</span></div>
+      <span class="sched-msg-tag">${label[m.status] || esc(m.status)}</span>
+      <button class="btn btn-ghost btn-sm" type="button" onclick="cancelScheduledMessage(${m.id}, '${m.status}')">${m.status === "pending" ? "Cancel" : "Remove"}</button></div>`;
+  }).join("");
+}
+
+async function cancelScheduledMessage(id, status) {
+  if (status === "pending" && !(await confirmDialog("Cancel this scheduled send?", { ok: "Cancel send", cancel: "Keep", danger: true }))) return;
+  const d = await (await fetch(`/api/scheduled-messages/${id}`, { method: "DELETE" })).json();
+  if (d.error) { toast(d.error, "err"); return; }
+  loadScheduledMessages();
 }

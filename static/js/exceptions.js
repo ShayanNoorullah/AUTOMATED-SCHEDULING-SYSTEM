@@ -32,7 +32,7 @@ function withChangeNotes(g, text) {
   if (!text || !g || g.id == null) return text;
   const lines = [];
   for (let i = 0; i < 7; i++) {
-    const key = dayKey(Date.now() + i * 864e5), s = slotOn(g, key);
+    const key = dayKey((sendDate ? +sendDate : Date.now()) + i * 864e5), s = slotOn(g, key);
     if (!s || !(s.off || s.tag)) continue;
     const d = new Date(key + "T00:00");
     const when = `${d.toLocaleDateString("en-GB", { weekday: "short" })} ${d.getDate()} ${d.toLocaleDateString("en-GB", { month: "short" })}`;

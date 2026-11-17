@@ -114,7 +114,8 @@ let historyMode = localStorage.getItem("history-mode") || "table";
 let historyFilter = "all";
 let historyPage = 1;
 let historyShown = [];   // rows matching the current filters (what Export writes)
-const HISTORY_PER_PAGE = 8;
+const HISTORY_PER_PAGE = 20;   // rows added each time the list is scrolled to the end
+let histAll = [], histTotal = 0, historyBusy = false, historyIO = null;
 const dayKey = (d) => { d = new Date(d); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`; };
 function dayLabel(key) {
   const today = dayKey(Date.now()), yest = dayKey(Date.now() - 864e5);
@@ -163,14 +164,29 @@ function setHistoryFilter(f) {
   document.querySelectorAll("#historyFilterSeg button").forEach((b) => b.classList.toggle("on", b.dataset.val === f));
   loadReleaseHistory();
 }
-function historyGoto(p) {
-  historyPage = p;
-  loadReleaseHistory();
-  const w = document.getElementById("historyWrap");
-  if (w) w.scrollIntoView({ block: "nearest", behavior: "smooth" });
+/* Show the next rows; fetch the next 200 from the server once every loaded row is shown. */
+async function historyLoadMore() {
+  if (historyBusy) return;
+  historyBusy = true;
+  try {
+    if (historyPage * HISTORY_PER_PAGE >= historyShown.length && histAll.length < histTotal) {
+      const d = await (await fetch(`/api/release-history?limit=200&offset=${histAll.length}`)).json();
+      if (!(d.items || []).length) histTotal = histAll.length;
+      histAll = histAll.concat(d.items || []);
+    }
+    historyPage++;
+    await loadReleaseHistory({ keep: true });
+  } finally { historyBusy = false; }
+}
+function historyObserve() {
+  const btn = document.getElementById("historyMore");
+  historyIO?.disconnect();
+  if (!btn || !("IntersectionObserver" in window)) return;
+  historyIO = new IntersectionObserver((es) => { if (es.some((e) => e.isIntersecting)) historyLoadMore(); }, { rootMargin: "200px" });
+  historyIO.observe(btn);
 }
 
-async function loadReleaseHistory() {
+async function loadReleaseHistory(opts = {}) {
   const wrap = document.getElementById("historyWrap");
   const legacy = document.getElementById("historyList");
   if (!wrap && !legacy) return;
@@ -183,8 +199,12 @@ async function loadReleaseHistory() {
   if (legacy) legacy.innerHTML = "<p class='hint'>Loading…</p>";
 
   try {
-    const d = await (await fetch("/api/release-history?limit=200")).json();
-    const all = Array.isArray(d) ? d : d.items || d.rows || [];
+    if (!opts.keep) {
+      const d = await (await fetch("/api/release-history?limit=200")).json();
+      histAll = Array.isArray(d) ? d : d.items || d.rows || [];
+      histTotal = Math.max(d.total || 0, histAll.length);
+    }
+    const all = histAll;
     renderHistoryChart(all);
 
     const stats = document.getElementById("historyStats");
@@ -192,7 +212,7 @@ async function loadReleaseHistory() {
       const ok = all.filter((r) => r.status === "success").length;
       const groupsN = all.filter((r) => (r.targetType || r.target_type) === "group").length;
       stats.innerHTML = `
-        <div class="stat"><div class="n">${all.length}</div><div class="l">Total sends</div></div>
+        <div class="stat"><div class="n">${all.length}</div><div class="l">${all.length < histTotal ? `Latest sends (of ${histTotal})` : "Total sends"}</div></div>
         <div class="stat"><div class="n">${ok}</div><div class="l">Delivered</div></div>
         <div class="stat"><div class="n">${all.length - ok}</div><div class="l">Failed</div></div>
         <div class="stat"><div class="n">${groupsN}</div><div class="l">To groups</div></div>`;
@@ -239,10 +259,8 @@ async function loadReleaseHistory() {
       return;
     }
 
-    const pages = Math.max(1, Math.ceil(items.length / HISTORY_PER_PAGE));
-    if (historyPage > pages) historyPage = pages;
-    const start = (historyPage - 1) * HISTORY_PER_PAGE;
-    const page = items.slice(start, start + HISTORY_PER_PAGE);
+    const shown = Math.min(items.length, historyPage * HISTORY_PER_PAGE);
+    const page = items.slice(0, shown);
     const badge = (r) =>
       `<span class="hstatus ${r.status === "success" ? "ok" : "err"}"><span class="hdot"></span>${r.status === "success" ? "Delivered" : "Failed"}</span>`;
     const typeChip = (r) => {
@@ -279,11 +297,10 @@ async function loadReleaseHistory() {
         `</tbody></table></div>`;
     }
 
-    if (pager && pages > 1) {
-      let btns = `<button class="pager-btn" ${historyPage === 1 ? "disabled" : ""} onclick="historyGoto(${historyPage - 1})">‹ Prev</button>`;
-      for (let p = 1; p <= pages; p++) btns += `<button class="pager-btn${p === historyPage ? " on" : ""}" onclick="historyGoto(${p})">${p}</button>`;
-      btns += `<button class="pager-btn" ${historyPage === pages ? "disabled" : ""} onclick="historyGoto(${historyPage + 1})">Next ›</button>`;
-      pager.innerHTML = `<span class="pager-info">Showing ${start + 1}–${Math.min(start + HISTORY_PER_PAGE, items.length)} of ${items.length}</span><div class="pager-btns">${btns}</div>`;
+    if (pager) {
+      const more = shown < items.length || histAll.length < histTotal;
+      pager.innerHTML = `<span class="pager-info">Showing ${shown} of ${items.length}${histAll.length < histTotal ? "+" : ""}</span>${more ? '<button class="btn btn-soft btn-sm" type="button" id="historyMore" onclick="historyLoadMore()">Load more</button>' : ""}`;
+      historyObserve();
     }
   } catch {
     if (wrap) wrap.innerHTML = "<p class='hint'>Could not load history.</p>";

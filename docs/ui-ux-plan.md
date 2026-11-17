@@ -2,13 +2,45 @@
 
 Audit date: 2026-11-16. Scope: everything under `templates/user/` plus the CSS/JS it loads.
 
-**Status (2026-11-17):** Phases 1–6 and the assistant's local fallback are deployed
-(commit `e2bbad9`). The assistant currently answers from the local model only
+**Status (2026-11-17):** Phases 1–7 and the assistant's local fallback are deployed
+(Phase 7 is commit `cef998a`); Phase 8 below is built but not yet deployed. The assistant currently answers from the local model only
 (`qwen2.5:7b` in the `ollama` service), because no hosted provider key has been entered
 yet; once one is added it becomes primary and the local model is the fallback. The
 assistant has never talked to a real hosted provider — see "Before first use" below.
 
-- **Phase 7** (2026-11-17, not yet deployed) — done:
+- **Phase 8** (2026-11-17, not yet deployed) — done:
+  - Send later: on Automated Send, "Send later…" schedules the selected messages for one
+    moment (new `scheduled_messages` table, created on startup). {date}, {weekday} and the
+    "Changes this week" lines are worked out for that day; the messages are then sent exactly
+    as built. Scheduled sends are listed there with Cancel. A send blocked by another send in
+    progress is retried each minute for 30 minutes, then marked failed.
+  - Stop sending: the send dialog has "Stop sending" while a send runs; the server stops
+    after the message being sent and the rest show as Skipped.
+  - Groups: tick several to send or delete them together (Undo for 6 seconds); rename a
+    group in place with the pencil; import groups from a spreadsheet (paste from Excel /
+    Google Sheets or a .csv — one class per row, or one row per group with day columns).
+  - WhatsApp linking: a countdown ring shows when the QR code will be replaced; the QR image
+    is only reloaded when the code changes.
+  - Send History loads more rows as you scroll (beyond the first 200 too) instead of pages.
+  - Scheduler on phones: Visual Editor, Notify, Send Preview and History move into a
+    "More" menu so Save and Send selected keep readable labels.
+  - Colours: repeated fixed colours in `app.css` are named tokens (`--scrim`, `--wa-green`,
+    `--bubble-*`, `--qr-bg`, `--on-strong`); the dark message bubble is a token override.
+  - Fixes found in the browser check: one recipient failing ended the send dialog as if the
+    whole send had finished; the finished dialog showed "View history" twice; the WhatsApp
+    link steps pushed "Connected" off a phone screen; a busy-account send returned 400
+    instead of 409.
+- **Still not done after Phase 8**, by kind:
+  - Needs live WhatsApp data to build and test: messaging the assistant from WhatsApp;
+    tracking who acknowledged a message.
+  - Data-model change: teachers and rooms as first-class fields.
+  - Larger interaction work: Workspace drag/resize and widget gallery; Scheduler drag a
+    slot, fill handle, board day-lanes, notes slide-over; Visual Editor snap guides, zoom,
+    mini-map, touch mode; lists drag-between and emoji picker; contact avatar crop.
+  - Smaller polish: Profile as an in-app view; Settings live preview pane; pausing (not just
+    stopping) a send; the Groups table still scrolls sideways on phones.
+
+- **Phase 7** (2026-11-17, deployed as `cef998a`) — done:
   - Motion: one pill slides between options in every segmented control and the settings
     tabs; settings tabs run down the left on wide screens; the light/dark toggle spreads the
     new theme out in a circle from the button; cards fade in one after another when a page
@@ -28,19 +60,6 @@ assistant has never talked to a real hosted provider — see "Before first use" 
   - Fixes: Copy / Open in "Open in WhatsApp" did nothing for names with an apostrophe;
     the top bar's scroll shadow never appeared on the dashboard (it scrolls inside
     `.content`, not the window).
-- **Still not done after Phase 7**, by kind:
-  - Needs live WhatsApp data to build and test: messaging the assistant from WhatsApp;
-    tracking who acknowledged a message.
-  - Data-model changes: teachers and rooms as first-class fields; scheduled one-time
-    messages (a new automatic send path); group import from a spreadsheet.
-  - Larger interaction work: Workspace drag/resize and widget gallery; Scheduler drag a
-    slot, fill handle, board day-lanes, notes slide-over, toolbar overflow menu; Visual
-    Editor snap guides, zoom, mini-map, touch mode; Groups multi-select and inline rename;
-    lists drag-between and emoji picker; contact avatar crop.
-  - Smaller polish: Profile as an in-app view; Settings live preview pane; QR countdown
-    ring; pause/cancel during a send; History infinite scroll; replacing the 43 hard-coded
-    colours in `app.css` with tokens.
-
 - **Phase 6** — done:
   - One-off changes and holidays: a class cancelled, moved or added for one date, or a day
     off for every group. The weekly timetable is not edited. Class reminders, the

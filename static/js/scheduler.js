@@ -215,3 +215,99 @@ async function gdConfirmDiscard() {
 }
 async function gdBack() { if (await gdConfirmDiscard()) backToGroups(); }
 async function gdCancel() { if (await gdConfirmDiscard()) { gdDirty = false; gdToggleEdit(); } }
+
+/* ── Import groups from a spreadsheet ──
+   Paste cells copied from Excel / Google Sheets, or choose a .csv file. Two layouts:
+   one class per row  — Group, Day, From, To
+   days as columns    — Group, Monday, Tuesday, … with cells like "3:00pm - 4:30pm"
+   Groups in the file get the file's weekly schedule; other groups are left alone. */
+const IMPORT_DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
+function importDay(s) { s = String(s || "").trim().toLowerCase(); return s.length >= 3 ? IMPORT_DAYS.find((d) => d.toLowerCase().startsWith(s)) || null : null; }
+function importTime(s) { const m = parseTimeMin(String(s || "").replace(/\./g, "").replace(/\s+(am|pm)$/i, "$1")); return m == null ? null : fmtMin(m); }
+function splitCells(line) {
+  const sep = line.includes("\t") ? "\t" : line.includes(";") && !line.includes(",") ? ";" : ",", out = [];
+  let cur = "", q = false;
+  for (let i = 0; i < line.length; i++) {
+    const ch = line[i];
+    if (q) { if (ch === '"' && line[i + 1] === '"') { cur += '"'; i++; } else if (ch === '"') q = false; else cur += ch; }
+    else if (ch === '"') q = true;
+    else if (ch === sep) { out.push(cur.trim()); cur = ""; }
+    else cur += ch;
+  }
+  out.push(cur.trim());
+  return out;
+}
+/* Returns {byName: {name: [{day,from,to}]}, bad} */
+function parseGroupSheet(text) {
+  const lines = String(text || "").split(/\r?\n/).filter((l) => l.trim()).map(splitCells);
+  const byName = {}; let bad = 0;
+  if (!lines.length) return { byName, bad };
+  const head = lines[0], dayCols = head.map(importDay);
+  const add = (name, day, from, to) => {
+    const f = importTime(from), t = to ? importTime(to) : "";
+    if (!name || !day || !f || t == null) { bad++; return; }
+    const list = byName[name] || (byName[name] = []);
+    const k = list.findIndex((e) => e.day === day);
+    if (k >= 0) list[k] = { day, from: f, to: t }; else list.push({ day, from: f, to: t });
+  };
+  if (dayCols.filter(Boolean).length >= 2) {                       // days as columns
+    lines.slice(1).forEach((r) => {
+      const name = r[0]; if (!name) return;
+      byName[name] = byName[name] || [];
+      r.forEach((cell, i) => { if (i && dayCols[i] && cell) { const [f, t] = cell.split(/\s*(?:[-–—]|to)\s*/i); add(name, dayCols[i], f, t); } });
+    });
+  } else {                                                         // one class per row
+    lines.forEach((r, i) => {
+      if (i === 0 && !importDay(r[1])) return;                     // header row
+      add(r[0], importDay(r[1]), r[2], r[3]);
+    });
+  }
+  Object.values(byName).forEach((l) => l.sort((a, b) => IMPORT_DAYS.indexOf(a.day) - IMPORT_DAYS.indexOf(b.day)));
+  return { byName, bad };
+}
+function openGroupImport() {
+  let d = document.getElementById("groupImportModal");
+  if (!d) {
+    d = document.createElement("dialog"); d.id = "groupImportModal"; d.className = "modal-scrim";
+    d.innerHTML = `<div class="modal modal-lg">
+      <div class="modal-h"><span>Import groups</span><button class="modal-x" type="button" onclick="closeModal('groupImportModal')">✕</button></div>
+      <div class="modal-b">
+        <p class="hint" style="margin:0">Copy the cells in Excel or Google Sheets and paste them here, or choose a .csv file. Either one class per row — <b>Group, Day, From, To</b> — or a row per group with the days as column headings and times like <b>3:00pm - 4:30pm</b>. Groups in the file get the file's weekly schedule; other groups are not changed. A copy of the current schedule is saved first, so History can bring it back.</p>
+        <textarea class="field" id="giText" style="min-height:190px;font-family:ui-monospace,monospace;font-size:.84rem" placeholder="Group, Day, From, To&#10;CS Batch A, Monday, 3:00pm, 4:30pm&#10;CS Batch A, Wednesday, 3pm, 4:30pm" oninput="groupImportPreview()"></textarea>
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+          <button class="btn btn-soft btn-sm" type="button" onclick="document.getElementById('giFile').click()">Choose file…</button>
+          <input type="file" id="giFile" accept=".csv,.tsv,.txt,text/csv,text/plain" hidden onchange="groupImportFile(this)"/>
+          <span class="hint" id="giSummary" style="margin:0" aria-live="polite"></span>
+        </div>
+      </div>
+      <div class="modal-f"><button class="btn btn-soft" type="button" onclick="closeModal('groupImportModal')">Cancel</button><button class="btn btn-primary" type="button" id="giGo" onclick="groupImportRun()" disabled>Import</button></div></div>`;
+    document.body.appendChild(d);
+  }
+  document.getElementById("giText").value = ""; groupImportPreview();
+  openModal("groupImportModal");
+}
+async function groupImportFile(input) {
+  const f = input.files[0]; input.value = ""; if (!f) return;
+  document.getElementById("giText").value = await f.text(); groupImportPreview();
+}
+function groupImportPreview() {
+  const text = document.getElementById("giText").value, { byName, bad } = parseGroupSheet(text);
+  const names = Object.keys(byName), have = new Set(groups.map((g) => g.name));
+  const fresh = names.filter((n) => !have.has(n)).length, classes = names.reduce((n, k) => n + byName[k].length, 0);
+  const bits = [`${classes} class${classes === 1 ? "" : "es"} for ${names.length} group${names.length === 1 ? "" : "s"}`];
+  if (fresh) bits.push(`${fresh} new`);
+  if (names.length - fresh) bits.push(`${names.length - fresh} updated`);
+  if (bad) bits.push(`${bad} entr${bad === 1 ? "y" : "ies"} could not be read`);
+  document.getElementById("giSummary").textContent = text.trim() ? bits.join(" · ") : "";
+  const go = document.getElementById("giGo"); go.disabled = !names.length; go.textContent = names.length ? `Import ${names.length}` : "Import";
+}
+async function groupImportRun() {
+  if (typeof schedUnsaved !== "undefined" && schedUnsaved) { toast("Save or discard the Scheduler changes first", "err"); return; }
+  const { byName } = parseGroupSheet(document.getElementById("giText").value);
+  Object.entries(byName).forEach(([name, schedule]) => {
+    const g = groups.find((x) => x.name === name);
+    if (g) g.schedule = schedule; else groups.push({ name, nickname: "", schedule, message: "", lastReleased: "", inviteLink: "" });
+  });
+  if (await saveTable()) { closeModal("groupImportModal"); if (typeof renderGroupTable === "function") renderGroupTable(); }
+  else await loadGroups();
+}

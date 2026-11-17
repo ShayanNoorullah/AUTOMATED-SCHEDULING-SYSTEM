@@ -96,6 +96,7 @@ def run_release(app, user_id, headless, delay, targets, actor_id=None):
     if not targets:
         lock.release()
         return False, "Nothing to send"
+    stop = _stops[str(user_id)] = threading.Event()
 
     audit("release", f"{len(targets)} recipient(s)", actor_id=actor_id or user_id, target_id=user_id)
 
@@ -110,6 +111,8 @@ def run_release(app, user_id, headless, delay, targets, actor_id=None):
                     log(f"info:── Releasing to {len(targets)} recipient(s){mode} ──")
                     ok = 0
                     for i, t in enumerate(targets):
+                        if stop.is_set():
+                            break
                         phone = t.get("phone")
                         try:
                             success = send_target(
@@ -126,10 +129,13 @@ def run_release(app, user_id, headless, delay, targets, actor_id=None):
                             user_id, t["name"], phone, success=success,
                             target_type="contact" if phone else "group",
                         )
-                        if delay and i < len(targets) - 1:
+                        if delay and i < len(targets) - 1 and not stop.is_set():
                             log(f"info:Waiting {delay}s before next recipient…")
-                            time.sleep(delay)
-                    log(f"done:── Finished: {ok}/{len(targets)} sent ──")
+                            stop.wait(delay)
+                    if stop.is_set():
+                        log(f"done:── Stopped: {ok}/{len(targets)} sent, the rest skipped ──")
+                    else:
+                        log(f"done:── Finished: {ok}/{len(targets)} sent ──")
         except Exception as e:
             log(f"error:Release failed: {e}")
         finally:
@@ -141,6 +147,16 @@ def run_release(app, user_id, headless, delay, targets, actor_id=None):
 
 _release_locks = {}
 _release_locks_guard = threading.Lock()
+_stops = {}   # user id -> Event of that user's current send
+
+
+def cancel_release(user_id):
+    """Stop a send in progress after the message being sent now. False when none is running."""
+    stop = _stops.get(str(user_id))
+    if not stop or not _user_release_lock(user_id).locked():
+        return False
+    stop.set()
+    return True
 
 
 def _user_release_lock(user_id):
