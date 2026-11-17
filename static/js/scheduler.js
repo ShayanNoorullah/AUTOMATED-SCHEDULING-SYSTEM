@@ -84,6 +84,46 @@ function focusClash(a, b, day) {
   cells.forEach((c) => { c.classList.remove("cell-flash"); void c.offsetWidth; c.classList.add("cell-flash"); });
 }
 
+/* ── clashes: find the nearest free time ── */
+/* Nearest time at which group gi's class on `day` clashes with no other group, keeping its
+   length. Tries the same day first (7am–10pm, 15-minute steps, closest first), then the
+   same time on the nearest other day the group has no class. Returns {gi, day, from, to,
+   cost} or null. A class with no end time is treated as 30 minutes, as the clash check does. */
+function findFreeSlot(gi, day) {
+  const g = groups[gi], e = (g.schedule || []).find((x) => x.day === day);
+  const a = e && parseTimeMin(e.from);
+  if (a == null) return null;
+  const b = parseTimeMin(e.to), hasEnd = b != null && b > a, len = hasEnd ? b - a : 30;
+  const busy = (d) => groups.flatMap((o, oi) => (oi === gi ? [] : (o.schedule || []).filter((x) => x.day === d)).map((x) => {
+    const s = parseTimeMin(x.from); let t = parseTimeMin(x.to);
+    if (s == null) return null; if (t == null || t <= s) t = s + 30; return [s, t];
+  }).filter(Boolean));
+  const free = (d, s) => s >= 7 * 60 && s + len <= 22 * 60 && busy(d).every(([p, q]) => s + len <= p || s >= q);
+  const slot = (d, s, cost) => ({ gi, day: d, from: fmtMin(s), to: hasEnd ? fmtMin(s + len) : "", cost });
+  for (let k = 15; k <= 15 * 60; k += 15) for (const s of [a + k, a - k]) if (free(day, s)) return slot(day, s, k);
+  const di = DAYS.indexOf(day);
+  for (let k = 1; k < 7; k++) {
+    for (const d of [DAYS[(di + k) % 7], DAYS[(di - k + 7) % 7]]) {
+      if (!(g.schedule || []).some((x) => x.day === d) && free(d, a)) return slot(d, a, 10000 + k);
+    }
+  }
+  return null;
+}
+/* Offer to move whichever of the two clashing classes needs the smaller move. */
+async function resolveClash(a, b, day) {
+  const best = [findFreeSlot(a, day), findFreeSlot(b, day)].filter(Boolean).sort((x, y) => x.cost - y.cost)[0];
+  if (!best) { toast("No free time found that day, or at the same time on another day", "err"); return; }
+  const g = groups[best.gi], cur = g.schedule.find((x) => x.day === day);
+  const span = (f, t) => f + (t ? "–" + t : "");
+  const where = best.day === day ? `to ${span(best.from, best.to)}` : `to ${best.day}, same time`;
+  if (!(await confirmDialog(`Move ${colDisplay(g)} on ${day} (${span(cur.from, cur.to)}) ${where}?\n\nIt is the nearest time that clashes with no other class. Save afterwards to keep it.`, { ok: "Move it" }))) return;
+  const before = g.schedule.map((x) => ({ ...x }));
+  g.schedule = g.schedule.filter((x) => x.day !== day).concat({ day: best.day, from: best.from, to: best.to })
+    .sort((x, y) => DAYS.indexOf(x.day) - DAYS.indexOf(y.day));
+  tableDirty = true; markUnsaved(); renderTable(); focusClash(best.gi, best.gi, best.day);
+  toast(`Moved ${colDisplay(g)} — save to keep it`, "ok", { label: "Undo", fn: () => { g.schedule = before; tableDirty = true; renderTable(); } });
+}
+
 /* ── comparing two schedules (used by Schedule history and the assistant's proposals) ── */
 /* What changes going from `before` to `after`. Groups are matched by id, then by name. */
 function diffSchedules(before, after) {

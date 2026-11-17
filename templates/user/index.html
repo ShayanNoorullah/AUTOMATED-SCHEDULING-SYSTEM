@@ -23,9 +23,9 @@
 </script>
 <link rel="preconnect" href="https://api.fontshare.com">
 <link href="https://api.fontshare.com/v2/css?f[]=satoshi@400,500,700,900&display=swap" rel="stylesheet">
-<link href="{{ url_for('static', filename='css/app.css') }}?v=poc65" rel="stylesheet"/>
+<link href="{{ url_for('static', filename='css/app.css') }}?v=poc66" rel="stylesheet"/>
 <link href="{{ url_for('static', filename='css/compat.css') }}?v=poc54" rel="stylesheet"/>
-<link href="{{ url_for('static', filename='css/dashboard.css') }}?v=poc58" rel="stylesheet"/>
+<link href="{{ url_for('static', filename='css/dashboard.css') }}?v=poc66" rel="stylesheet"/>
 <link href="{{ url_for('static', filename='css/components.css') }}?v=poc54" rel="stylesheet"/>
 <link href="{{ url_for('static', filename='css/visual-editor.css') }}?v=poc59" rel="stylesheet"/>
 <script>
@@ -424,6 +424,7 @@ window.SSIES_USER = {{ {"email": email|default(username), "display_name": userna
       <!-- ════ SEND HISTORY ════ -->
       <section class="view" id="view-history">
         <div class="cards" id="historyStats" style="margin-bottom:16px"></div>
+        <div id="historyChart"></div>
         <div class="toolbar list-toolbar">
           <div class="search-wrap" style="flex:1;max-width:300px">
             <svg class="search-ico" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
@@ -803,12 +804,13 @@ window.SSIES_USER = {{ {"email": email|default(username), "display_name": userna
           <button class="log-btn" type="button" onclick="clearStatusLog()" title="Clear log"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/></svg></button>
         </span>
       </div>
-      <div id="logLines"></div>
+      <div id="logLines" aria-live="polite"></div>
     </div>
   </div>
 
   <!-- Mobile bottom tab bar -->
   <nav class="tabbar" id="tabbar">
+    <button class="nav-item" data-view="dashboard" type="button" onclick="navGo('dashboard')"><span class="ico"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg></span><span class="lbl">Home</span></button>
     <button class="nav-item" data-view="groups" type="button" onclick="navGo('groups')"><span class="ico"><svg viewBox="0 0 24 24"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1"/></svg></span><span class="lbl">Groups</span></button>
     <button class="nav-item" data-view="table" type="button" onclick="navGo('table')"><span class="ico"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M3 15h18M9 3v18"/></svg></span><span class="lbl">Scheduler</span></button>
     <button class="nav-item" data-view="wa-auto" type="button" onclick="navGo('wa-auto')"><span class="ico"><svg viewBox="0 0 24 24"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg></span><span class="lbl">Send</span></button>
@@ -1012,9 +1014,9 @@ window.SSIES_USER = {{ {"email": email|default(username), "display_name": userna
 </dialog>
 
 
-<script src="{{ url_for('static', filename='js/chrome.js') }}?v=poc64"></script>
-<script src="{{ url_for('static', filename='js/theme.js') }}?v=poc54"></script>
-<script src="{{ url_for('static', filename='js/whatsapp.js') }}?v=poc60"></script>
+<script src="{{ url_for('static', filename='js/chrome.js') }}?v=poc66"></script>
+<script src="{{ url_for('static', filename='js/theme.js') }}?v=poc66"></script>
+<script src="{{ url_for('static', filename='js/whatsapp.js') }}?v=poc66"></script>
 <script src="{{ url_for('static', filename='js/waha.js') }}?v=poc63"></script>
 <script>
 const DAYS = {{ days | tojson }};
@@ -1131,7 +1133,9 @@ function showView(v){
 function _showView(v){
   document.querySelectorAll(".view").forEach(s=>s.classList.toggle("active", s.id===`view-${v}`));
   const navKey = v==="group-detail" ? "groups" : v==="contact-detail" ? "contacts" : v;
-  document.querySelectorAll(".nav-item[data-view]").forEach(b=>b.classList.toggle("active", b.dataset.view===navKey));
+  document.querySelectorAll(".nav-item[data-view]").forEach(b=>{ const on=b.dataset.view===navKey; b.classList.toggle("active", on); on?b.setAttribute("aria-current","page"):b.removeAttribute("aria-current"); });
+  const sec=document.getElementById(`view-${v}`);   // cards in this view fade in one after another (app.css .entering)
+  if(sec){ sec.classList.add("entering"); clearTimeout(sec._ent); sec._ent=setTimeout(()=>sec.classList.remove("entering"),700); }
   const meta = VIEW_META[v] || VIEW_META.groups;
   document.getElementById("pageTitle").textContent = meta.t;
   document.getElementById("pageDesc").textContent  = meta.d;
@@ -1356,7 +1360,11 @@ function normalize(g){g.schedule=(g.schedule||[]).map(e=>{
   return p.length===2?{day:e.day,from:p[0].trim(),to:p[1].trim()}:{day:e.day,from:t,to:""};});}
 function genMessage(s){const v=s.filter(e=>(e.from||"").trim());if(!v.length)return"";
   return ["*Note*","Schedule for this week:",...v.map(e=>`* ${e.day}: ${fmtTime(e)}`),"*Kindly Acknowledge*"].join("\n");}
-function messageFor(g){return (g.message&&g.message.trim())?g.message:genMessage(g.schedule);}
+/* baseMessage: what the editors show. messageFor: what is sent — the same, plus this week's
+   one-off changes when the message is the automatic one (withChangeNotes, exceptions.js). */
+function baseMessage(g){return (g.message&&g.message.trim())?g.message:genMessage(g.schedule||[]);}
+function autoMessage(g){const t=genMessage(g.schedule||[]);return typeof withChangeNotes==="function"?withChangeNotes(g,t):t;}
+function messageFor(g){return (g.message&&g.message.trim())?g.message:autoMessage(g);}
 function replaceTokens(t){
   const d=new Date();
   const date=d.toLocaleDateString(undefined,{day:"numeric",month:"long",year:"numeric"});
@@ -1526,7 +1534,7 @@ function selectGroup(i){
   const inv=document.getElementById("gInviteLink"); if(inv) inv.value=g.inviteLink||"";
   DAYS.forEach(day=>{const c=document.getElementById(`chk-${day}`),f=document.getElementById(`from-${day}`),t=document.getElementById(`to-${day}`);
     const e=g.schedule.find(x=>x.day===day); c.checked=!!e; f.disabled=t.disabled=!e; f.value=e?e.from||"":""; t.value=e?e.to||"":"";});
-  gMsgEdited=!!(g.message&&g.message.trim()); document.getElementById("gMsg").value=messageFor(g);
+  gMsgEdited=!!(g.message&&g.message.trim()); document.getElementById("gMsg").value=baseMessage(g);
   gShowEditor(); renderGroupList(); gValidateGroupName(); updateGroupPreview();
 }
 function newGroup(){ gSel=null; document.getElementById("gName").value="";
@@ -1730,7 +1738,7 @@ function renderGroupDetail(){
     <div class="detail-grid">
       <div class="sec"><div class="sec-h">Weekly schedule</div><div class="sec-b" style="padding:0">${gdEdit?`<div class="gd-tools"><span>Copy first day to</span><button class="chip-btn" type="button" onclick="gdCopyFirst(WEEKDAYS)">Weekdays</button><button class="chip-btn" type="button" onclick="gdCopyFirst(DAYS)">Every day</button><span class="gd-tools-sep">Length</span><button class="chip-btn" type="button" onclick="gdSetLength(60)">1h</button><button class="chip-btn" type="button" onclick="gdSetLength(90)">1.5h</button><button class="chip-btn" type="button" onclick="gdSetLength(120)">2h</button></div>`:""}<div class="sched-canvas" style="border:none;box-shadow:none"><table class="sched detail-sched"><tbody>${scheduleRows}</tbody></table></div></div></div>
       <div class="sec"><div class="sec-h">Message &amp; details</div><div class="sec-b">
-        ${gdEdit?`<div class="g-field" style="margin-bottom:14px"><div class="flabel">Invite link <span class="flabel-soft">optional</span></div><input class="field" value="${escA(g.inviteLink||"")}" oninput="gdSetField('inviteLink',this.value)" placeholder="https://chat.whatsapp.com/…"/></div><div class="g-field" style="margin-bottom:10px"><div class="flabel">Message</div><textarea class="field" id="gdMsg" style="min-height:150px" oninput="gdSetField('message',this.value)">${esc(messageFor(g))}</textarea><div class="gd-tools gd-msg-tools"><span>Insert</span><button class="chip-btn" type="button" onclick="gdInsertToken('{date}')">{date}</button><button class="chip-btn" type="button" onclick="gdInsertToken('{weekday}')">{weekday}</button><button class="chip-btn" type="button" title="Go back to the message generated from the schedule" onclick="gdAutoMessage()">Use automatic</button><span class="hint" id="gdMsgCount" style="margin:0 0 0 auto"></span></div></div>`:(g.inviteLink?'<div class="hint" style="margin:0 0 10px">Invite link set · opens the group directly.</div>':"")}
+        ${gdEdit?`<div class="g-field" style="margin-bottom:14px"><div class="flabel">Invite link <span class="flabel-soft">optional</span></div><input class="field" value="${escA(g.inviteLink||"")}" oninput="gdSetField('inviteLink',this.value)" placeholder="https://chat.whatsapp.com/…"/></div><div class="g-field" style="margin-bottom:10px"><div class="flabel">Message</div><textarea class="field" id="gdMsg" style="min-height:150px" oninput="gdSetField('message',this.value)">${esc(baseMessage(g))}</textarea><div class="gd-tools gd-msg-tools"><span>Insert</span><button class="chip-btn" type="button" onclick="gdInsertToken('{date}')">{date}</button><button class="chip-btn" type="button" onclick="gdInsertToken('{weekday}')">{weekday}</button><button class="chip-btn" type="button" title="Go back to the message generated from the schedule" onclick="gdAutoMessage()">Use automatic</button><span class="hint" id="gdMsgCount" style="margin:0 0 0 auto"></span></div></div>`:(g.inviteLink?'<div class="hint" style="margin:0 0 10px">Invite link set · opens the group directly.</div>':"")}
         <div class="msg-preview" id="gdPreview"></div>
       </div></div>
     </div>
@@ -2147,7 +2155,7 @@ function _setAcceptedClashes(s){ try{ localStorage.setItem("sched-accepted-clash
 function acceptClash(k){ k=decodeURIComponent(k); const s=acceptedClashes(); s.add(k); _setAcceptedClashes(s); refreshClashes(); }
 function unacceptClash(k){ k=decodeURIComponent(k); const s=acceptedClashes(); s.delete(k); _setAcceptedClashes(s); refreshClashes(); }
 function computeClashes(){ const acc=acceptedClashes(), pairs=[]; DAYS.forEach((day)=>{ const items=[]; groups.forEach((g,ci)=>{ const e=g.schedule.find((x)=>x.day===day); if(!e) return; const a=parseTimeMin(e.from); if(a==null) return; let b=parseTimeMin(e.to); if(b==null||b<=a) b=a+30; items.push({ci,a,b}); }); for(let i=0;i<items.length;i++) for(let j=i+1;j<items.length;j++){ if(items[i].a<items[j].b && items[j].a<items[i].b){ const ca=items[i].ci, cb=items[j].ci; const key=clashKey(day, groups[ca].name, groups[cb].name); pairs.push({day,a:ca,b:cb,key,accepted:acc.has(key)}); } } }); return {pairs}; }
-function refreshClashes(){ syncClashBtn(); document.querySelectorAll("[data-cell].cell-clash,[data-cell].cell-clash-ok").forEach((el)=>el.classList.remove("cell-clash","cell-clash-ok")); const banner=document.getElementById("clashBanner"); if(!clashOn){ if(banner) banner.innerHTML=""; return; } const {pairs}=computeClashes(); const warn=new Set(), okc=new Set(); pairs.forEach(p=>{ const ka=p.a+"|"+p.day, kb=p.b+"|"+p.day; if(p.accepted){ okc.add(ka); okc.add(kb); } else { warn.add(ka); warn.add(kb); } }); warn.forEach((key)=>{ const el=document.querySelector(`[data-cell="${key}"]`); if(el) el.classList.add("cell-clash"); }); okc.forEach((key)=>{ if(warn.has(key)) return; const el=document.querySelector(`[data-cell="${key}"]`); if(el) el.classList.add("cell-clash-ok"); }); if(!banner) return; const open=pairs.filter(p=>!p.accepted), accepted=pairs.filter(p=>p.accepted); if(!open.length && !accepted.length){ banner.innerHTML=`<div class="clash-bar ok"><span class="clash-ico">✓</span><span>No time clashes — every class has a distinct slot.</span></div>`; return; } let html=""; if(open.length){ const lines=open.map((p)=>`<span class="clash-pill clash-jump" title="Show these two in the table" onclick="focusClash(${p.a},${p.b},'${p.day}')">${esc(p.day.slice(0,3))}: ${esc(colDisplay(groups[p.a]))} ↔ ${esc(colDisplay(groups[p.b]))} <button class="clash-accept" type="button" title="Mark this overlap as acceptable" onclick="event.stopPropagation();acceptClash('${encodeURIComponent(p.key).replace(/'/g,'%27')}')">✓ Accept</button></span>`).join(""); html+=`<div class="clash-bar warn"><span class="clash-ico">⚠</span><div class="clash-body"><b>${open.length} time clash${open.length===1?"":"es"} detected</b><div class="clash-pills">${lines}</div></div></div>`; } if(accepted.length){ const lines=accepted.map((p)=>`<span class="clash-pill accepted">${esc(p.day.slice(0,3))}: ${esc(colDisplay(groups[p.a]))} ↔ ${esc(colDisplay(groups[p.b]))} <button class="clash-accept" type="button" title="Treat as a clash again" onclick="unacceptClash('${encodeURIComponent(p.key).replace(/'/g,'%27')}')">✕</button></span>`).join(""); html+=`<div class="clash-bar ok"${open.length?' style="margin-top:8px"':''}><span class="clash-ico">✓</span><div class="clash-body"><b>${accepted.length} accepted overlap${accepted.length===1?"":"s"}</b><div class="clash-pills">${lines}</div></div></div>`; } banner.innerHTML=html; }
+function refreshClashes(){ syncClashBtn(); document.querySelectorAll("[data-cell].cell-clash,[data-cell].cell-clash-ok").forEach((el)=>el.classList.remove("cell-clash","cell-clash-ok")); const banner=document.getElementById("clashBanner"); if(!clashOn){ if(banner) banner.innerHTML=""; return; } const {pairs}=computeClashes(); const warn=new Set(), okc=new Set(); pairs.forEach(p=>{ const ka=p.a+"|"+p.day, kb=p.b+"|"+p.day; if(p.accepted){ okc.add(ka); okc.add(kb); } else { warn.add(ka); warn.add(kb); } }); warn.forEach((key)=>{ const el=document.querySelector(`[data-cell="${key}"]`); if(el) el.classList.add("cell-clash"); }); okc.forEach((key)=>{ if(warn.has(key)) return; const el=document.querySelector(`[data-cell="${key}"]`); if(el) el.classList.add("cell-clash-ok"); }); if(!banner) return; const open=pairs.filter(p=>!p.accepted), accepted=pairs.filter(p=>p.accepted); if(!open.length && !accepted.length){ banner.innerHTML=`<div class="clash-bar ok"><span class="clash-ico">✓</span><span>No time clashes — every class has a distinct slot.</span></div>`; return; } let html=""; if(open.length){ const lines=open.map((p)=>`<span class="clash-pill clash-jump" role="button" tabindex="0" title="Show these two in the table" onclick="focusClash(${p.a},${p.b},'${p.day}')" onkeydown="if(event.key==='Enter')this.click()">${esc(p.day.slice(0,3))}: ${esc(colDisplay(groups[p.a]))} ↔ ${esc(colDisplay(groups[p.b]))} <button class="clash-accept" type="button" title="Move one of the two classes to the nearest free time" onclick="event.stopPropagation();resolveClash(${p.a},${p.b},'${p.day}')">Find a slot</button> <button class="clash-accept" type="button" title="Mark this overlap as acceptable" onclick="event.stopPropagation();acceptClash('${encodeURIComponent(p.key).replace(/'/g,'%27')}')">✓ Accept</button></span>`).join(""); html+=`<div class="clash-bar warn"><span class="clash-ico">⚠</span><div class="clash-body"><b>${open.length} time clash${open.length===1?"":"es"} detected</b><div class="clash-pills">${lines}</div></div></div>`; } if(accepted.length){ const lines=accepted.map((p)=>`<span class="clash-pill accepted">${esc(p.day.slice(0,3))}: ${esc(colDisplay(groups[p.a]))} ↔ ${esc(colDisplay(groups[p.b]))} <button class="clash-accept" type="button" title="Treat as a clash again" onclick="unacceptClash('${encodeURIComponent(p.key).replace(/'/g,'%27')}')">✕</button></span>`).join(""); html+=`<div class="clash-bar ok"${open.length?' style="margin-top:8px"':''}><span class="clash-ico">✓</span><div class="clash-body"><b>${accepted.length} accepted overlap${accepted.length===1?"":"s"}</b><div class="clash-pills">${lines}</div></div></div>`; } banner.innerHTML=html; }
 function showLog(){ const p=document.getElementById("statusPanel"); p.classList.remove("hidden"); p.classList.remove("collapsed"); syncLogCollapseBtn(); }
 function toggleStatusLog(){ const p=document.getElementById("statusPanel"); p.classList.toggle("collapsed"); syncLogCollapseBtn(); }
 function clearStatusLog(){ const l=document.getElementById("logLines"); if(l) l.innerHTML=""; toast("Status log cleared"); }
@@ -2166,7 +2174,7 @@ async function saveTable(){for(const g of groups)if(!g.name||!g.name.trim()){toa
   const d=await (await fetch("/api/groups",put({groups}))).json();if(d.error){toast(d.error,"err");return false;}
   await loadGroups();toast("Schedule saved ✓");return true;}
 async function releaseTable(){if(!(await saveTable()))return;
-  const t=groups.filter((g,ci)=>tableSelected[ci]).map(g=>({name:g.name,message:replaceTokens(genMessage(g.schedule))})).filter(x=>x.message.trim());
+  const t=groups.filter((g,ci)=>tableSelected[ci]).map(g=>({name:g.name,message:replaceTokens(autoMessage(g))})).filter(x=>x.message.trim());
   if(!t.length){toast("Select at least one group with timings","err");return;}
   doRelease(t,"relTblSpin","relTblBtn","relTblTxt","Send selected");}
 async function directTable(){if(!(await saveTable()))return;
@@ -2322,7 +2330,7 @@ function newContact(){
   cShowEditor(); renderContactList(); document.getElementById("cName").focus();
 }
 function cShowEditor(){document.getElementById("cEmpty").classList.add("hidden");document.getElementById("cBody").classList.remove("hidden");document.getElementById("cActions").classList.remove("hidden");}
-function cLoadGroup(i){if(i==="")return;document.getElementById("cMsg").value=replaceTokens(messageFor(groups[i]));document.getElementById("cGroupPick").value="";updateContactPreview();toast(`Loaded "${groups[i].name}" message`);}
+function cLoadGroup(i){if(i==="")return;document.getElementById("cMsg").value=replaceTokens(baseMessage(groups[i]));document.getElementById("cGroupPick").value="";updateContactPreview();toast(`Loaded "${groups[i].name}" message`);}
 function cInsertTemplate(i){if(i==="")return;document.getElementById("cMsg").value=replaceTokens(templates[i].content);document.getElementById("cTplPick").value="";updateContactPreview();toast("Template inserted");}
 function cBuild(){const name=document.getElementById("cName").value.trim();const phone=document.getElementById("cPhone").value.replace(/\D/g,"");
   if(!name){toast("Enter contact name","err");return null;}if(!phone){toast("Enter phone (digits, with country code)","err");return null;}
@@ -2711,15 +2719,15 @@ async function copyText(t){try{await navigator.clipboard.writeText(t);toast("Cop
 
 </script>
 <script src="{{ url_for('static', filename='js/lists.js') }}?v=poc63"></script>
-<script src="{{ url_for('static', filename='js/features.js') }}?v=poc63"></script>
+<script src="{{ url_for('static', filename='js/features.js') }}?v=poc66"></script>
 <script src="{{ url_for('static', filename='js/workspace.js') }}?v=poc60"></script>
-<script src="{{ url_for('static', filename='js/visual_editor.js') }}?v=poc59"></script>
+<script src="{{ url_for('static', filename='js/visual_editor.js') }}?v=poc66"></script>
 <script src="{{ url_for('static', filename='js/dashboard.js') }}?v=poc64"></script>
-<script src="{{ url_for('static', filename='js/scheduler.js') }}?v=poc62"></script>
+<script src="{{ url_for('static', filename='js/scheduler.js') }}?v=poc66"></script>
 <script src="{{ url_for('static', filename='js/palette.js') }}?v=poc62"></script>
 <script src="{{ url_for('static', filename='js/assistant.js') }}?v=poc65"></script>
 <script src="{{ url_for('static', filename='js/contacts.js') }}?v=poc63"></script>
-<script src="{{ url_for('static', filename='js/exceptions.js') }}?v=poc64"></script>
+<script src="{{ url_for('static', filename='js/exceptions.js') }}?v=poc66"></script>
 <script>boot();</script>
 </body>
 </html>

@@ -25,6 +25,26 @@ function slotOn(g, dateKey) {
   return usual || null;
 }
 
+/* Add this week's one-off changes for group g to its automatic schedule message, e.g.
+   "*Changes this week:*\n* Fri 20 Nov: class cancelled". Mirrors change_notes() on the
+   server, which does the same for scheduled weekly sends. */
+function withChangeNotes(g, text) {
+  if (!text || !g || g.id == null) return text;
+  const lines = [];
+  for (let i = 0; i < 7; i++) {
+    const key = dayKey(Date.now() + i * 864e5), s = slotOn(g, key);
+    if (!s || !(s.off || s.tag)) continue;
+    const d = new Date(key + "T00:00");
+    const when = `${d.toLocaleDateString("en-GB", { weekday: "short" })} ${d.getDate()} ${d.toLocaleDateString("en-GB", { month: "short" })}`;
+    const time = s.from + (s.to ? " - " + s.to : "");
+    lines.push(`* ${when}: ${s.off === "Day off" ? "no class (day off)" : s.off ? "class cancelled" : s.tag === "Extra class" ? "extra class " + time : "moved to " + time}`);
+  }
+  if (!lines.length) return text;
+  const out = text.split("\n"), block = ["*Changes this week:*", ...lines];
+  if (out[out.length - 1] === "*Kindly Acknowledge*") out.splice(out.length - 1, 0, ...block); else out.push(...block);
+  return out.join("\n");
+}
+
 function exceptionLabel(x) {
   const d = new Date(x.date + "T00:00").toLocaleDateString(undefined, { weekday: "short", day: "numeric", month: "short" });
   const time = x.from + (x.to ? "–" + x.to : "");

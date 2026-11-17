@@ -54,6 +54,22 @@ def main():
     assert all(len(l.encode("utf-8")) <= 75 for l in long_name.split("\r\n"))
     assert "Ω" * 120 in long_name.replace("\r\n ", "")                              # folding loses nothing
 
+    # ── "Changes this week" lines for the automatic message ──
+    week = [ex(1, "cancel", day="2026-11-16"),                    # Monday, has a class
+            ex(1, "move", "6:00pm", "7:00pm", day="2026-11-20"),  # Friday
+            ex(1, "extra", "9:00am", day="2026-11-18"),           # Wednesday, no usual class
+            ex(None, day="2026-11-21"),                           # Saturday holiday — group has no class then
+            ex(2, "cancel", day="2026-11-20"),                    # another group's change
+            ex(1, "cancel", day="2026-11-23")]                    # next Monday: outside the 7 days
+    lines = x.change_notes(SCHED, 1, week, date(2026, 11, 16))
+    assert lines == ["* Mon 16 Nov: class cancelled", "* Wed 18 Nov: extra class 9:00am",
+                     "* Fri 20 Nov: moved to 6:00pm - 7:00pm"], lines
+    assert x.change_notes(SCHED, 1, [ex(None, day="2026-11-16")], date(2026, 11, 16)) == ["* Mon 16 Nov: no class (day off)"]
+    msg = "*Note*\nSchedule for this week:\n* Monday: 3:00pm - 4:30pm\n*Kindly Acknowledge*"
+    assert x.add_change_notes(msg, lines[:1]).split("\n")[-3:] == ["*Changes this week:*", "* Mon 16 Nov: class cancelled", "*Kindly Acknowledge*"]
+    assert x.add_change_notes(msg, []) == msg
+    assert x.add_change_notes("Custom text", ["* a"]) == "Custom text\n*Changes this week:*\n* a"
+
     # ── link token: stable per user, different per user and per secret ──
     t = x.feed_token("secret", "user-1")
     assert len(t) == 32 and t == x.feed_token("secret", "user-1")
@@ -68,6 +84,26 @@ def main():
         assert claim_reminder("u|1|2026-11-16|3:00pm") is True
         assert claim_reminder("u|1|2026-11-16|3:00pm") is False
         assert claim_reminder("u|1|2026-11-17|3:00pm") is True
+
+        # the scheduled weekly send adds this week's changes to the automatic message only
+        import uuid
+        from datetime import timedelta
+        from app.crypto import enc
+        from app.models import Group, ScheduleException
+        from app.services.scheduler import _targets_for_user
+        uid = uuid.uuid4()
+        today = datetime.utcnow() + timedelta(minutes=300)                       # default timezone setting
+        day = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"][today.weekday()]
+        auto = Group(user_id=uid, name="Auto", schedule=[{"day": day, "from": "3:00pm", "to": "4:00pm"}], message_enc=enc(""), position=0)
+        own = Group(user_id=uid, name="Own", schedule=[{"day": day, "from": "5:00pm", "to": ""}], message_enc=enc("My words"), position=1)
+        db.session.add_all([auto, own]); db.session.commit()
+        for g in (auto, own):
+            db.session.add(ScheduleException(user_id=uid, group_id=g.id, date=today.date().isoformat(), kind="cancel"))
+        db.session.commit()
+        sent = {t["name"]: t["message"] for t in _targets_for_user(uid)}
+        assert "*Changes this week:*" in sent["Auto"] and "class cancelled" in sent["Auto"], sent["Auto"]
+        assert sent["Auto"].endswith("*Kindly Acknowledge*")
+        assert sent["Own"] == "My words"
     print("ok")
 
 

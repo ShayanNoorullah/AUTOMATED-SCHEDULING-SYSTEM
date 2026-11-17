@@ -120,6 +120,20 @@ function dayLabel(key) {
   const today = dayKey(Date.now()), yest = dayKey(Date.now() - 864e5);
   return key === today ? "Today" : key === yest ? "Yesterday" : new Date(key + "T00:00").toLocaleDateString(undefined, { weekday: "long", day: "numeric", month: "long" });
 }
+/* Last 14 days as stacked bars (delivered under failed). Click a day to filter the table to it. */
+function renderHistoryChart(all) {
+  const el = document.getElementById("historyChart"); if (!el) return;
+  const days = [];
+  for (let i = 13; i >= 0; i--) { const d = new Date(Date.now() - i * 864e5); days.push({ key: dayKey(d), d, ok: 0, bad: 0 }); }
+  const by = Object.fromEntries(days.map((x) => [x.key, x]));
+  all.forEach((r) => { const x = by[dayKey(r.at || r.created_at)]; if (x) r.status === "success" ? x.ok++ : x.bad++; });
+  if (!days.some((x) => x.ok + x.bad)) { el.innerHTML = ""; return; }
+  const max = Math.max(...days.map((x) => x.ok + x.bad)), today = dayKey(Date.now());
+  el.innerHTML = `<div class="sec hchart-sec"><div class="sec-h">Last 14 days<span class="hchart-key"><i class="ok"></i>Delivered<i class="bad"></i>Failed</span></div><div class="sec-b"><div class="hchart">${days.map((x, i) => {
+    const label = `${x.d.toLocaleDateString(undefined, { weekday: "short", day: "numeric", month: "short" })}: ${x.ok} delivered, ${x.bad} failed`;
+    return `<button type="button" class="hchart-col${x.key === today ? " today" : ""}" style="--i:${i}" title="${label}" aria-label="${label}" onclick="historyShowDay('${x.key}')"><span class="hchart-bar">${x.bad ? `<i class="bad" style="height:${(x.bad / max) * 100}%"></i>` : ""}${x.ok ? `<i class="ok" style="height:${(x.ok / max) * 100}%"></i>` : ""}</span><span class="hchart-lbl">${x.d.getDate()}</span></button>`;
+  }).join("")}</div></div></div>`;
+}
 /* Open Send History filtered to one calendar day (used by the dashboard's activity bars). */
 function historyShowDay(key) {
   document.getElementById("historyFrom").value = key; document.getElementById("historyTo").value = key;
@@ -171,6 +185,7 @@ async function loadReleaseHistory() {
   try {
     const d = await (await fetch("/api/release-history?limit=200")).json();
     const all = Array.isArray(d) ? d : d.items || d.rows || [];
+    renderHistoryChart(all);
 
     const stats = document.getElementById("historyStats");
     if (stats) {

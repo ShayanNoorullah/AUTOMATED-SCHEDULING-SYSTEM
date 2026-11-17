@@ -8,6 +8,39 @@ Audit date: 2026-11-16. Scope: everything under `templates/user/` plus the CSS/J
 yet; once one is added it becomes primary and the local model is the fallback. The
 assistant has never talked to a real hosted provider — see "Before first use" below.
 
+- **Phase 7** (2026-11-17, not yet deployed) — done:
+  - Motion: one pill slides between options in every segmented control and the settings
+    tabs; settings tabs run down the left on wide screens; the light/dark toggle spreads the
+    new theme out in a circle from the button; cards fade in one after another when a page
+    opens; template card actions appear on hover (always shown on touch screens).
+  - Phone tab bar: Home added; it slides away while scrolling down and returns on scroll up.
+  - Accessibility: `aria-current` on the active page, icon-only buttons named from their
+    tooltip, the status log is announced, focus rings on controls added in later phases,
+    clash pills usable from the keyboard.
+  - Clashes: "Find a slot" moves whichever class needs the smaller move to the nearest time
+    that clashes with nothing (same day first, then the same time on another day), with Undo.
+  - Send History: last-14-days chart (delivered / failed); click a day to filter to it.
+  - Open in WhatsApp: "Add link" saves a missing invite link in place.
+  - Visual Editor: Redo (button, Ctrl+Shift+Z, Ctrl+Y).
+  - Sent schedule messages: the automatic message gets a "Changes this week" block for the
+    next 7 days' one-off changes and days off — manual sends and scheduled weekly sends alike.
+    Custom messages are left as written; editors still show the plain message.
+  - Fixes: Copy / Open in "Open in WhatsApp" did nothing for names with an apostrophe;
+    the top bar's scroll shadow never appeared on the dashboard (it scrolls inside
+    `.content`, not the window).
+- **Still not done after Phase 7**, by kind:
+  - Needs live WhatsApp data to build and test: messaging the assistant from WhatsApp;
+    tracking who acknowledged a message.
+  - Data-model changes: teachers and rooms as first-class fields; scheduled one-time
+    messages (a new automatic send path); group import from a spreadsheet.
+  - Larger interaction work: Workspace drag/resize and widget gallery; Scheduler drag a
+    slot, fill handle, board day-lanes, notes slide-over, toolbar overflow menu; Visual
+    Editor snap guides, zoom, mini-map, touch mode; Groups multi-select and inline rename;
+    lists drag-between and emoji picker; contact avatar crop.
+  - Smaller polish: Profile as an in-app view; Settings live preview pane; QR countdown
+    ring; pause/cancel during a send; History infinite scroll; replacing the 43 hard-coded
+    colours in `app.css` with tokens.
+
 - **Phase 6** — done:
   - One-off changes and holidays: a class cancelled, moved or added for one date, or a day
     off for every group. The weekly timetable is not edited. Class reminders, the

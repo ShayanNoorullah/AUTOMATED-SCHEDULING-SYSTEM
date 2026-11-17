@@ -248,3 +248,70 @@ window.rejectReq = rejectReq;
 if ("serviceWorker" in navigator && location.protocol === "https:") {
   addEventListener("load", () => { navigator.serviceWorker.register("/sw.js").catch(() => {}); });
 }
+
+/* ── Sliding indicator for segmented controls and settings tabs ──
+   The selected button keeps its .on class; a pill behind the buttons (styled in
+   dashboard.css) moves to it. A MutationObserver drives it, so every existing code path
+   that toggles .on animates without being changed. */
+const IND_SEL = ".seg, .settings-tabs";
+const indQueue = new Set();
+function placeIndicator(box) {
+  const on = box.querySelector(":scope > .on");
+  if (!on || !box.offsetWidth) { box.classList.remove("has-ind"); return; }
+  box.style.setProperty("--ind-x", on.offsetLeft + "px");
+  box.style.setProperty("--ind-y", on.offsetTop + "px");
+  box.style.setProperty("--ind-w", on.offsetWidth + "px");
+  box.style.setProperty("--ind-h", on.offsetHeight + "px");
+  box.classList.add("has-ind");
+}
+function queueIndicator(box) {
+  if (!indQueue.size) requestAnimationFrame(() => { indQueue.forEach(placeIndicator); indQueue.clear(); });
+  indQueue.add(box);
+}
+function queueAllIndicators(root = document) { root.querySelectorAll(IND_SEL).forEach(queueIndicator); }
+
+/* Icon-only buttons get a spoken name from their tooltip (screen readers skip the title). */
+function labelIconButtons(root) {
+  const els = root.matches && root.matches("button, a") ? [root] : [...(root.querySelectorAll ? root.querySelectorAll("button, a[title]") : [])];
+  els.forEach((b) => {
+    if (b.hasAttribute("aria-label")) return;
+    const text = b.textContent.trim();
+    if (text && !/^[^\p{L}\p{N}]{1,3}$/u.test(text)) return;          // has real words already
+    const name = b.getAttribute("title") || (b.classList.contains("modal-x") ? "Close" : "");
+    if (name) b.setAttribute("aria-label", name);
+  });
+}
+
+new MutationObserver((muts) => {
+  for (const m of muts) {
+    if (m.type === "attributes") {
+      const t = m.target, box = t.parentElement;
+      if (box && box.matches(IND_SEL)) queueIndicator(box);
+      else if (t.matches(".view, .stab-panel, .settings-wrap")) queueAllIndicators(t);   // just became visible
+    } else {
+      m.addedNodes.forEach((n) => {
+        if (n.nodeType !== 1) return;
+        if (n.matches(IND_SEL)) queueIndicator(n); else queueAllIndicators(n);
+        labelIconButtons(n);
+      });
+    }
+  }
+}).observe(document.documentElement, { subtree: true, childList: true, attributes: true, attributeFilter: ["class"] });
+addEventListener("DOMContentLoaded", () => { queueAllIndicators(); labelIconButtons(document.body); });
+addEventListener("resize", () => queueAllIndicators());
+if (document.fonts) document.fonts.ready.then(() => queueAllIndicators());   // web font changes button widths
+
+/* Phone tab bar: slide away while scrolling down, come back on any scroll up. */
+(function () {
+  let last = 0;
+  // the dashboard scrolls inside .content, other pages scroll the window; scroll events do
+  // not bubble, so listen in the capture phase and look only at those two
+  addEventListener("scroll", (e) => {
+    const el = e.target === document ? document.scrollingElement : e.target;
+    if (!el || !(el === document.scrollingElement || el.classList.contains("content"))) return;
+    const y = el.scrollTop;
+    if (Math.abs(y - last) < 8) return;
+    document.documentElement.classList.toggle("tabbar-hidden", y > last && y > 120);
+    last = y;
+  }, { passive: true, capture: true });
+})();

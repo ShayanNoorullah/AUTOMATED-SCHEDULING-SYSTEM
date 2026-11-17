@@ -77,8 +77,12 @@ function applyTheme() {
 
 function setMode(m) { localStorage.setItem(THEME_KEYS.mode, m); applyTheme(); }
 function quickToggleTheme() {
-  const cur = document.documentElement.getAttribute("data-theme");
-  setMode(cur === "dark" ? "light" : "dark");
+  const html = document.documentElement, cur = html.getAttribute("data-theme");
+  const go = () => setMode(cur === "dark" ? "light" : "dark");
+  // the new theme spreads out in a circle from the toggle button (app.css: data-vt="theme")
+  const r = document.getElementById("quickTheme")?.getBoundingClientRect();
+  if (r) { html.style.setProperty("--rx", `${r.left + r.width / 2}px`); html.style.setProperty("--ry", `${r.top + r.height / 2}px`); }
+  typeof vt === "function" ? vt(go, "theme") : go();
 }
 function setAccent(c) { localStorage.setItem(THEME_KEYS.accent, c); applyTheme(); }
 function resetAccent() { localStorage.removeItem(THEME_KEYS.accent); applyTheme(); }
@@ -332,11 +336,14 @@ function switchPortal(href, isCurrent) { if (isCurrent === "true") return; locat
 
 /* Scroll-aware sticky bars — add a subtle shadow once the page scrolls */
 function initScrollShadow() {
-  const update = () => {
-    const y = (document.scrollingElement || document.documentElement).scrollTop || window.scrollY || 0;
-    document.documentElement.classList.toggle("is-scrolled", y > 4);
+  // the dashboard scrolls inside .content, other pages scroll the window; scroll events do not
+  // bubble, so listen in the capture phase and read whichever of the two scrolled
+  const update = (e) => {
+    const t = e && e.target && e.target !== document ? e.target : document.scrollingElement || document.documentElement;
+    if (t !== (document.scrollingElement || document.documentElement) && !t.classList.contains("content")) return;
+    document.documentElement.classList.toggle("is-scrolled", t.scrollTop > 4);
   };
-  window.addEventListener("scroll", update, { passive: true });
+  window.addEventListener("scroll", update, { passive: true, capture: true });
   update();
 }
 

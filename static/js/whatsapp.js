@@ -74,19 +74,23 @@ async function renderDirectPanel(force) {
   waCache.at = Date.now();
 
   if (gList) {
-    const filtered = waCache.links.groups.filter((g) => !q || g.name.toLowerCase().includes(q));
+    // rows carry the index into `groups`: names in inline handlers broke on an apostrophe ("O'LEVEL …")
+    const filtered = waCache.links.groups.map((g, i) => ({ ...g, i })).filter((g) => !q || g.name.toLowerCase().includes(q));
     gList.innerHTML = !filtered.length
       ? '<p class="hint">No groups match. Add groups with optional invite links.</p>'
       : filtered
           .map((g) => {
             const preview = esc((g.message || "").slice(0, 80)) + ((g.message || "").length > 80 ? "…" : "");
-            return `<div class="wa-row"><div class="nm">${esc(g.name)}<div class="sub">${g.inviteLink ? "Invite link set" : "No invite link — opens WhatsApp Web"}</div><div class="preview">${preview || "<em>No message</em>"}</div></div><div class="wa-row-actions"><button class="btn btn-ghost btn-sm" onclick="copyDirectMessage('group','${escA(g.name)}')">Copy</button><button class="btn btn-soft btn-sm" onclick="openDirectGroupByName('${escA(g.name)}')">Open</button></div></div>`;
+            const link = g.inviteLink
+              ? '<span class="status-on">Invite link set</span>'
+              : `<span class="status-off">No invite link — opens WhatsApp Web</span><button class="chip-btn wa-add-link" type="button" onclick="addInviteLink(${g.i})">Add link</button>`;
+            return `<div class="wa-row"><div class="nm">${esc(g.name)}<div class="sub">${link}</div><div class="preview">${preview || "<em>No message</em>"}</div></div><div class="wa-row-actions"><button class="btn btn-ghost btn-sm" onclick="copyDirectMessage('group',groups[${g.i}].name)">Copy</button><button class="btn btn-soft btn-sm" onclick="openDirectGroupByName(groups[${g.i}].name)">Open</button></div></div>`;
           })
           .join("");
   }
 
   if (cList) {
-    const filtered = waCache.links.contacts.filter(
+    const filtered = waCache.links.contacts.map((c, i) => ({ ...c, i })).filter(
       (c) => !q || c.name.toLowerCase().includes(q) || (c.phone || "").includes(q)
     );
     cList.innerHTML = !filtered.length
@@ -94,10 +98,28 @@ async function renderDirectPanel(force) {
       : filtered
           .map((c) => {
             const preview = esc((c.message || "").slice(0, 80)) + ((c.message || "").length > 80 ? "…" : "");
-            return `<div class="wa-row"><div class="nm">${esc(c.name)}<div class="sub">+${esc(c.phone || "")}</div><div class="preview">${preview || "<em>No message</em>"}</div></div><div class="wa-row-actions"><button class="btn btn-ghost btn-sm" onclick="copyDirectMessage('contact','${escA(c.name)}')">Copy</button><button class="btn btn-soft btn-sm" onclick="openDirectContactByName('${escA(c.name)}')">Open</button></div></div>`;
+            return `<div class="wa-row"><div class="nm">${esc(c.name)}<div class="sub">+${esc(c.phone || "")}</div><div class="preview">${preview || "<em>No message</em>"}</div></div><div class="wa-row-actions"><button class="btn btn-ghost btn-sm" onclick="copyDirectMessage('contact',contacts[${c.i}].name)">Copy</button><button class="btn btn-soft btn-sm" onclick="openDirectContactByName(contacts[${c.i}].name)">Open</button></div></div>`;
           })
           .join("");
   }
+}
+
+/* Save an invite link for one group without leaving this page. */
+async function addInviteLink(i) {
+  const g = groups[i];
+  if (!g) return;
+  // the server addresses groups by position, so unsaved reordering in the Scheduler would hit the wrong row
+  if (typeof schedUnsaved !== "undefined" && schedUnsaved) { toast("Save your Scheduler changes first", "err"); return; }
+  const link = await promptDialog(`WhatsApp invite link for ${g.name}`, "", { ok: "Save link" });
+  if (!link || !link.trim()) return;
+  const body = { name: g.name, nickname: g.nickname || "", schedule: g.schedule || [], message: g.message || "",
+    lastReleased: g.lastReleased || "", inviteLink: link.trim() };
+  const res = await fetch(`/api/groups/${i}`, put(body));
+  const d = await res.json().catch(() => ({}));
+  if (!res.ok || d.error) { toast(d.error || "Could not save the link", "err"); return; }
+  await loadGroups();
+  renderDirectPanel(true);
+  toast("Invite link saved ✓", "ok");
 }
 
 async function copyDirectMessage(type, name) {

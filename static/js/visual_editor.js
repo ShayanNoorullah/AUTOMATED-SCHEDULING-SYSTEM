@@ -29,6 +29,7 @@
   let veDayIdx = todayIdx();   // day view: selected day
   let drag = null, movedFlag = false;
   const undoStack = [];        // snapshots of veItems for Ctrl+Z / Undo button
+  const redoStack = [];        // snapshots undone, for Ctrl+Shift+Z / Ctrl+Y / Redo button
   let GEO = { mode: "vgrid" }; // vgrid | hgrid | day | rooms | none — drives pointer→(day,hour)
   let _rowTops = [], _rowDays = []; // hgrid: pixel top + day name per row (for drag)
   let _roomCols = [];               // rooms view: room key per column (for drag → reassign)
@@ -40,9 +41,13 @@
   function nowHour() { const n = new Date(); return n.getHours() + n.getMinutes() / 60; }
 
   function snapshot() { return veItems.map((i) => ({ ...i })); }
-  function pushUndo() { undoStack.push(snapshot()); if (undoStack.length > 40) undoStack.shift(); refreshUndo(); }
-  function veUndo() { if (!undoStack.length) return; veItems = undoStack.pop(); render(); refreshUndo(); }
-  function refreshUndo() { const b = document.getElementById("veUndoBtn"); if (b) b.disabled = !undoStack.length; }
+  function pushUndo() { undoStack.push(snapshot()); if (undoStack.length > 40) undoStack.shift(); redoStack.length = 0; refreshUndo(); }
+  function veUndo() { if (!undoStack.length) return; redoStack.push(snapshot()); veItems = undoStack.pop(); render(); refreshUndo(); }
+  function veRedo() { if (!redoStack.length) return; undoStack.push(snapshot()); veItems = redoStack.pop(); render(); refreshUndo(); }
+  function refreshUndo() {
+    const b = document.getElementById("veUndoBtn"); if (b) b.disabled = !undoStack.length;
+    const r = document.getElementById("veRedoBtn"); if (r) r.disabled = !redoStack.length;
+  }
 
   function savePrefs() { try { localStorage.setItem("ve-view", veView); localStorage.setItem("ve-swap", veSwap ? "1" : "0"); } catch (e) {} }
   function loadPrefs() { try { const v = localStorage.getItem("ve-view"); if (["week", "compact", "day", "rooms", "agenda"].includes(v)) veView = v; veSwap = localStorage.getItem("ve-swap") === "1"; } catch (e) {} }
@@ -548,7 +553,7 @@
     if (dup) { it.a = drag.a0; it.b = drag.b0; veToast("That group already has a class that day"); }
     const pre = drag.pre; drag = null;
     if (!movedFlag) { openForm(it); return; }
-    undoStack.push(pre); if (undoStack.length > 40) undoStack.shift(); refreshUndo();
+    undoStack.push(pre); if (undoStack.length > 40) undoStack.shift(); redoStack.length = 0; refreshUndo();
     render();
   }
 
@@ -640,7 +645,7 @@
   function openEditor() {
     if (typeof groups === "undefined" || !groups || !groups.length) { veToast("Add a group first"); return; }
     veItems = buildItems();
-    winAuto = true; undoStack.length = 0; veDayIdx = todayIdx();
+    winAuto = true; undoStack.length = 0; redoStack.length = 0; veDayIdx = todayIdx();
     loadRooms();
     loadPrefs();
     [veStart, veEnd] = computeWindow();
@@ -668,10 +673,12 @@
       const rd = document.getElementById("veRoomsDlg"); if (rd && rd.open) { rd.close ? rd.close() : (rd.open = false); return; }
       closeEditor(); return;
     }
-    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "z") {
+    const k = e.key.toLowerCase();
+    if ((e.ctrlKey || e.metaKey) && (k === "z" || k === "y")) {
       if (anyDlgOpen()) return;
       if (/^(input|select|textarea)$/i.test(e.target.tagName)) return;
-      e.preventDefault(); veUndo();
+      e.preventDefault();
+      if (k === "y" || e.shiftKey) veRedo(); else veUndo();
     }
   }
 
@@ -684,6 +691,7 @@
           <div class="ve-clash ok" id="veClash"></div>
           <div class="ve-actions">
             <button class="btn btn-ghost btn-sm" type="button" id="veUndoBtn" title="Undo (Ctrl+Z)" disabled>↶ Undo</button>
+            <button class="btn btn-ghost btn-sm" type="button" id="veRedoBtn" title="Redo (Ctrl+Shift+Z)" disabled>↷ Redo</button>
             <button class="btn btn-ghost btn-sm" type="button" id="vePrintBtn" title="Print timetable">Print</button>
             <button class="btn btn-ghost btn-sm" type="button" id="veCloseBtn">Close</button>
             <button class="btn btn-primary btn-sm" type="button" id="veSaveBtn">Save &amp; apply</button>
@@ -743,6 +751,7 @@
     ov.querySelector("#veCloseBtn").onclick = closeEditor;
     ov.querySelector("#veSaveBtn").onclick = veSave;
     ov.querySelector("#veUndoBtn").onclick = veUndo;
+    ov.querySelector("#veRedoBtn").onclick = veRedo;
     ov.querySelector("#vePrintBtn").onclick = vePrint;
     ov.querySelectorAll("#veViewSeg button").forEach((b) => (b.onclick = () => setView(b.dataset.v)));
     ov.querySelector("#veSwapBtn").onclick = () => { veSwap = !veSwap; render(); };

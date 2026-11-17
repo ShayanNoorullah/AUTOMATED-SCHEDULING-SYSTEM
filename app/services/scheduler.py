@@ -57,10 +57,15 @@ def job_due(job: ScheduledJob, now: datetime) -> bool:
 
 
 def _targets_for_user(user_id):
+    from app.services.schedule_extras import add_change_notes, change_notes
     rows = Group.query.filter_by(user_id=user_id).order_by(Group.position).all()
+    start = (datetime.utcnow() + timedelta(minutes=_reminder_cfg()["tz"])).date()   # the user's "today"
+    changes = [{"group_id": x.group_id, "date": x.date, "kind": x.kind, "from_time": x.from_time, "to_time": x.to_time}
+               for x in ScheduleException.query.filter_by(user_id=user_id).all()]
     targets = []
     for g in rows:
-        msg = dec(g.message_enc) or format_message(g.schedule)
+        # a custom message is the user's own words; only the automatic one gets this week's changes
+        msg = dec(g.message_enc) or add_change_notes(format_message(g.schedule), change_notes(g.schedule, g.id, changes, start))
         if msg.strip():
             targets.append({"name": g.name, "message": msg})
     return targets

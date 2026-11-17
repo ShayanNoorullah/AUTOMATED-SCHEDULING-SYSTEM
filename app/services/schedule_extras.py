@@ -35,6 +35,47 @@ def effective_slot(schedule, day_name, group_id, exceptions):
     return {"from": e["from"], "to": e.get("to") or ""} if e else None
 
 
+def change_notes(schedule, group_id, exceptions, start, days=7):
+    """Lines describing one group's one-off changes from ``start`` for ``days`` days.
+
+    Mirrors withChangeNotes() in static/js/exceptions.js. A day off or a cancellation is only
+    mentioned when the group usually has a class that day.
+    """
+    lines = []
+    for i in range(days):
+        d = start + timedelta(days=i)
+        key, day = d.isoformat(), DAYS[d.weekday()]
+        todays = [x for x in exceptions if x["date"] == key]
+        mine = [x for x in todays if x["group_id"] == group_id]
+        usual = any(e.get("day") == day and (e.get("from") or "").strip() for e in schedule or [])
+        when = f"{d:%a} {d.day} {d:%b}"
+        if any(x["group_id"] is None for x in todays):
+            if usual:
+                lines.append(f"* {when}: no class (day off)")
+            continue
+        if any(x["kind"] == "cancel" for x in mine):
+            if usual:
+                lines.append(f"* {when}: class cancelled")
+            continue
+        moved = next((x for x in mine if x["kind"] in ("move", "extra") and x.get("from_time")), None)
+        if moved:
+            time = moved["from_time"] + (f" - {moved['to_time']}" if moved.get("to_time") else "")
+            lines.append(f"* {when}: {'extra class' if moved['kind'] == 'extra' else 'moved to'} {time}")
+    return lines
+
+
+def add_change_notes(message, lines):
+    """Put the lines under "*Changes this week:*", before the closing "*Kindly Acknowledge*"."""
+    if not lines or not message:
+        return message
+    out, block = message.split("\n"), ["*Changes this week:*", *lines]
+    if out[-1] == "*Kindly Acknowledge*":
+        out[-1:-1] = block
+    else:
+        out += block
+    return "\n".join(out)
+
+
 def _minutes(s):
     m = re.match(r"^(\d{1,2})(?::(\d{2}))?\s*(am|pm)?$", str(s or "").strip().lower())
     if not m:
