@@ -98,8 +98,27 @@
     try { saved = JSON.parse(localStorage.getItem("ve-rooms") || "[]"); } catch (e) {}
     const seen = []; const add = (s) => { s = (s || "").trim(); if (s && !seen.includes(s)) seen.push(s); };
     (Array.isArray(saved) ? saved : []).forEach(add);
-    veItems.forEach((i) => add(i.room));           // never lose a room already assigned in the data
+    veItems.forEach((i) => splitRooms(i.room).forEach(add));   // never lose a room already assigned in the data
     veRooms = seen;
+  }
+  /* A class can use more than one room; they are stored together as "Lab 1, Lab 2". */
+  const splitRooms = (s) => String(s || "").split(",").map((x) => x.trim()).filter(Boolean);
+  const inRoom = (it, r) => splitRooms(it.room).includes(r);
+  // rooms nobody else uses at that time, the rooms this group already uses most first
+  function freeRooms(it, skip) {
+    const use = (r) => veItems.filter((o) => o !== skip && o.gi === it.gi && inRoom(o, r)).length;
+    return veRooms.filter((r) => !veItems.some((o) => o !== skip && overlaps(o, it) && inRoom(o, r)))
+      .sort((x, y) => use(y) - use(x));
+  }
+  // classes that still have no room while rooms are in use
+  function unplaced() { return veRooms.length ? veItems.filter((i) => !splitRooms(i.room).length) : []; }
+  // give every class without a room a free one; returns how many were placed
+  function autoAssignRooms() {
+    const DG = days(); let n = 0;
+    unplaced().sort((x, y) => DG.indexOf(x.day) - DG.indexOf(y.day) || x.a - y.a).forEach((it) => {
+      const free = freeRooms(it, it); if (free.length) { it.room = free[0]; n++; }
+    });
+    return n;
   }
   function persistRooms() { try { localStorage.setItem("ve-rooms", JSON.stringify(veRooms)); } catch (e) {} }
   function computeWindow() {
@@ -137,11 +156,14 @@
     return false;
   }
   // same rule as the Scheduler: different rooms or different teachers make an overlap fine
-  const clashing = (x, y) => overlaps(x, y) && (typeof clashReason !== "function" || !!clashReason(x, y)) && !pairAccepted(x, y);
+  const rawClash = (x, y) => x !== y && overlaps(x, y) && (typeof clashReason !== "function" || !!clashReason(x, y));
+  const clashing = (x, y) => rawClash(x, y) && !pairAccepted(x, y);
   function hasClash(it) { return veItems.some((o) => o !== it && clashing(o, it)); }
-  // two classes in the same (non-empty) room at an overlapping time = a room double-booking
-  const roomClash = (x, y) => x !== y && x.day === y.day && !!x.room && x.room === y.room && x.a < y.b && y.a < x.b;
-  function hasRoomClash(it) { return !!it.room && veItems.some((o) => roomClash(o, it)); }
+  // two overlapping classes sharing a room = a room double-booking, unless the user allowed it
+  const sharedRooms = (x, y) => splitRooms(x.room).filter((r) => inRoom(y, r));
+  const rawRoomClash = (x, y) => x !== y && overlaps(x, y) && sharedRooms(x, y).length > 0;
+  const roomClash = (x, y) => rawRoomClash(x, y) && !pairAccepted(x, y);
+  function hasRoomClash(it) { return veItems.some((o) => roomClash(o, it)); }
 
   /* lane packing so overlapping classes sit side by side */
   function packLanes(items) {
@@ -273,8 +295,7 @@
   function renderRoomsMatrix(head, body) {
     GEO = { mode: "roomsgrid" };
     const DG = days(), span = veEnd - veStart, laneH = LANE_H, pad = 4, gap = 8, blockH = laneH - gap;
-    const hasUnassigned = veItems.some((i) => !i.room);
-    const rooms = veRooms.slice().sort((a, b) => a.localeCompare(b, undefined, { numeric: true })).concat(hasUnassigned ? [""] : []);   // "" = Unassigned sub-row
+    const rooms = veRooms.slice().sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
     const subH = (lanes) => Math.max(1, lanes) * laneH + 2 * pad;
 
     head.className = "ve-head ve-head-h ve-head-rm";
@@ -290,13 +311,13 @@
     DG.forEach((day) => {
       const dayTop = top, isToday = day === todayName();
       rooms.forEach((room, ri) => {
-        const items = packLanes(veItems.filter((i) => i.day === day && (i.room || "") === room));
+        const items = packLanes(veItems.filter((i) => i.day === day && inRoom(i, room)));
         const h = subH(items.length ? items[0]._lanes : 1);
         _subRows.push({ top: top, h: h, day: day, room: room });
         const band = el("div", "ve-rm-sub" + (ri % 2 ? " alt" : "")); band.style.top = top + "px"; band.style.height = h + "px"; canvas.appendChild(band);
-        const rl = el("div", "ve-rm-room" + (room ? "" : " un"), room ? veEsc(room) : "Unassigned"); rl.style.top = top + "px"; rl.style.height = h + "px"; gut.appendChild(rl);
+        const rl = el("div", "ve-rm-room", veEsc(room)); rl.style.top = top + "px"; rl.style.height = h + "px"; gut.appendChild(rl);
         items.forEach((it) => {
-          const node = makeBlock(it, "h");
+          const node = makeBlock(it, "h"); node.dataset.room = room;
           node.classList.remove("clash");                           // same time / different room is fine here
           if (hasRoomClash(it)) node.classList.add("roomclash");    // only true room double-bookings warn
           node.style.left = "calc(" + ((it.a - veStart) / span * 100) + "% + 2px)";
@@ -371,12 +392,17 @@
   function renderRooms(head, body) {
     GEO = { mode: "rooms" };
     const DG = days(), ti = todayIdx(), span = veEnd - veStart, day = DG[veDayIdx];
-    const cols = veRooms.map((r) => ({ label: r, key: r })).concat([{ label: "Unassigned", key: "" }]);
+    const cols = veRooms.map((r) => ({ label: r, key: r }));
     const nc = cols.length;
     _roomCols = cols.map((c) => c.key);
+    if (!nc) {
+      GEO = { mode: "none" }; head.style.display = "none"; body.className = "ve-body ve-body-plain";
+      body.innerHTML = `<div class="ve-empty"><b>No rooms yet</b><p>Add your rooms with <b>⚙ Rooms</b>. Every class then gets a free room automatically, and you can move classes between rooms here.</p></div>`;
+      return;
+    }
 
     let rh = `<div class="ve-rhead"><div class="ve-rhead-sp"></div>`;
-    cols.forEach((c) => { rh += `<div class="ve-rh${c.key === "" ? " un" : ""}" style="width:${100 / nc}%">${veEsc(c.label)}</div>`; });
+    cols.forEach((c) => { rh += `<div class="ve-rh" style="width:${100 / nc}%">${veEsc(c.label)}</div>`; });
     rh += `</div>`;
     head.className = "ve-head ve-head-rooms";
     head.innerHTML = `<div class="ve-daytabs">${dayTabsHTML()}</div>` + rh;
@@ -391,10 +417,10 @@
     for (let h = veStart; h <= veEnd; h++) { const line = el("div", "ve-hline" + (h % 1 ? "" : " hr")); line.style.top = ((h - veStart) * HPX()) + "px"; canvas.appendChild(line); }
     for (let c = 0; c < nc; c++) { const col = el("div", "ve-col"); col.style.left = (c / nc * 100) + "%"; col.style.width = (100 / nc) + "%"; col.dataset.dayi = c; canvas.appendChild(col); }
     cols.forEach((c, ci) => {
-      const items = packLanes(veItems.filter((i) => i.day === day && (i.room || "") === c.key));
+      const items = packLanes(veItems.filter((i) => i.day === day && inRoom(i, c.key)));
       const nl = items.length ? items[0]._lanes : 1, laneW = (100 / nc) / nl;
       items.forEach((it) => {
-        const b = makeBlock(it, "v");
+        const b = makeBlock(it, "v"); b.dataset.room = c.key;
         b.classList.remove("clash");                           // same time / different room is fine here
         if (hasRoomClash(it)) b.classList.add("roomclash");
         b.style.left = (ci / nc * 100 + it._lane * laneW) + "%"; b.style.width = "calc(" + laneW + "% - 3px)";
@@ -562,15 +588,59 @@
   }
   function fmtHrs(h) { const r = Math.round(h * 10) / 10; return (Number.isInteger(r) ? r : r.toFixed(1)) + "h"; }
   function renderClashSummary() {
-    const e2 = document.getElementById("veClash"); if (!e2) return;
-    const pairs = [], rooms = veView === "rooms" || (veView === "week" && veRooms.length > 0);
-    for (let i = 0; i < veItems.length; i++) for (let j = i + 1; j < veItems.length; j++)
-      if (rooms ? roomClash(veItems[i], veItems[j]) : clashing(veItems[i], veItems[j])) pairs.push([veItems[i], veItems[j]]);
-    if (!pairs.length) { e2.className = "ve-clash ok"; e2.textContent = rooms ? "✓ No room double-bookings" : "✓ No clashes"; return; }
-    e2.className = "ve-clash warn";
-    const word = rooms ? "room double-booking" : "clash";
-    e2.textContent = `⚠ ${pairs.length} ${word}${pairs.length === 1 ? "" : rooms ? "s" : "es"} — ` +
-      pairs.slice(0, 3).map(([a, b]) => rooms ? `${a.day.slice(0, 3)} ${veEsc(a.room)}` : `${a.day.slice(0, 3)} ${nameOf(a.gi)}↔${nameOf(b.gi)}`).join(", ") + (pairs.length > 3 ? "…" : "");
+    const e2 = document.getElementById("veClash"); if (!e2 || drag) return;   // mid-drag a longer pill could reflow the header under the pointer
+    const { rooms, open, allowed, left } = clashState();
+    const word = rooms ? "room double-booking" : "clash", pl = (n, w, many) => `${n} ${w}${n === 1 ? "" : many}`;
+    const bits = [];
+    if (left.length) bits.push(`${pl(left.length, "class", "es")} without a room`);
+    if (open.length) bits.push(pl(open.length, word, rooms ? "s" : "es"));
+    e2.className = "ve-clash " + (bits.length ? "warn" : "ok");
+    e2.textContent = bits.length ? "⚠ " + bits.join(" · ") + " — review"
+      : (rooms ? "✓ No room double-bookings" : "✓ No clashes") + (allowed.length ? ` (${allowed.length} allowed)` : "");
+    const act = bits.length > 0 || allowed.length > 0;
+    e2.classList.toggle("act", act); e2.tabIndex = act ? 0 : -1; e2.setAttribute("role", act ? "button" : "status");
+    e2.title = act ? "See them, allow a shared room, or pick another" : "";
+  }
+  function clashState() {
+    const rooms = veView === "rooms" || (veView === "week" && veRooms.length > 0), open = [], allowed = [];
+    for (let i = 0; i < veItems.length; i++) for (let j = i + 1; j < veItems.length; j++) {
+      const x = veItems[i], y = veItems[j];
+      if (rooms ? rawRoomClash(x, y) : rawClash(x, y)) (pairAccepted(x, y) ? allowed : open).push([x, y]);
+    }
+    return { rooms, open, allowed, left: unplaced() };
+  }
+  /* The list behind the clash pill: allow a shared room (the same agreement the Table uses),
+     or open a class to move it. */
+  function openClashList() {
+    const { rooms, open, allowed, left } = clashState();
+    if (!open.length && !allowed.length && !left.length) return;
+    const when = (it) => `${it.day.slice(0, 3)} ${fmt(it.a)}–${fmt(it.b)}`;
+    const where = ([x, y]) => rooms ? sharedRooms(x, y).join(", ") : (typeof clashReason === "function" ? clashReason(x, y) : "");
+    const pair = (p, i, ok) => `<div class="ve-cl-row"><div><b>${veEsc(nameOf(p[0].gi))} ↔ ${veEsc(nameOf(p[1].gi))}</b><span>${veEsc(p[0].day.slice(0, 3))} · ${veEsc(where(p))}</span></div>
+        <button type="button" class="btn btn-ghost btn-sm" data-edit="${i}" data-ok="${ok ? 1 : 0}">Move one</button>
+        <button type="button" class="btn ${ok ? "btn-ghost" : "btn-soft"} btn-sm" data-allow="${i}" data-ok="${ok ? 1 : 0}">${ok ? "Stop allowing" : rooms ? "Allow sharing" : "Allow"}</button></div>`;
+    let h = "";
+    if (left.length) h += `<h4>No free room</h4><p class="ve-muted">Every room is taken at these times. Pick a room — if it is in use, you can then allow the two classes to share it.</p>` +
+      left.map((it, i) => `<div class="ve-cl-row"><div><b>${veEsc(nameOf(it.gi))}</b><span>${veEsc(when(it))}</span></div><button type="button" class="btn btn-soft btn-sm" data-pick="${i}">Pick a room</button></div>`).join("");
+    if (open.length) h += `<h4>${rooms ? "Same room, same time" : "Clashes"}</h4>` + open.map((p, i) => pair(p, i, false)).join("");
+    if (allowed.length) h += `<h4>Allowed</h4>` + allowed.map((p, i) => pair(p, i, true)).join("");
+    const d = document.getElementById("veClashDlg"), body = document.getElementById("veClashBody");
+    body.innerHTML = h;
+    body.onclick = (ev) => {
+      const b = ev.target.closest("button"); if (!b) return;
+      if (b.dataset.pick != null) { d.close(); openForm(left[+b.dataset.pick]); return; }
+      const p = (b.dataset.ok === "1" ? allowed : open)[+(b.dataset.allow ?? b.dataset.edit)];
+      if (b.dataset.edit != null) { d.close(); openForm(p[1]); return; }
+      setAllowed(p, b.dataset.ok !== "1"); render(); openClashList();
+      if (!clashState().open.length && !unplaced().length && !clashState().allowed.length) d.close();
+    };
+    if (!d.open) d.showModal ? d.showModal() : (d.open = true);
+  }
+  function setAllowed([x, y], on) {
+    if (typeof acceptedClashes !== "function" || typeof _setAcceptedClashes !== "function") return;
+    const s = acceptedClashes(), k = clashKey(x.day, groups[x.gi].name, groups[y.gi].name);
+    on ? s.add(k) : s.delete(k); _setAcceptedClashes(s);
+    if (typeof refreshClashes === "function") refreshClashes();
   }
 
   /* ---- geometry: pointer → (day, hour) for the current view ---- */
@@ -606,7 +676,7 @@
     e.stopPropagation();
     const hnd = e.target.closest(".ve-hnd");
     const mode = hnd ? (hnd.classList.contains("n") ? "t0" : "t1") : "move";
-    drag = { it, bEl, mode, grabH: evHour(e) - it.a, a0: it.a, b0: it.b, x0: e.clientX, y0: e.clientY, pre: snapshot(), ghost: bEl.style.cssText, view: veView };
+    drag = { it, bEl, mode, grabH: evHour(e) - it.a, a0: it.a, b0: it.b, x0: e.clientX, y0: e.clientY, pre: snapshot(), ghost: bEl.style.cssText, view: veView, fromRoom: bEl.dataset.room || "", room0: it.room };
     movedFlag = false;
     bEl.classList.add("dragging"); bEl.setPointerCapture?.(e.pointerId);
     document.addEventListener("pointermove", onMove);
@@ -623,7 +693,8 @@
       if (ma !== a) a = ma; else if (mb !== a + len) a = mb - len;
       a = Math.max(veStart, Math.min(veEnd - len, a));
       it.a = a; it.b = a + len;
-      if (GEO.mode === "rooms" || GEO.mode === "roomsgrid") it.room = evRoom(e);   // drag between rooms reassigns
+      const to = (GEO.mode === "rooms" || GEO.mode === "roomsgrid") && drag.fromRoom ? evRoom(e) : "";
+      if (to) it.room = [...new Set(splitRooms(drag.room0).map((r) => (r === drag.fromRoom ? to : r)))].join(", ");   // drag between rooms reassigns that one
     } else if (drag.mode === "t0") {
       it.a = Math.max(veStart, Math.min(it.b - MIN_LEN, magnet(evHour(e), it.day, it)));
     } else {
@@ -679,11 +750,12 @@
     document.getElementById("veTo").value = fmt(v.b);
     document.getElementById("veTeacher").value = v.teacher || "";
     if (typeof fillPeopleOptions === "function") fillPeopleOptions();
-    const rsel = document.getElementById("veRoom");
-    const vroom = (v.room || "");
-    const opts = [""].concat(veRooms);
-    if (vroom && !opts.includes(vroom)) opts.push(vroom);
-    rsel.innerHTML = opts.map((r) => `<option value="${veEsc(r)}"${r === vroom ? " selected" : ""}>${r ? veEsc(r) : "— none —"}</option>`).join("");
+    const have = splitRooms(v.room), opts = veRooms.concat(have.filter((r) => !veRooms.includes(r)));
+    const fill = (id, cur, none) => { document.getElementById(id).innerHTML = [""].concat(opts).map((r) => `<option value="${veEsc(r)}"${r === cur ? " selected" : ""}>${r ? veEsc(r) : none}</option>`).join(""); };
+    fill("veRoom", have[0] || "", veRooms.length ? "Auto — a free room" : "— none —");
+    fill("veRoom2", have[1] || "", "— none —");
+    document.getElementById("veRoom2Wrap").hidden = !opts.length;
+    dlg._extraRooms = have.slice(2);
     const sw = document.getElementById("veSwatches");
     sw.innerHTML = COLORS.map((c) => `<button type="button" data-c="${c}" style="background:${c}" aria-label="${c}"></button>`).join("");
     markSwatch(colorFor(+gsel.value));
@@ -711,7 +783,13 @@
     if (b == null || b <= a) b = a + 1;
     const editing = dlg._it;
     if (veItems.some((o) => o !== editing && o.gi === gi && o.day === day)) return err(nameOf(gi) + " already has a class on " + day + ".");
-    const room = (document.getElementById("veRoom").value || "").trim();
+    let rs = [...new Set([document.getElementById("veRoom").value, document.getElementById("veRoom2").value].map((x) => (x || "").trim()).filter(Boolean).concat(dlg._extraRooms || []))];
+    if (!rs.length && veRooms.length) {   // no room picked: take a free one, or say none is free
+      const free = freeRooms({ gi, day, a, b }, editing);
+      if (!free.length) return err(`No room is free on ${day} at ${fmt(a)}. Pick one — if it is in use, you can then allow the two classes to share it.`);
+      rs = [free[0]];
+    }
+    const room = rs.join(", ");
     const teacher = (document.getElementById("veTeacher").value || "").trim().slice(0, 80);
     pushUndo();
     const chosen = document.querySelector('#veSwatches button[aria-pressed="true"]');
@@ -730,6 +808,7 @@
   /* ---- commit back to groups ---- */
   async function veSave() {
     const DG = days();
+    if (unplaced().length) { veToast("Some classes have no free room — pick one for each first"); openClashList(); return; }
     (groups || []).forEach((g, gi) => {
       g.schedule = veItems.filter((i) => i.gi === gi)
         .sort((x, y) => DG.indexOf(x.day) - DG.indexOf(y.day))
@@ -747,6 +826,8 @@
     veItems = buildItems();
     winAuto = true; undoStack.length = 0; redoStack.length = 0; veDayIdx = todayIdx();
     loadRooms();
+    const placed = autoAssignRooms();
+    if (placed && typeof toast === "function") toast(`Gave ${placed} class${placed === 1 ? "" : "es"} a free room — Close to discard`);
     loadPrefs();
     [veStart, veEnd] = computeWindow();
     let ov = document.getElementById("veOverlay");
@@ -758,7 +839,7 @@
   function closeEditor() {
     // close any open <dialog> first — a modal dialog left open keeps its backdrop
     // in the browser's top layer and freezes the whole page even once the overlay hides.
-    ["veForm", "veRoomsDlg"].forEach((id) => { const d = document.getElementById(id); if (d && d.open) { try { d.close(); } catch (e) {} } });
+    ["veForm", "veRoomsDlg", "veClashDlg"].forEach((id) => { const d = document.getElementById(id); if (d && d.open) { try { d.close(); } catch (e) {} } });
     document.removeEventListener("pointermove", onMove);   // drop any interrupted drag
     document.removeEventListener("pointerup", onUp);
     drag = null; dropFeedback();
@@ -766,11 +847,12 @@
     document.body.classList.remove("ve-lock");
     document.removeEventListener("keydown", onKey);
   }
-  function anyDlgOpen() { return ["veForm", "veRoomsDlg"].some((id) => { const d = document.getElementById(id); return d && d.open; }); }
+  function anyDlgOpen() { return ["veForm", "veRoomsDlg", "veClashDlg"].some((id) => { const d = document.getElementById(id); return d && d.open; }); }
   function onKey(e) {
     if (e.key === "Escape") {
       const f = document.getElementById("veForm"); if (f && f.open) { closeForm(); return; }
       const rd = document.getElementById("veRoomsDlg"); if (rd && rd.open) { rd.close ? rd.close() : (rd.open = false); return; }
+      const cd = document.getElementById("veClashDlg"); if (cd && cd.open) { cd.close(); return; }
       closeEditor(); return;
     }
     const k = e.key.toLowerCase();
@@ -832,6 +914,7 @@
             <label class="ve-f">Day<select id="veDay"></select></label>
             <label class="ve-f">Room<select id="veRoom"></select></label>
           </div>
+          <label class="ve-f" id="veRoom2Wrap">Also uses room<select id="veRoom2"></select></label>
           <div class="ve-f2">
             <label class="ve-f">From<input id="veFrom" list="timeOptions" placeholder="3:00pm"></label>
             <label class="ve-f">To<input id="veTo" list="timeOptions" placeholder="4:30pm"></label>
@@ -848,10 +931,15 @@
       </dialog>
       <dialog class="ve-dlg" id="veRoomsDlg">
         <h3>Rooms</h3>
-        <p class="ve-muted" style="margin:-6px 0 10px">Organise classes by room (VE only — doesn't change how schedules are sent). Deleting a room un-assigns its classes.</p>
+        <p class="ve-muted" style="margin:-6px 0 10px">Every class gets a room — classes without one get a free room automatically. Deleting a room moves its classes to another free room.</p>
         <div id="veRoomsList"></div>
         <button type="button" class="btn btn-soft btn-sm" id="veRoomAdd" style="margin-top:4px">+ Add room</button>
         <div class="ve-dlg-actions"><button type="button" class="btn btn-primary btn-sm" id="veRoomsClose">Done</button></div>
+      </dialog>
+      <dialog class="ve-dlg ve-cl-dlg" id="veClashDlg">
+        <h3>Check rooms and clashes</h3>
+        <div id="veClashBody"></div>
+        <div class="ve-dlg-actions"><button type="button" class="btn btn-primary btn-sm" id="veClashClose">Done</button></div>
       </dialog>`;
     ov.addEventListener("click", (e) => { if (e.target === ov) closeEditor(); });
     ov.querySelector("#veCloseBtn").onclick = closeEditor;
@@ -868,6 +956,9 @@
     ov.querySelector("#veCancel").onclick = closeForm;
     ov.querySelector("#veDelete").onclick = deleteForm;
     ov.querySelector("#veRoomsBtn").onclick = openRoomsManager;
+    const cp = ov.querySelector("#veClash");
+    cp.onclick = openClashList; cp.onkeydown = (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); openClashList(); } };
+    ov.querySelector("#veClashClose").onclick = () => ov.querySelector("#veClashDlg").close();
     ov.querySelector("#veZoomIn").onclick = () => zoomStep(1);
     ov.querySelector("#veZoomOut").onclick = () => zoomStep(-1);
     const sc = ov.querySelector(".ve-scroll");
@@ -877,7 +968,7 @@
     ov.querySelector("#veRoomAdd").onclick = roomAdd;
     ov.querySelector("#veRoomsClose").onclick = () => { const d = document.getElementById("veRoomsDlg"); d.close ? d.close() : (d.open = false); };
     // light-dismiss: clicking the dim backdrop of a dialog closes just that dialog
-    ["veForm", "veRoomsDlg"].forEach((id) => {
+    ["veForm", "veRoomsDlg", "veClashDlg"].forEach((id) => {
       const d = ov.querySelector("#" + id);
       d.addEventListener("click", (e) => {
         const r = d.getBoundingClientRect();
@@ -898,14 +989,15 @@
       const inp = el("input"); inp.value = name; inp.className = "ve-roomname"; inp.setAttribute("aria-label", "Room name");
       inp.onchange = () => roomRename(i, inp.value);
       const del = el("button", "ve-roomdel", "✕"); del.type = "button"; del.title = "Delete room"; del.onclick = () => roomDelete(i);
-      const used = veItems.filter((it) => it.room === name).length;
+      const used = veItems.filter((it) => inRoom(it, name)).length;
       const cnt = el("span", "ve-roomcnt", used ? `${used} class${used === 1 ? "" : "es"}` : "unused");
       row.append(inp, cnt, del); wrap.appendChild(row);
     });
   }
   function roomAdd() {
     let n = 1; while (veRooms.includes("Room " + n)) n++;
-    veRooms.push("Room " + n); persistRooms(); renderRoomsList(); render();
+    if (unplaced().length || !veRooms.length) pushUndo();
+    veRooms.push("Room " + n); persistRooms(); autoAssignRooms(); renderRoomsList(); render();
   }
   function roomRename(i, raw) {
     const name = (raw || "").trim(); const old = veRooms[i];
@@ -914,15 +1006,17 @@
     if (veRooms.some((r, j) => j !== i && r === name)) { veToast("A room called “" + name + "” already exists"); renderRoomsList(); return; }
     pushUndo();
     veRooms[i] = name;
-    veItems.forEach((it) => { if (it.room === old) it.room = name; });
+    veItems.forEach((it) => { if (inRoom(it, old)) it.room = splitRooms(it.room).map((r) => (r === old ? name : r)).join(", "); });
     persistRooms(); renderRoomsList(); render();
   }
   function roomDelete(i) {
     const name = veRooms[i];
     pushUndo();
     veRooms.splice(i, 1);
-    veItems.forEach((it) => { if (it.room === name) it.room = ""; });   // un-assign, keep the class
+    veItems.forEach((it) => { if (inRoom(it, name)) it.room = splitRooms(it.room).filter((r) => r !== name).join(", "); });
+    autoAssignRooms();                      // its classes move to another free room
     persistRooms(); renderRoomsList(); render();
+    if (unplaced().length) veToast("Some classes have no free room now — use the warning at the top to pick one");
   }
 
   function veToast(m) { if (typeof toast === "function") toast(m, "err"); }
@@ -935,6 +1029,8 @@
     console.assert(Math.abs(snap(9.1) - 9) < 1e-9 && Math.abs(snap(9.2) - 9.25) < 1e-9, "snap");
     console.assert(overlaps({ day: "Monday", a: 15, b: 16 }, { day: "Monday", a: 15.5, b: 17 }), "overlap");
     console.assert(!overlaps({ day: "Monday", a: 15, b: 16 }, { day: "Tuesday", a: 15, b: 16 }), "no overlap cross-day");
+    console.assert(splitRooms(" Lab 1, ,Lab 2 ").join("|") === "Lab 1|Lab 2", "splitRooms");
+    console.assert(sharedRooms({ room: "Lab 1, Lab 2" }, { room: "Lab 2" }).join() === "Lab 2", "sharedRooms");
   }
   try { selfCheck(); } catch (e) {}
 

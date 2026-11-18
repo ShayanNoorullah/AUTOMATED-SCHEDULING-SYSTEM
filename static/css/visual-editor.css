@@ -136,7 +136,6 @@ body.ve-lock{ overflow:hidden; }
 .ve-rm-day.today{ background:color-mix(in srgb,var(--accent) 8%,transparent); }
 .ve-rm-room{ position:absolute; left:var(--ve-rm-dayw); right:0; display:flex; align-items:center; padding:0 10px;
   font-weight:650; font-size:.76rem; color:var(--text); border-top:1px solid color-mix(in srgb,var(--border) 50%,transparent); }
-.ve-rm-room.un{ color:var(--text-muted); font-style:italic; }
 .ve-rm-sub{ position:absolute; left:0; right:0; border-top:1px solid color-mix(in srgb,var(--border) 45%,transparent); }
 .ve-rm-sub.alt{ background:color-mix(in srgb,var(--text) 2.5%,transparent); }
 .ve-rm-daysep{ position:absolute; left:0; right:0; border-top:2px solid color-mix(in srgb,var(--border) 85%,transparent); pointer-events:none; z-index:1; }
@@ -157,7 +156,6 @@ body.ve-lock{ overflow:hidden; }
 .ve-rhead{ display:flex; margin-top:8px; }
 .ve-rhead-sp{ width:var(--ve-gutter,58px); flex:none; }
 .ve-rh{ flex:none; text-align:center; padding:7px 4px; font-weight:750; font-size:.82rem; border-left:1px solid var(--border); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-.ve-rh.un{ color:var(--text-muted); font-style:italic; }
 .ve-block.roomclash{ outline:2px solid var(--danger,#c0392b); outline-offset:-2px; box-shadow:0 0 0 3px color-mix(in srgb,var(--danger,#c0392b) 30%,transparent); }
 
 /* ── rooms manager dialog ── */
@@ -198,7 +196,7 @@ body.ve-lock{ overflow:hidden; }
 .ve-lg i{ width:13px; height:13px; border-radius:3px; }
 .ve-muted{ color:var(--text-muted); font-size:.82rem; }
 
-.ve-dlg{ border:1px solid var(--border); border-radius:var(--r-lg,14px); background:var(--surface); color:var(--text); padding:20px; width:min(380px,92vw); box-shadow:var(--shadow-lg); }
+.ve-dlg{ margin:auto; border:1px solid var(--border); border-radius:var(--r-lg,14px); background:var(--surface); color:var(--text); padding:20px; width:min(380px,92vw); box-shadow:var(--shadow-lg); }
 .ve-dlg::backdrop{ background:rgba(10,15,30,.5); }
 .ve-dlg h3{ margin:0 0 14px; font-size:1.1rem; font-weight:800; }
 .ve-f{ display:flex; flex-direction:column; gap:5px; font-size:.78rem; font-weight:650; color:var(--text-muted); margin-bottom:12px; }
@@ -272,3 +270,17 @@ body.ve-lock{ overflow:hidden; }
   .ve-block.h .ve-hnd.n{ left:-4px; } .ve-block.h .ve-hnd.s{ right:-4px; }
 }
 @media print{ .ve-minimap,.ve-zoom{ display:none !important; } }
+
+/* rooms: clash list, empty Rooms view */
+.ve-clash.act{ cursor:pointer; }
+.ve-clash.act:hover,.ve-clash.act:focus-visible{ filter:brightness(.95); outline:2px solid currentColor; outline-offset:1px; }
+.ve-cl-dlg{ width:min(520px,calc(100vw - 32px)); }
+.ve-cl-dlg h4{ margin:14px 0 6px; font-size:.74rem; text-transform:uppercase; letter-spacing:.04em; color:var(--text-muted); }
+.ve-cl-dlg h4:first-child{ margin-top:0; }
+.ve-cl-dlg .ve-muted{ margin:0 0 6px; font-size:.82rem; }
+.ve-cl-row{ display:flex; align-items:center; gap:8px; padding:7px 0; border-bottom:1px solid var(--border); }
+.ve-cl-row > div{ flex:1; min-width:0; display:flex; flex-direction:column; }
+.ve-cl-row span{ font-size:.8rem; color:var(--text-muted); }
+.ve-empty{ max-width:420px; margin:48px auto; text-align:center; color:var(--text-muted); }
+.ve-empty b{ color:var(--text); }
+@media (max-width:560px){ .ve-cl-row{ flex-wrap:wrap; } .ve-cl-row > div{ flex-basis:100%; } }

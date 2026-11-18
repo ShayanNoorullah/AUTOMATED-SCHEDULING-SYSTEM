@@ -2,14 +2,31 @@
 
 Audit date: 2026-11-16. Scope: everything under `templates/user/` plus the CSS/JS it loads.
 
-**Status (2026-11-18):** Phases 1–11 and the assistant's local fallback are deployed
-(Phase 11 is commit `6aba167`); Phase 12 below is built but not yet deployed. With it,
-every item in this plan is built. The assistant currently answers from the local model only
+**Status (2026-11-18):** Phases 1–12 and the assistant's local fallback are deployed
+(Phase 12 is commit `74b291b`), so every item in this plan is built and live. The assistant currently answers from the local model only
 (`qwen2.5:7b` in the `ollama` service), because no hosted provider key has been entered
 yet; once one is added it becomes primary and the local model is the fallback. The
 assistant has never talked to a real hosted provider — see "Before first use" below.
 
-- **Phase 12** (2026-11-18, not yet deployed) — done:
+- **Rooms in the Visual Editor** (2026-11-18, deployed) — done:
+  - No "Unassigned" row or column. Once rooms exist, every class has one: on opening the
+    editor, adding a class with Room set to "Auto", or deleting a room, a class without a
+    room gets a free one (the room its group uses most first). If no room is free at that
+    time, the warning at the top says so, and Save is held until each such class has a room.
+  - A class can use two rooms ("Also uses room" in the class form). It is stored as
+    "Lab 1, Lab 2" in the same `room` field, so nothing else changes; it shows in both rooms,
+    and dragging it out of one room swaps only that room. The Table's clash rule treats
+    sharing any one of the rooms as "same room".
+  - Two classes may share a room at the same time if you allow it: the warning at the top
+    opens a list where each double-booking can be allowed (or moved). This uses the same
+    agreed-clash list as the Table, so allowing it in either place clears both.
+  - Fixes: the Visual Editor's dialogs now open centred; the warning no longer changes
+    size mid-drag (that shifted rows under the pointer and dropped classes in the wrong row).
+  - Schedule image sent on WhatsApp: each day column is now as wide as its longest time
+    ("12:00pm–1:30pm" used to run into the next day), and the group column fits the longest
+    name up to a cap. `_build_schedule_image` in `app/routes/poc_routes.py`.
+
+- **Phase 12** (2026-11-18, deployed as `74b291b`) — done:
   - Who has seen a send: in Send History, every message delivered to a group has a
     "Seen by…" button. It lists the group's members as replied or reacted / read /
     received / not received yet, with a ring showing how many have seen it, and can copy

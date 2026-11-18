@@ -512,19 +512,25 @@ def _build_schedule_image(uid):
     if not used or not rows:
         return None
     S = 2  # render at 2x so WhatsApp's downscale stays crisp
-    pad, name_w, day_w, row_h, head_h, title_h = 28 * S, 156 * S, 104 * S, 40 * S, 44 * S, 76 * S
-    W = pad * 2 + name_w + day_w * len(used)
-    H = pad * 2 + title_h + head_h + row_h * len(rows)
+    pad, row_h, head_h, title_h, gap = 28 * S, 40 * S, 44 * S, 76 * S, 14 * S
     TEAL, INK, MUTE, LINE, DASH, WHITE = (13, 148, 136), (15, 23, 42), (100, 116, 139), (229, 231, 235), (203, 213, 225), (255, 255, 255)
-    img = Image.new("RGB", (W, H), WHITE)
-    dr = ImageDraw.Draw(img)
     f_title, f_sub = _tt_font(28 * S, True), _tt_font(13 * S)
     f_head, f_name, f_cell = _tt_font(13 * S, True), _tt_font(13 * S, True), _tt_font(13 * S)
+    tw = lambda t, f: f.getbbox(t)[2] - f.getbbox(t)[0]
+    # every column as wide as its longest text, so a range like "12:00pm–1:30pm" never runs
+    # into the next day; group names are capped and shortened with "…"
+    name_w = max(120 * S, min(220 * S, max(tw(n, f_name) for n, _ in rows) + 2 * gap))
+    day_ws = [max(84 * S, tw(d[:3], f_head) + 2 * gap, max(tw(r[1][i], f_cell) for r in rows) + 2 * gap) for i, d in enumerate(used)]
+    xs = [pad + name_w + sum(day_ws[:i]) for i in range(len(used) + 1)]   # left edge of each day column
+    W = max(xs[-1] + pad, pad * 2 + 360 * S)
+    H = pad * 2 + title_h + head_h + row_h * len(rows)
+    img = Image.new("RGB", (W, H), WHITE)
+    dr = ImageDraw.Draw(img)
 
     def draw(text, x, y, w, h, font, fill, align="c"):
         bb = dr.textbbox((0, 0), text, font=font)
         tw = bb[2] - bb[0]
-        ox = 10 * S if align == "l" else (w - tw) / 2
+        ox = gap if align == "l" else (w - tw) / 2
         dr.text((x + ox, y + (h - (bb[3] - bb[1])) / 2 - bb[1]), text, font=font, fill=fill)
 
     dr.text((pad, pad), "Weekly Schedule", font=f_title, fill=INK)
@@ -532,27 +538,27 @@ def _build_schedule_image(uid):
             f"{total} class time{'' if total == 1 else 's'} · {datetime.utcnow().strftime('%d %b %Y')}",
             font=f_sub, fill=MUTE)
     y0 = pad + title_h
-    dr.rectangle([pad, y0, W - pad, y0 + head_h], fill=TEAL)
+    R = xs[-1]   # right edge of the table
+    dr.rectangle([pad, y0, R, y0 + head_h], fill=TEAL)
     draw("Group", pad, y0, name_w, head_h, f_head, WHITE, "l")
     for i, d in enumerate(used):
-        draw(d[:3], pad + name_w + i * day_w, y0, day_w, head_h, f_head, WHITE)
+        draw(d[:3], xs[i], y0, day_ws[i], head_h, f_head, WHITE)
     y = y0 + head_h
     for ri, (name, cells) in enumerate(rows):
         if ri % 2:
-            dr.rectangle([pad, y, W - pad, y + row_h], fill=(248, 250, 252))
+            dr.rectangle([pad, y, R, y + row_h], fill=(248, 250, 252))
         nm = name
-        while nm and dr.textbbox((0, 0), nm, font=f_name)[2] > name_w - 20 * S:
+        while nm and dr.textbbox((0, 0), nm, font=f_name)[2] > name_w - 2 * gap:
             nm = nm[:-1]
         if nm != name:
             nm = nm[:-1] + "…"
         draw(nm, pad, y, name_w, row_h, f_name, INK, "l")
         for i, c in enumerate(cells):
-            draw(c, pad + name_w + i * day_w, y, day_w, row_h, f_cell, INK if c != "—" else DASH)
-        dr.line([pad, y, W - pad, y], fill=LINE, width=1)
+            draw(c, xs[i], y, day_ws[i], row_h, f_cell, INK if c != "—" else DASH)
+        dr.line([pad, y, R, y], fill=LINE, width=1)
         y += row_h
-    dr.rectangle([pad, y0, W - pad, y], outline=LINE, width=S)
-    for i in range(len(used) + 1):
-        x = pad + name_w + i * day_w if i else pad + name_w
+    dr.rectangle([pad, y0, R, y], outline=LINE, width=S)
+    for x in xs:
         dr.line([x, y0, x, y], fill=LINE, width=1)
     out = BytesIO()
     img.save(out, "PNG")
