@@ -724,7 +724,8 @@
     const day = evDay(e); if (!day) return;
     const a = Math.max(veStart, Math.min(veEnd - 1, evHour(e)));
     const preset = { day, a, b: Math.min(veEnd, a + 1), room: (GEO.mode === "rooms" || GEO.mode === "roomsgrid") ? evRoom(e) : "" };
-    if (e.pointerType !== "touch") { openForm(null, preset); return; }
+    // open on release, not press: a dialog opened on press puts the release on its backdrop,
+    // and the browser then sends the click to the overlay, which closes the editor
     const x0 = e.clientX, y0 = e.clientY;
     const end = (u) => {
       removeEventListener("pointerup", end); removeEventListener("pointercancel", end);
@@ -941,7 +942,9 @@
         <div id="veClashBody"></div>
         <div class="ve-dlg-actions"><button type="button" class="btn btn-primary btn-sm" id="veClashClose">Done</button></div>
       </dialog>`;
-    ov.addEventListener("click", (e) => { if (e.target === ov) closeEditor(); });
+    // close only on a click that both starts and ends on the dim area around the panel
+    ov.addEventListener("pointerdown", (e) => { ov._downSelf = e.target === ov; });
+    ov.addEventListener("click", (e) => { if (e.target === ov && ov._downSelf) closeEditor(); });
     ov.querySelector("#veCloseBtn").onclick = closeEditor;
     ov.querySelector("#veSaveBtn").onclick = veSave;
     ov.querySelector("#veUndoBtn").onclick = veUndo;
